@@ -1,0 +1,21 @@
+{
+    "name": "punyts-monorepo",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "build": "npm run build --workspaces",
+        "test": "npm run test --workspaces",
+        "build:core": "npm run build --workspace=@punyts/core",
+        "build:state": "npm run build --workspace=@punyts/state",
+        "build:expression": "npm run build --workspace=@punyts/expression",
+        "build:stateui": "npm run build --workspace=@punyts/stateui",
+        "build:example": "npm run build --workspace=@punyts/example"
+    },
+    "workspaces": [
+        "core",
+        "expression",
+        "state",
+        "stateui",
+        "example"
+    ]
+}
