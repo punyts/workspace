@@ -24,10 +24,14 @@
         "vite": "8.1.5"
     },
     "scripts": {
+        "setup": "bash bin/clone-repos.sh && npm install && npm run build && npx playwright install chromium chromium-headless-shell",
         "clone": "bash bin/clone-repos.sh",
         "build": "bash bin/run-all.sh build && npm run build:runtime-bundle -w @punyts/stateui-app",
         "test": "bash bin/run-all.sh test",
         "typecheck": "bash bin/run-all.sh typecheck",
-        "status": "bash bin/status.sh"
+        "status": "bash bin/status.sh",
+        "mcp": "npm run start -w @punyts/stateui-mcp",
+        "mcp:stdio": "npm run start -w @punyts/stateui-mcp -- --stdio",
+        "mcp:build": "bash bin/run-all.sh build core expression state state-sync stateui stateui-app stateui-components stateui-mcp && npm run build:runtime-bundle -w @punyts/stateui-app"
     }
 }
