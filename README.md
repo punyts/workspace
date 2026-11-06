@@ -4,6 +4,9 @@ and listed in the npm `workspaces`, so the libraries install, build and test tog
 
 ## Setup
 
+You need Node 22 or later, npm and git; nothing else (the scripts are plain Node, so cmd, PowerShell, macOS and
+Linux all work).
+
 ```bash
 git clone -b develop https://github.com/punyts/workspace.git punyts
 cd punyts
@@ -24,7 +27,7 @@ npm run setup     # clone every library repo on develop, install, build, and ins
 | `npm run mcp` | Start the StateUI MCP server: apps at http://127.0.0.1:4100/, MCP at http://127.0.0.1:4100/mcp, data in `stateui-mcp/data` |
 | `npm run --silent mcp:stdio` | The same server, also speaking MCP on stdio, for a client that starts it (`--silent` keeps npm's output off stdout) |
 | `npm run status` | Branch, changed files and unpushed commits of the workspace and each library repo |
-| `bash bin/run-all.sh <script> [library...]` | One npm script in the libraries that have it; stops at the first failure |
+| `node bin/workspace.mjs run <script> [library...]` | One npm script in the libraries that have it; stops at the first failure |
 
 Browser tests run per library: `npm run test:browser -w @punyts/stateui-components`.
 
@@ -51,4 +54,4 @@ there.
 ## stateui-3d
 
 `stateui-3d` (graphics epic 3, `github.com/punyts/stateui-3d`) has no `package.json` until story G3.2, so it is not in
-`bin/repos.sh` or the npm `workspaces` yet: clone it by hand (`git clone -b develop https://github.com/punyts/stateui-3d.git`).
+the npm `workspaces` (the repo list) yet: clone it by hand (`git clone -b develop https://github.com/punyts/stateui-3d.git`).

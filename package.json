@@ -2,7 +2,7 @@
     "name": "punyts",
     "version": "1.0.0",
     "private": true,
-    "description": "The development workspace for the punyts system: each library is its own repo, cloned here by bin/clone-repos.sh",
+    "description": "The development workspace for the punyts system: each library is its own repo, cloned here by bin/workspace.mjs",
     "workspaces": [
         "core",
         "expression",
@@ -24,14 +24,14 @@
         "vite": "8.1.5"
     },
     "scripts": {
-        "setup": "bash bin/clone-repos.sh && npm install && npm run build && npx playwright install chromium chromium-headless-shell",
-        "clone": "bash bin/clone-repos.sh",
-        "build": "bash bin/run-all.sh build && npm run build:runtime-bundle -w @punyts/stateui-app",
-        "test": "bash bin/run-all.sh test",
-        "typecheck": "bash bin/run-all.sh typecheck",
-        "status": "bash bin/status.sh",
+        "setup": "node bin/workspace.mjs clone && npm install && npm run build && npx playwright install chromium chromium-headless-shell",
+        "clone": "node bin/workspace.mjs clone",
+        "build": "node bin/workspace.mjs run build && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "test": "node bin/workspace.mjs run test",
+        "typecheck": "node bin/workspace.mjs run typecheck",
+        "status": "node bin/workspace.mjs status",
         "mcp": "npm run start -w @punyts/stateui-mcp",
         "mcp:stdio": "npm run start -w @punyts/stateui-mcp -- --stdio",
-        "mcp:build": "bash bin/run-all.sh build core expression state state-sync stateui stateui-app stateui-components stateui-mcp && npm run build:runtime-bundle -w @punyts/stateui-app"
+        "mcp:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-app stateui-components stateui-mcp && npm run build:runtime-bundle -w @punyts/stateui-app"
     }
 }
