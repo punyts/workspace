@@ -50,5 +50,5 @@ there.
 
 ## stateui-3d
 
-`stateui-3d` (graphics epic 3) is a local repo until `github.com/punyts/stateui-3d` exists; it has no `package.json`
-until story G3.2, so it is not in `bin/repos.sh` or the npm `workspaces` yet.
+`stateui-3d` (graphics epic 3, `github.com/punyts/stateui-3d`) has no `package.json` until story G3.2, so it is not in
+`bin/repos.sh` or the npm `workspaces` yet: clone it by hand (`git clone -b develop https://github.com/punyts/stateui-3d.git`).
