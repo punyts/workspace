@@ -1,8 +1,16 @@
 node_modules/
 dist/
 coverage/
+# Each library is its own repo, cloned by bin/clone-repos.sh
 core/
-example/
 expression/
 state/
+state-sync/
+state-react/
+statenet/
 stateui/
+stateui-app/
+stateui-components/
+stateui-mcp/
+stateui-3d/
+example/

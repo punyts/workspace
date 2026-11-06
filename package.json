@@ -1,21 +1,33 @@
 {
-    "name": "punyts-monorepo",
+    "name": "punyts",
     "version": "1.0.0",
     "private": true,
-    "scripts": {
-        "build": "npm run build --workspaces",
-        "test": "npm run test --workspaces",
-        "build:core": "npm run build --workspace=@punyts/core",
-        "build:state": "npm run build --workspace=@punyts/state",
-        "build:expression": "npm run build --workspace=@punyts/expression",
-        "build:stateui": "npm run build --workspace=@punyts/stateui",
-        "build:example": "npm run build --workspace=@punyts/example"
-    },
+    "description": "The development workspace for the punyts system: each library is its own repo, cloned here by bin/clone-repos.sh",
     "workspaces": [
         "core",
         "expression",
         "state",
+        "state-sync",
+        "state-react",
+        "statenet",
         "stateui",
+        "stateui-app",
+        "stateui-components",
+        "stateui-mcp",
         "example"
-    ]
+    ],
+    "overrides": {
+        "playwright": "1.61.1",
+        "playwright-core": "1.61.1",
+        "vitest": "4.1.10",
+        "@vitest/browser-playwright": "4.1.10",
+        "vite": "8.1.5"
+    },
+    "scripts": {
+        "clone": "bash bin/clone-repos.sh",
+        "build": "bash bin/run-all.sh build && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "test": "bash bin/run-all.sh test",
+        "typecheck": "bash bin/run-all.sh typecheck",
+        "status": "bash bin/status.sh"
+    }
 }
