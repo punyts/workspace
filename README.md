@@ -53,5 +53,7 @@ there.
 
 ## stateui-3d
 
-`stateui-3d` (graphics epic 3, `github.com/punyts/stateui-3d`) has no `package.json` until story G3.2, so it is not in
-the npm `workspaces` (the repo list) yet: clone it by hand (`git clone -b develop https://github.com/punyts/stateui-3d.git`).
+`stateui-3d` (graphics epic 3, `github.com/punyts/stateui-3d`) is in the npm `workspaces` since story G3.2. It depends
+on no other punyts library, so it builds early, and `stateui-mcp` takes it as an optional dependency (from G3.3 the server serves
+its runtime chunk, `stateui-3d/dist/runtime-chunk/`), so `npm run mcp:build` builds it too. It brings `three` into
+the workspace lockfile.
