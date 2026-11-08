@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "mcp"],
       "port": 4100
+    },
+    {
+      "name": "example",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@punyts/example", "--", "--port", "5173", "--strictPort"],
+      "port": 5173
     }
   ]
 }
