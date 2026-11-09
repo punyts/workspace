@@ -1,0 +1,251 @@
+# Magnetic v1: an AI app builder you can hand out as a link
+
+## Summary
+Magnetic is a web app where a person signs in with LinkedIn, describes an app in a chat box, and watches an agent build
+it as a live StateUI app. They can see the app's state, select components and change them by hand, drag new components
+in from the library, and share the result as a link that they can revoke.
+
+v1 has one goal: stand up a hosted server, post links on LinkedIn, and learn what people do with it.
+
+Magnetic is the first product on the statenet idea. The statenet holds logic, persistence, transport and the shared
+vocabulary (the taxonomy), and StateUI draws on top of it. A user owns their state, and sharing it is a grant they
+can revoke. v1 builds the smallest real version of each of those, so the later work extends it rather than replacing it.
+
+## What already exists
+Most of the server is built. Magnetic composes these pieces rather than writing new ones:
+
+| Need | Already in | Notes |
+|---|---|---|
+| Serve static files and the runtime | `stateui-mcp` `HttpServer` | The page and runtime are on two origins, and the app runs in a sandboxed frame |
+| Websocket sync, many views, offline queue | `state-sync` Full mode, `stateui-mcp` `AppAuthorities` | One authority per instance namespace `instances.<persona>.<ownerId>.<appId>` |
+| Server-side logic | `stateui-app` logic engine, run by each authority | Rules, machines, decision tables and expressions, with chain depth capped at 8 |
+| Coded logic kept to the host | `startServer` `logicFunctions` and `procedures` | Only the host can register them |
+| Building tools for an agent | `stateui-mcp` `createStateUiTools` (36 tools) | Parts, nodes, themes, data, logic, preview, screenshots and interaction |
+| Owners and personas | `createServices({ ownerId, dataDir })`, persona instances | One owner per server, and only the `default` persona exists so far (`runTarget.ts`, `FileUiInstanceRepository`) |
+| Persistence | File repositories, `statenet` `NamespaceStorage` port | A database adapter can replace the files later |
+| Drag mechanics | `stateui-components` `shared/drag`, `board`, `window`, drawing drag | Pointer threshold, hit columns, keyboard moves |
+| Component library | The catalog (`ui_components_search`, `ui_component_get`), the showcase | Has categories, summaries and examples |
+| A tree for the state view | The `tree` composite | Draws 10,000 nodes with a bounded number of slots |
+
+These pieces are new:
+- Multiple users.
+- Sign-in.
+- The Magnetic shell with its chat and agent.
+- The state view.
+- The editor overlay.
+- Grants and revocation.
+- Hosting with cost limits.
+
+## Decisions
+
+### One server, one process, files
+- A new repo, `punyts/magnetic`, holds the Magnetic server and the Magnetic client app. It depends on `stateui-mcp`
+  as a library, not as a separate process.
+- **One `Services` per user.** `createServices({ ownerId, dataDir: data/users/<userId> })` is created on a user's first
+  request and kept in a bounded cache, with idle ones closed. Each user's parts, instances, files and authorities stay
+  apart because each user has their own folder, so no repository needs a user filter.
+- Storage stays on files for v1. A single machine with a persistent volume is enough for the LinkedIn test. The storage
+  ports (`UiPartRepository`, `UiInstanceRepository`, `NamespaceStorage`) are where a database goes later.
+- The headless Chromium is shared, with one browser context per user, and pages are closed when idle. The agent
+  needs it for screenshots. A limit on open pages per user and in total keeps memory bounded.
+
+### Two origins, as today
+- `magnetic.<domain>` serves the shell, the sign-in pages and the API, and holds the session cookie.
+- `run.<domain>` serves only the runtime frame. User apps run there, in the sandboxed frame with no network, so an app
+  that someone else wrote can never read the session cookie.
+
+### Sign-in: LinkedIn first, any OpenID Connect provider later
+- LinkedIn's "Sign In with LinkedIn using OpenID Connect" product: the authorization code flow with PKCE and the
+  scopes `openid profile email`. The name, picture and email come from the ID token and the userinfo endpoint.
+- A generic OIDC client (`openid-client`) is configured per provider: issuer, client id, secret and scopes. Adding
+  Google or GitHub later is configuration plus a button.
+- **The identity is not the user.** An `identities` record maps `(provider, subject)` to a statenet user id, a UUID.
+  The user id is the owner of everything. A second provider can later be linked to the same user.
+- **Session.**
+  - A signed, `HttpOnly`, `Secure`, `SameSite=Lax` cookie on the shell origin, with a server-side session record.
+  - The websocket upgrade checks the cookie and the `Origin` header.
+  - Sign-out ends the session and closes that session's sockets.
+- **Authentication only.** Sign-in proves who someone is. What they can do is decided by the statenet's grants (below).
+- **A development sign-in.** When the server runs on a local development host, a `--dev-users` option lets you pick a
+  test user without LinkedIn, so tests and local runs never need real accounts.
+
+### Ownership and grants
+- Every namespace has an owner, the user id. The owner can do anything in it.
+- **A grant** gives another principal a right on an app: `view` (a live, read-only view), `use` (their own persona
+  instance of the app, so they can type into forms and keep their own data), or `remix` (copy it into their own parts).
+  The principal is a user id or `link`, meaning anyone with the link.
+- A shared link holds a random token that names the grant. Opening it as a signed-in user gives you a persona instance
+  (`use`) or a read-only view (`view`). Signing in is required for every grant in v1, so every visit has a user behind
+  it and the cost limits apply.
+- **A `use` grant needs more than one persona.** Today only `default` exists. M6 keys persona instances by the
+  viewer's user id: the instance key, the files under `personas/<userId>/`, and `runTarget`'s persona check. The
+  instance namespace `instances.<persona>.<ownerId>.<appId>` already has a place for it.
+- **Revoking is a change on the statenet.** The grant is removed, and every authority that serves that grant's
+  principals:
+  - closes their sockets with a new `revoked` error code;
+  - tells the client to scrub. The `state-sync` client, on `revoked`, deletes the namespace from its local store (the
+    confirmed state, pending changes and the document) and the app shows "This app is no longer shared with you".
+  - A client that was offline scrubs the next time it connects. Its `hello` is answered with `revoked`.
+- Copy-paste and screenshots are out of scope, as you said. A `remix` is a copy by design: revoking stops new remixes,
+  but the copies already made belong to whoever remixed them. Magnetic says so on the share dialog.
+
+### User logic: tables and expressions yes, code no
+- The logic of a document runs on the server in its authority, as it does today:
+  - rules
+  - machines
+  - decision tables (LUTs), including rows from data
+  - expressions (the `@punyts/expression` parser, never `eval`)
+
+  A user, or the agent working for them, writes all of it.
+- **Coded logic stays with the host.** `logicFunctions` (compute, expressions, effects) and `procedures` are registered
+  by Magnetic itself, never by a user. v1 registers none. A `call` or an effect with no registered function fails with
+  `logic.failed`, instead of being queued for an agent to answer.
+- **Limits per instance**, on top of the chain depth of 8:
+  - armed timers (`after`, `debounce`), at most 20;
+  - logic runs, at most 50 per second, with the extra runs failing;
+  - an expression iterator over at most 10,000 items;
+  - document and data limits, which already exist.
+
+  An instance that keeps hitting the limits is stopped and the owner sees why.
+- **Relaying changes outside (1.5)** uses effects. It becomes possible once Magnetic registers vetted effects, such as a
+  webhook to an allowed host. That is after v1.
+- **Later**, each user's authorities move to a worker thread, so a heavy chain from one user cannot stall the others.
+
+### The Magnetic shell
+One page, with three areas:
+
+```
+┌────────────────────────────────────────────────────────────┐
+│ app name ▾      [preview | state]            share  avatar │
+├────────────────────────────────────────────┬───────────────┤
+│                                            │ properties    │
+│         the app (runtime frame)            │ of the        │
+│         + editor overlay                   │ selected node │
+│                                            │               │
+├────────────────────────────────────────────┴───────────────┤
+│  [theme] [layout] [data] [logic] [screens]                 │
+│  ┌──────────────────────────────────────────────────┐      │
+│  │ describe a change…                           ⏎   │      │
+│  └──────────────────────────────────────────────────┘      │
+└────────────────────────────────────────────────────────────┘
+```
+
+- The shell is itself a StateUI app, running from the runtime bundle like any other. Magnetic dogfoods the components.
+- **The chat box** is a minimal text field. Above it are toggle buttons that pick which context goes into the prompt:
+  `theme`, `layout`, `data`, `logic`, and `screens`. A selected node is always included.
+- **The activity drawer** slides up from the chat box while the agent runs. It shows what the agent says and each tool
+  call (`ui_nodes_write` on the `home` screen, a screenshot, and so on), as one line each that you can open. It closes
+  4 seconds after the agent finishes, provided the pointer is not over it and nothing in it has focus. It can be
+  pinned open.
+
+### The agent
+- Runs on the server through the Claude API, with tool use, over the user's own `createStateUiTools`. The API key
+  never reaches the browser.
+- The model is Claude Sonnet 5.5 by default, for cost, and can be switched in configuration. Prompt caching covers the
+  system prompt, the instructions and the catalog, which are the same for every turn.
+- **The context toggles** add facts to the turn:
+  - **data:** the state outline (paths, types, record counts and a sample record per dataset), the bindings, and which
+    paths the logic reads and writes.
+  - **theme:** the token values.
+  - **layout:** the tree of the current screen.
+  - **logic:** the units and their triggers.
+- The agent and the person edit through the same tools, so there is one write path, one revision history and one undo
+  list. An agent write the person conflicts with is retried on the new revision.
+- A turn can be stopped from the drawer.
+
+### State is a first-class feature
+The state view is a peer of the preview, not a debug panel.
+- **The `state` tab** shows:
+  - **The hierarchy** as a diagram: `$.data` bindings, `$.app` nodes, screens and route. It is drawn with the `tree`
+    composite, with live values.
+  - **Who uses each path:** which logic units read or write it, and which nodes bind it.
+  - **Changes as they happen:** a change flashes its path, and a feed lists recent changes and the logic runs they
+    caused (`ui_logic_trace`).
+- **Selecting a path** shows its value, model and shape, and offers "ask the agent about this", which puts the path
+  into the chat context.
+- **The `data` toggle** shows the same diagram in a compact form above the chat box, so the person sees what the
+  agent will be told.
+- The state view only reads. Values are edited through the app, the properties panel or the agent.
+
+### The editor overlay
+- **It is an app of its own**, laid over the runtime frame in the shell page. It never runs inside the user's frame.
+  It talks to the frame through the existing message protocol, with these new messages (all checked by nonce):
+  - `nodeAt {x, y}` → the node path under a point;
+  - `nodeRects {paths}` → the boxes of nodes and of their layout slots;
+  - `highlight {path, mode}` → outline a node or show a layout's drop zones.
+
+  Edits go to the server through the same tools as the agent's (`ui_nodes_write`), never through the frame.
+- **Select.** Clicking in edit mode selects the node under the pointer. Breadcrumbs go up to its parents, and the
+  properties panel shows its properties from the catalog: content, layout, placement and theme overrides.
+- **The component library** is a panel of the catalog by category, searchable, with each entry's summary and example.
+  Dragging an entry, or a selected node, into the app:
+  - outlines the layout under the pointer;
+  - shows where it would land: the gap in a column or row, the cell of a grid, or the point of an `adhoc` layout;
+  - on drop, writes one `add` or `move` operation.
+
+  Escape cancels. The arrow keys with a modifier move a selected node within its parent, so the editor works without
+  a pointer.
+- **The drag code** reuses `shared/drag` (threshold and nearest box) and the drag-and-drop work in `board`.
+
+### Cost limits
+- Every user has a daily token budget for agent turns, and the server has a monthly cap across everyone. When a budget
+  runs out, the chat box says so and the rest of Magnetic keeps working.
+- **Sign-ups are limited:** at most N new users a day, and a waiting list after that. You can let people in from it by
+  hand.
+- An agent turn has a limit on tool calls and on wall-clock time.
+
+## Not in v1
+- Running user code, or any coded logic beyond what Magnetic registers.
+- Relaying changes to outside services (effects to external hosts).
+- Providers other than LinkedIn.
+- A database, and more than one server.
+- The statenet as a separate service between servers (the federation).
+- Extending another person's app through metadata, beyond `remix`.
+- Protection against copy-paste or screenshots.
+
+## Stages
+Each stage ends in something you can run and is committed on `develop`, like the Lumen stages.
+
+| Stage | Delivers | Depends on |
+|---|---|---|
+| M1 | Multi-user server: one `Services` per user, development sign-in, sessions, per-user websocket sync, logic limits, two origins | — |
+| M2 | LinkedIn sign-in through generic OIDC, identities mapped to user ids | M1 |
+| M3 | The Magnetic shell, the chat box with the context toggles, the server-side agent, the activity drawer, cost limits | M1 |
+| M4 | The state view: hierarchy diagram, who uses each path, change feed, the `data` toggle's facts | M3 |
+| M5 | The editor overlay: frame messages, select, properties panel, component library, drag and drop with layout highlight | M3 |
+| M6 | Persona instances per viewer, grants and links (`view`, `use`, `remix`), revoke with the `revoked` scrub in `state-sync` | M1, M2 |
+| M7 | Hosting: container with Chromium, TLS, the two domains, backups of the data volume, invite flow, then the LinkedIn post | all |
+
+M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
+
+## Checks
+- **M1:**
+  - Two test users never see each other's apps, files or state, whether through the API, the tools or the websocket.
+  - A socket without a session is refused.
+  - A rule that loops through a timer is stopped by the limits.
+- **M2:**
+  - The sign-in flow works against a mock OIDC provider in the tests.
+  - A LinkedIn test application signs in locally.
+- **M3:**
+  - An agent turn against a recorded API response writes nodes, the drawer shows the calls and closes after 4 s idle.
+  - A spent budget refuses a turn.
+- **M4:** The diagram shows the bindings and the paths that logic reads and writes, and a change flashes its path.
+- **M5:** Browser tests in the shell:
+  - selecting by click and by breadcrumb;
+  - dropping a library entry into a column, a grid cell and an `adhoc` layout;
+  - moving a node by keyboard;
+  - each of these as one `ui_nodes_write`.
+- **M6:**
+  - Revoking a `use` grant closes the viewer's socket and empties their local store.
+  - A viewer who was offline is scrubbed when they reconnect.
+  - A remix keeps working after the revoke.
+
+## Decisions needed from you
+1. **Hosting.** My recommendation is one small VM or a Fly.io machine with a persistent volume, behind Caddy for TLS.
+   Which provider, and which domain?
+2. **Storage.** My recommendation is files for v1, with a nightly backup of the volume. Is that enough, or do you want
+   Postgres from the start?
+3. **AI cost.** What daily budget per user, what monthly cap, and how many new users a day?
+4. **Links.** My recommendation is that the default share link is `use` with a "Remix" button, and that `view` and
+   `remix` can be chosen in the share dialog. Do you agree?
+5. **The model.** My recommendation is Sonnet 5.5 by default, for cost. Do you want Opus 5.5 for quality instead?
