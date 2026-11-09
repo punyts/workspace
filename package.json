@@ -35,7 +35,7 @@
         "mcp": "npm run start -w @punyts/stateui-mcp",
         "mcp:stdio": "npm run start -w @punyts/stateui-mcp -- --stdio",
         "mcp:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-3d stateui-app stateui-components stateui-mcp && npm run build:runtime-bundle -w @punyts/stateui-app",
-        "magnetic": "npm run start -w @punyts/magnetic -- --dev-user alice --dev-user bob",
+        "magnetic": "npm run start -w @punyts/magnetic -- --dev-user alice --dev-user bob --mock-provider",
         "magnetic:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-3d stateui-app stateui-components stateui-mcp magnetic && npm run build:runtime-bundle -w @punyts/stateui-app"
     }
 }

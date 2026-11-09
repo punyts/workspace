@@ -242,8 +242,9 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
 
 ### M1: the multi-user server
 - **Where it lives.**
-  - A new package, `magnetic/`, is in the npm `workspaces`. Its git repo is local; it has no GitHub remote yet.
-  - It runs with `npm run magnetic`: development users alice and bob, on port 4300.
+  - A new package, `magnetic/`, is in the npm `workspaces`.
+  - It runs with `npm run magnetic`: development users alice and bob, on port 4300. Its repo is
+    `github.com/punyts/magnetic`.
 - **stateui-mcp changes.**
   - `startHttpServer` takes a `tenant`: one owner, or a function that finds the owner of each request and can
     refuse it. A refused page request can be redirected.
@@ -274,6 +275,42 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   - **The runtime origin is still `http://<host>:<port>`.** Public HTTPS origins are M7.
   - **A flaky test.** stateui-mcp's showcase integration test timed out once under the load of the full run, and
     passed on its own.
+
+### M2: LinkedIn sign-in
+- **The flow.** `OidcSignIn` uses `openid-client` 6 for the authorization code flow, with state, nonce and PKCE
+  (S256). Each provider is configured with its issuer, client id, secret and scopes, and found by discovery.
+  `linkedInProvider(id, secret)` is LinkedIn's preset.
+- **Binding to the browser.**
+  - A sign-in in flight has a random key, held in the cookie `magnetic_signin` (`HttpOnly`, `SameSite=Lax`,
+    `Path=/auth`, 10 minutes).
+  - The state, nonce and verifier stay on the server under that key.
+  - The callback is accepted once, only from the browser that started it. This stops login CSRF.
+- **The ID token's signature is checked.** openid-client 6 does not check the signature of an ID token from the
+  token endpoint unless asked, as OIDC allows over TLS. Magnetic turns it on (`enableNonRepudiationChecks`), so the
+  token is checked against the provider's published keys, along with its issuer, audience, expiry and nonce. The
+  mock provider's test with a token signed by another key found this.
+- **The profile.** It comes from the ID token's claims and the userinfo endpoint:
+  - The name, or the given and family names.
+  - The email, unless `email_verified` is false.
+  - The picture, if it is HTTPS.
+- **Back to where they were.** A page request without a session goes to `/signin?next=<path>`, and every way of
+  signing in returns there. `safeNext` allows only plain paths of this server.
+- **Configuration.**
+  - LinkedIn comes from `MAGNETIC_LINKEDIN_CLIENT_ID` and `MAGNETIC_LINKEDIN_CLIENT_SECRET`. These are environment
+    variables only, so the secret stays out of the process list.
+  - `--public-origin` sets the redirect URIs, `<origin>/auth/<provider>/callback`. Cookies are `Secure` when the
+    public origin is HTTPS.
+- **A mock provider.** `--mock-provider`, on loopback only, runs an OIDC provider beside the server that signs anyone
+  in as a test person. `npm run magnetic` turns it on, so the whole redirect flow can be tried without LinkedIn. The
+  tests use the same provider.
+- **What building it found.**
+  - **LinkedIn does not advertise PKCE.** Its discovery document has no `code_challenge_methods_supported`. Magnetic
+    sends PKCE anyway, as designed. If LinkedIn refuses the verifier, `MAGNETIC_LINKEDIN_PKCE=false` turns PKCE
+    off; the nonce still binds the code to the sign-in.
+  - **LinkedIn's subjects are pairwise.** A person's `sub` is different for each LinkedIn app. A new client id would
+    make every person a new user, so the client id must stay the same for the life of the server.
+  - **Not yet checked against real LinkedIn.** That needs a LinkedIn app with the "Sign In with LinkedIn using
+    OpenID Connect" product, and its redirect URI registered.
 
 ## Decisions needed from you
 1. **Hosting.** My recommendation is one small VM or a Fly.io machine with a persistent volume, behind Caddy for TLS.
