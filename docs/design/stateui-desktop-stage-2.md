@@ -99,3 +99,21 @@ and resized when it sits in an `adhoc` layout. Lumen's composed `appWindow` and 
   until then the preview reports `SUI-NODE-UNKNOWN`.
 - **Results.** stateui-components: 1524 unit and 1993 browser tests. Example: 126 tests, both documents valid, and
   the build. stateui-mcp: 1005 tests.
+
+### Fixed after stage 2
+- **A placement can name a height.** In stateui-app, a child of a `column`, `row` or `grid` takes `height` in its
+  placement: a length, a percentage, or `calc()`, `min()`, `max()` or `clamp()`, where viewport units are allowed
+  too. It sets `block-size`, and a child of a column with a height does not shrink. Lumen's surface takes
+  `calc(100dvh - 60px)` this way, so bootstrap no longer sizes it. Eight of Northwind's thirteen record views and
+  tables moved their heights into the document; the five left in bootstrap sit in tabs, a split pane or a composed
+  component, where a placement has no height.
+- **An `adhoc` area can clip.** The `adhoc` layout takes `clip: true`, which sets `overflow: clip` on the layout
+  host. Lumen's surface clips, so a window dragged low no longer covers the taskbar.
+- **A stale runtime bundle is named at start.** The runtime bundle's `manifest.json` lists the catalog components it
+  was built with. stateui-mcp compares that list with the catalog when it starts and stops with the missing names and
+  the command to rebuild, instead of a preview that reports `SUI-NODE-UNKNOWN`. A manifest from an older build has no
+  list and is not checked.
+- **A tree without a row draws its labels**, and Lumen's Open button reads the selection with `from` (see the stage 1
+  list).
+- **Results.** stateui-app: 1852 unit and 318 browser tests. stateui-components: 1524 unit and 1994 browser tests.
+  Example: 126 tests. stateui-mcp: 1008 tests.

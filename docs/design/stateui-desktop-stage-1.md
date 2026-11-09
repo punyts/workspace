@@ -61,20 +61,25 @@ The taskbar has a launcher menu, one button per open app (pressing it focuses or
 
 ## Found while building it
 These are the gaps in the libraries that building the desktop showed. Each has a fix or a workaround in place. The
-first three under "Fixed after stage 1" were closed in a second pass.
+three under "Fixed after stage 1" were closed in a second pass, and the rest after stage 2 (see the end of this list).
 
 - **A panel's content did not fill a fixed-height panel.** A `drawing` with a theme `height` of `100%` was drawn 0 px
   high. This is fixed in stateui-components: the panel's `.content` is now a flex column.
 - **No stacking order in placement.** This is fixed in stateui-app: `adhoc` takes `z` (an integer from 0 to 999), which
   sets `z-index`.
-- **A panel has no press event.** So focus on press is host code, a pointer down listener on each window.
-- **`on` values are literal.** A `{{ }}` in an `on` value is not evaluated. So the Open button writes `selected`, and
-  the rule turns it into an id with `fsPick($trigger, $.data.fs.selected)`.
+- **A panel has no press event.** So focus on press was host code, a pointer down listener on each window. Stage 2's
+  `window` raises `activate` on a press or when focus comes in, and the listener is gone.
+- **`on` values are literal.** A `{{ }}` in an `on` value is not evaluated. The Open button wrote `selected` and a
+  rule turned it into an id with `fsPick`. An `on` command already reads a value from a path with `from`, so the
+  button now writes `{ "command": "set", "target": "$.data.input.open", "from": "$.data.fs.selected" }` and `fsPick`
+  is gone.
 - **Rule inputs coalesce.** When one input is written several times in the same task, only the last write runs the
-  rule. Tests wait between writes. A user cannot press fast enough to hit this.
+  rule. This is by design: a rule answers the state, not each write, so it runs once per chain and reads the value
+  that is there. Tests wait between writes. A user cannot press fast enough to hit this.
 - **A field's `width` is in characters (`ch`), not pixels.** A width of 200 made a field 200 characters wide.
 - **A drawing gets its height from its theme** (`theme: { drawing: { height: '100%' } }`), not from a property.
-- **A `tree` needs a `row` template.** Without one, it draws no rows and reports no error.
+- **A `tree` needs a `row` template.** Without one, it drew no rows and reported no error. Its `row` now defaults
+  to a one-line `text` of the record's `label`.
 
 ### Fixed after stage 1
 - **A placement could not be linked.** It can now (stateui-app). A node sets `"<-placement": "<path>"` and is placed
