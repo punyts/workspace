@@ -20,8 +20,8 @@ copies no product's design.
 - **Stacking needs `z` (library change, stateui-app).** `adhoc` placement gains `z` (an integer 0 to 999), drawn as
   `z-index`. Without it the last window in the document always covers the others.
 - **Window state is data, the placement follows.** `$.data.desk.windows.<app>` holds `open`, `minimized`, `snap`
-  (`free`, `left`, `right`, `max`), the free geometry and `z`. Placement cannot link to data, so a host bridge writes
-  each window's `placement` from its record (a finding for later: links in `placement`). `hidden` links to data as usual.
+  (`free`, `left`, `right`, `max`), the free geometry and `z`. Each window links its `hidden` and its whole
+  `placement` (`"<-placement"`, a library change in stateui-app made while fixing the gaps below) to the derived state.
 - **Window actions are rules.** A press writes an input (`$.data.desk.input.open`, `.close`, `.focus`, `.minimize`,
   `.snap`); a rule sets `$.data.desk` to the result of an expression function (`deskOpen`, `deskClose`, ...) and clears
   the input, as Ridgeline does. Focusing a window gives it the highest `z` and renumbers the others, so `z` stays small.
@@ -49,7 +49,7 @@ The taskbar has a launcher menu, one button per open app (pressing it focuses or
 (a minute timer in the host writes `$.data.desk.clock`).
 
 ## Stages after this one
-2. Drag and resize windows (title bar drag, edge resize; written on release like 2D drag), and links in `placement`.
+2. Drag and resize windows (title bar drag, edge resize; written on release like 2D drag).
 3. `cameraView` and `audioRecorder` components feeding files into the file system; the runtime frame's
    `allow="camera; microphone"`.
 4. Several visible screens, if apps as composed components in one screen turn out to limit it.
@@ -60,23 +60,28 @@ The taskbar has a launcher menu, one button per open app (pressing it focuses or
 - `npm run validate` covers both documents; screenshots of the desktop at 1400 px.
 
 ## Found while building it
-These are the gaps in the libraries that building the desktop showed. Each has a fix or a workaround in place.
+These are the gaps in the libraries that building the desktop showed. Each has a fix or a workaround in place. The
+first three under "Fixed after stage 1" were closed in a second pass.
 
 - **A panel's content did not fill a fixed-height panel.** A `drawing` with a theme `height` of `100%` was drawn 0 px
   high. This is fixed in stateui-components: the panel's `.content` is now a flex column.
 - **No stacking order in placement.** This is fixed in stateui-app: `adhoc` takes `z` (an integer from 0 to 999), which
   sets `z-index`.
-- **A placement cannot be linked.** So a host bridge copies the derived placement onto each window. A linked
-  `placement` is planned for stage 2, together with dragging.
 - **A panel has no press event.** So focus on press is host code, a pointer down listener on each window.
 - **`on` values are literal.** A `{{ }}` in an `on` value is not evaluated. So the Open button writes `selected`, and
   the rule turns it into an id with `fsPick($trigger, $.data.fs.selected)`.
 - **Rule inputs coalesce.** When one input is written several times in the same task, only the last write runs the
   rule. Tests wait between writes. A user cannot press fast enough to hit this.
-- **A snapped or maximized window keeps the size of its content.** The panel gets bigger, but the lists inside keep the
-  heights set by host code (260 px).
-- **Deleting an item leaves its file in OPFS.** The store has no remove call yet. Stage 2 should add one and call it
-  from `fsAct delete`.
 - **A field's `width` is in characters (`ch`), not pixels.** A width of 200 made a field 200 characters wide.
 - **A drawing gets its height from its theme** (`theme: { drawing: { height: '100%' } }`), not from a property.
 - **A `tree` needs a `row` template.** Without one, it draws no rows and reports no error.
+
+### Fixed after stage 1
+- **A placement could not be linked.** It can now (stateui-app). A node sets `"<-placement": "<path>"` and is placed
+  by the object at that path. Only where it sits is checked. A link to one field (`<-x`) is still `SUI-LAYOUT-FIELD`,
+  because the node reads its placement as one object. The host bridge is gone.
+- **A snapped or maximized window kept the size of its content.** The Files browser and the Notes split now take
+  `grow: 1` in the window's column, and the host no longer sets the lists to 260 px, so they fill the window.
+- **Deleting an item left its file in OPFS.** The file store has `prune(keep, graceMs)`. After each save, the host
+  removes the files that no item, unsaved Paint picture or upload in progress uses, and it does this once at start.
+  Files stored in the last 30 seconds are kept.
