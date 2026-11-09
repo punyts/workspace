@@ -209,6 +209,16 @@ In Full mode steps 2 to 5 run on the authority, and only the rows on screen and 
 - **`call` stays for now.** It is a machine waiting for an answer, while an effect is a request kept in state. Whether `call` becomes an effect with a request path is decided after L3.5 has been used.
 - **Not in this epic:** effects that stream (subscriptions, server-sent updates), dropping old records from the map, and per-persona request paths (statenet direction).
 
+## As built
+The epic shipped in `stateui-app` (L3.1 to L3.5), `stateui-mcp` (L3.6) and the example (L3.7). Where the design above differs, this section holds:
+- **Input domains are explicit.** An input gives `values` (a list, `"*"` for any other value, or `{ keys: <data map> }`) or `breaks`; a plain path or a `value` with neither is not a lookup key. Domains from booleans, model validators and machine states were left out. A missing input skips the table or compute unit; a value outside an input's domain fails it with `logic.failed`.
+- **Rows from data** are `rows: { from: <data map> }`, ordered by their `order` field, else by key. The model check of the rows is the dataset's own model (Full mode), not a `model` key on the table.
+- **Functions** are `LogicFunctions` with three separate maps: `compute`, `expressions` (callable from `{{ }}` by name; a built-in name is refused) and `effects`. There is no `expression: true` flag. `mountApp` takes them in its options (`MountOptions.logicFunctions`) and `startServer` as `logicFunctions`.
+- **Compute inputs** are passed to the function by name and are readable in output expressions as `$<name>`.
+- **Effects** also take `value` (a path the answer's `value` is written to). `records.into` may be under `$.server`, so in Full mode the records map stays on the authority. `window` may be a record view node or a data path (`$.data.archive.page`, whose `records` and `total` the view links to). With no registered function the host's `effect(request, signal)` answers: the MCP server queues `logic.effect` for the agent. With neither, the status is `error`. A refused commit of an answer gives the status `error` too.
+- **MCP:** the guide has a separate `tables` topic and an `effects` topic (tiers, computes, the request-token pattern); `ui_tree` shows each effect's status from state, and `ui_logic_trace` returns each effect's token, running call and cache size (the cache is not state).
+- **Example:** the section is **Archive** (`archive`), beside the existing Orders section, with the archive's page window in data.
+
 ## Stories
 
 ### Story list (priority order)
@@ -225,65 +235,65 @@ In Full mode steps 2 to 5 run on the authority, and only the rows on screen and 
 ### Story L3.1: Path index for dispatch
 **Objective:** A change reaches the units that listen to it without every unit being checked.
 **Acceptance Criteria:**
-- [ ] Trigger patterns compile into a segment tree with `*` and `{name}` branches; a change walks it once and gets the matching units with their captures.
-- [ ] Machine transitions are indexed by `from`; a machine looks only at the rows of its current state and at rows with no `from`.
-- [ ] All existing logic tests pass unchanged, including run order, `already-fired` traces and the derive pass.
-- [ ] A benchmark test with 500 rules on distinct paths shows that dispatching one change does not grow linearly with the number of rules.
+- [x] Trigger patterns compile into a segment tree with `*` and `{name}` branches; a change walks it once and gets the matching units with their captures.
+- [x] Machine transitions are indexed by `from`; a machine looks only at the rows of its current state and at rows with no `from`.
+- [x] All existing logic tests pass unchanged, including run order, `already-fired` traces and the derive pass.
+- [x] A benchmark test with 500 rules on distinct paths shows that dispatching one change does not grow linearly with the number of rules.
 **Technical Notes:** Packages affected: `stateui-app` (`src/core/logic/engine.ts`, `pattern.ts`).
 
 ### Story L3.2: Compiled lookup tables
 **Objective:** A table is compiled into a lookup table that is proven complete, and it only writes values.
 **Acceptance Criteria:**
-- [ ] `tables.<name>` has `inputs` (with `path` or `value`, plus `values`, `breaks`, a boolean, a model field or a machine state), `outputs` and `rows`; the epic 2 form is removed.
-- [ ] Rows compile to a dense cell array. A lookup costs one index per input and one array read, and writes the winning row's outputs (literals or expressions).
-- [ ] `SUI-LOGIC-GAP`, `SUI-LOGIC-UNREACHABLE` and `SUI-LOGIC-SIZE` are reported at validation; above `MAX_TABLE_CELLS` the table matches first-match at run time with the same results.
-- [ ] Inputs are triggers and outputs are writes: `logicRunOrder` sorts tables after the units that feed them, `SUI-LOGIC-CYCLE` reports cycles among declared units, and an output equal to its current value is not written.
-- [ ] Captured input paths run the table per record; tables run in the derive pass.
-- [ ] `lookup(name, ...inputs)` is an expression function returning the winning row's outputs.
+- [x] `tables.<name>` has `inputs` (with `path` or `value`, plus `values`, `breaks`, a boolean, a model field or a machine state), `outputs` and `rows`; the epic 2 form is removed.
+- [x] Rows compile to a dense cell array. A lookup costs one index per input and one array read, and writes the winning row's outputs (literals or expressions).
+- [x] `SUI-LOGIC-GAP`, `SUI-LOGIC-UNREACHABLE` and `SUI-LOGIC-SIZE` are reported at validation; above `MAX_TABLE_CELLS` the table matches first-match at run time with the same results.
+- [x] Inputs are triggers and outputs are writes: `logicRunOrder` sorts tables after the units that feed them, `SUI-LOGIC-CYCLE` reports cycles among declared units, and an output equal to its current value is not written.
+- [x] Captured input paths run the table per record; tables run in the derive pass.
+- [x] `lookup(name, ...inputs)` is an expression function returning the winning row's outputs.
 **Technical Notes:** Packages affected: `stateui-app` (logic types, `read.ts`, engine, validators, error catalog). A property test compares compiled lookups with first-match evaluation over random inputs.
 
 ### Story L3.3: Rows and values from data
 **Objective:** A table's rows, and an input's values, can come from data that users edit.
 **Acceptance Criteria:**
-- [ ] `rows: { from, model }` reads rows from a data map whose model has the table's inputs and outputs as fields; rows are ordered by `order` or by key.
-- [ ] `values: { keys: path }` takes an input's values from a data map's keys.
-- [ ] The table is compiled again when that data changes; a version that fails a check raises `logic.failed` with `{ table, reason }`, and the last good version stays in use.
-- [ ] In Full mode the rows stay on the authority; the views never need them.
+- [x] `rows: { from, model }` reads rows from a data map whose model has the table's inputs and outputs as fields; rows are ordered by `order` or by key.
+- [x] `values: { keys: path }` takes an input's values from a data map's keys.
+- [x] The table is compiled again when that data changes; a version that fails a check raises `logic.failed` with `{ table, reason }`, and the last good version stays in use.
+- [x] In Full mode the rows stay on the authority; the views never need them.
 **Technical Notes:** Packages affected: `stateui-app`, `stateui-mcp` (model check of shared datasets).
 
 ### Story L3.4: Compute functions
 **Objective:** Specialized code runs as a logic unit and in expressions, supplied by the host.
 **Acceptance Criteria:**
-- [ ] `LogicFunctions` (`compute`, `effects`) is a type exported from `core`; `mountApp` takes it as the hook `logicFunctions` and the engine as a `LogicHost` member.
-- [ ] `computes.<name>` (`inputs`, `run`, `outputs`) runs like a table: it is triggered by its inputs, ordered by its reads and writes, writes only real changes and runs in the derive pass.
-- [ ] Functions registered with `expression: true` are callable in expressions; a name that clashes with a built-in function is refused when it is registered.
-- [ ] A name the host did not register is `SUI-LOGIC-FUNCTION` (a warning at mount, `logic.failed` when it runs); a thrown error fails the transition.
+- [x] `LogicFunctions` (`compute`, `effects`) is a type exported from `core`; `mountApp` takes it as the hook `logicFunctions` and the engine as a `LogicHost` member.
+- [x] `computes.<name>` (`inputs`, `run`, `outputs`) runs like a table: it is triggered by its inputs, ordered by its reads and writes, writes only real changes and runs in the derive pass.
+- [x] Functions registered with `expression: true` are callable in expressions; a name that clashes with a built-in function is refused when it is registered.
+- [x] A name the host did not register is `SUI-LOGIC-FUNCTION` (a warning at mount, `logic.failed` when it runs); a thrown error fails the transition.
 **Technical Notes:** Packages affected: `stateui-app`.
 
 ### Story L3.5: Effects and request tokens
 **Objective:** Async work starts from a request in state and ends as records, a window and a status in state.
 **Acceptance Criteria:**
-- [ ] `effects.<name>` (`request`, `run`, `status`, `records { into, key }`, `window`, `cache`) starts when the request's canonical hash changes, and never inside a chain.
-- [ ] A new token aborts the running call; an answer with a stale token is dropped.
-- [ ] The answer commits in one go: records merged by key, the window written by position in the answer's order with `total`, and `status` `{ token, state, total?, reason?, at }`.
-- [ ] A change to `records.{pk}` updates the window rows holding that key.
-- [ ] A cached token refills the window from the map with no call; the cache is in memory and holds `cache` tokens.
-- [ ] Full mode runs effects on the authority, and only the window and status reach the views; browser modes run them in `mountApp`.
+- [x] `effects.<name>` (`request`, `run`, `status`, `records { into, key }`, `window`, `cache`) starts when the request's canonical hash changes, and never inside a chain.
+- [x] A new token aborts the running call; an answer with a stale token is dropped.
+- [x] The answer commits in one go: records merged by key, the window written by position in the answer's order with `total`, and `status` `{ token, state, total?, reason?, at }`.
+- [x] A change to `records.{pk}` updates the window rows holding that key.
+- [x] A cached token refills the window from the map with no call; the cache is in memory and holds `cache` tokens.
+- [x] Full mode runs effects on the authority, and only the window and status reach the views; browser modes run them in `mountApp`.
 **Technical Notes:** Packages affected: `stateui-app`, `stateui-mcp` (`AppLogic.ts`, `startServer`). Tests use a fake effect with controllable timing for cancellation and stale-answer cases.
 
 ### Story L3.6: MCP: tables, functions and effects
 **Objective:** An agent can write, inspect and answer the new logic.
 **Acceptance Criteria:**
-- [ ] `ui_logic_write` validates tables, computes and effects; gap and unreachable findings name the missing combinations and the rows.
-- [ ] `ui_tree` with `logic: true` shows each table's inputs and their values, the rows, and each effect's status and cache size.
-- [ ] An effect with no registered function queues `logic.effect` (`{ id, name, token, request }`) for `ui_events_read`; `ui_effect_answer` answers it, with the same token rules.
-- [ ] The guide's logic topic explains the three tiers, rows from data and the request-token pattern.
+- [x] `ui_logic_write` validates tables, computes and effects; gap and unreachable findings name the missing combinations and the rows.
+- [x] `ui_tree` with `logic: true` shows each table's inputs and their values, the rows, and each effect's status and cache size.
+- [x] An effect with no registered function queues `logic.effect` (`{ id, name, token, request }`) for `ui_events_read`; `ui_effect_answer` answers it, with the same token rules.
+- [x] The guide's logic topic explains the three tiers, rows from data and the request-token pattern.
 **Technical Notes:** Packages affected: `stateui-mcp`.
 
 ### Story L3.7: Example and documentation
 **Objective:** The example app shows all three tiers, and the docs describe them.
 **Acceptance Criteria:**
-- [ ] The example has an Orders section paging a fake API through an effect, a status table and a compute function, with browser tests for paging, cancelling, the cache and an edited record updating its row.
-- [ ] The Logic sections of the `@punyts/stateui-app` and `@punyts/stateui-mcp` READMEs describe tables, rows from data, computes and effects, with paths in the screens model (`$.screens.<name>…`, app events on the app node's `on`).
-- [ ] AI Minion's `knowledge-base/design/stateui-logic.md` gets a short section on the tiers, pointing here.
+- [x] The example has an Orders section paging a fake API through an effect, a status table and a compute function, with browser tests for paging, cancelling, the cache and an edited record updating its row.
+- [x] The Logic sections of the `@punyts/stateui-app` and `@punyts/stateui-mcp` READMEs describe tables, rows from data, computes and effects, with paths in the screens model (`$.screens.<name>…`, app events on the app node's `on`).
+- [x] AI Minion's `knowledge-base/design/stateui-logic.md` gets a short section on the tiers, pointing here.
 **Technical Notes:** Packages affected: `example`, `stateui-app`, `stateui-mcp`.
