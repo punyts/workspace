@@ -8,6 +8,12 @@
       "port": 4100
     },
     {
+      "name": "magnetic",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "magnetic"],
+      "port": 4300
+    },
+    {
       "name": "example",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "@punyts/example", "--", "--port", "5173", "--strictPort"],

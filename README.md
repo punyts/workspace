@@ -26,6 +26,8 @@ npm run setup     # clone every library repo on develop, install, build, and ins
 | `npm run mcp:build` | Build only `stateui-mcp` and the libraries it uses, then the runtime bundle |
 | `npm run mcp` | Start the StateUI MCP server: apps at http://127.0.0.1:4100/, MCP at http://127.0.0.1:4100/mcp, data in `stateui-mcp/data` |
 | `npm run --silent mcp:stdio` | The same server, also speaking MCP on stdio, for a client that starts it (`--silent` keeps npm's output off stdout) |
+| `npm run magnetic:build` | Build Magnetic and the libraries it uses, then the runtime bundle |
+| `npm run magnetic` | Start Magnetic at http://127.0.0.1:4300/ with the development users alice and bob, data in `magnetic/data` |
 | `npm run status` | Branch, changed files and unpushed commits of the workspace and each library repo |
 | `node bin/workspace.mjs run <script> [library...]` | One npm script in the libraries that have it; stops at the first failure |
 

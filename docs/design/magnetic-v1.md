@@ -100,13 +100,11 @@ These pieces are new:
 - **Coded logic stays with the host.** `logicFunctions` (compute, expressions, effects) and `procedures` are registered
   by Magnetic itself, never by a user. v1 registers none. A `call` or an effect with no registered function fails with
   `logic.failed`, instead of being queued for an agent to answer.
-- **Limits per instance**, on top of the chain depth of 8:
-  - armed timers (`after`, `debounce`), at most 20;
-  - logic runs, at most 50 per second, with the extra runs failing;
-  - an expression iterator over at most 10,000 items;
-  - document and data limits, which already exist.
+- **Limits per instance**, on top of the chain depth of 8 and the document and data limits that already exist:
+  - timers (`after`, `debounce`): at most 20 may fire in any one second, or the logic stops and the owner sees why;
+  - client changes: at most 50 frames a second per view socket, or the socket is closed.
 
-  An instance that keeps hitting the limits is stopped and the owner sees why.
+  (As built in M1. The design first had an iterator cap and a separate budget of logic runs; see "As built".)
 - **Relaying changes outside (1.5)** uses effects. It becomes possible once Magnetic registers vetted effects, such as a
   webhook to an allowed host. That is after v1.
 - **Later**, each user's authorities move to a worker thread, so a heavy chain from one user cannot stall the others.
@@ -239,6 +237,43 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   - Revoking a `use` grant closes the viewer's socket and empties their local store.
   - A viewer who was offline is scrubbed when they reconnect.
   - A remix keeps working after the revoke.
+
+## As built
+
+### M1: the multi-user server
+- **Where it lives.**
+  - A new package, `magnetic/`, is in the npm `workspaces`. Its git repo is local; it has no GitHub remote yet.
+  - It runs with `npm run magnetic`: development users alice and bob, on port 4300.
+- **stateui-mcp changes.**
+  - `startHttpServer` takes a `tenant`: one owner, or a function that finds the owner of each request and can
+    refuse it. A refused page request can be redirected.
+  - `retain(close)` tells the tenant when a view socket opens, and lets it close the socket.
+  - `routes` lets the embedding server add its own routes. `mcp` is optional.
+  - `socketMessagesPerSecond` is a rate limit per view socket.
+  - `createServices` takes `agentAnswers: false` and `logicLimits.timerRunsPerSecond`.
+- **Logic limits, changed from the design.**
+  - **Built:**
+    - a timer budget (20 per second per instance, which stops the logic);
+    - a socket rate (50 frames a second);
+    - the existing chain depth of 8;
+    - the existing document and data limits.
+  - **Not built: the iterator cap of 10,000 items.** Data limits already bound the iterator's input. A cap on nested
+    iterations needs a counter inside `@punyts/expression`, so it moves to the worker-thread step, which bounds time
+    as well.
+  - **Changed: the 50 logic runs per second.** This is enforced through the socket rate instead. Each client change
+    is one run, and the timer budget covers the runs the logic starts itself.
+- **Sessions keep hashes.** The session token is random, and only its SHA-256 is stored, so no signing secret is
+  needed.
+- **What building it found.**
+  - **Referrer policy breaks forms.** stateui-mcp's pages send `Referrer-Policy: no-referrer`, and with it Chrome
+    posts a form with `Origin: null`, which the same-origin check refuses. Magnetic's own pages send `same-origin`.
+    The node tests could not see this; the browser pane did.
+  - **A headless browser per workspace.** Each workspace would open its own Chromium on first preview. M1 never
+    previews, but M3 has to share one browser across workspaces, with a context per user. The headless page also has
+    to sign in to reach the user's app.
+  - **The runtime origin is still `http://<host>:<port>`.** Public HTTPS origins are M7.
+  - **A flaky test.** stateui-mcp's showcase integration test timed out once under the load of the full run, and
+    passed on its own.
 
 ## Decisions needed from you
 1. **Hosting.** My recommendation is one small VM or a Fly.io machine with a persistent volume, behind Caddy for TLS.
