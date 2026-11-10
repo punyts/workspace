@@ -36,6 +36,21 @@ These pieces are new:
 - Grants and revocation.
 - Hosting with cost limits.
 
+### The floating editor
+- The editor was a page split in two, the app on the left and the chat on the right. It is now laid out like a
+  whiteboard tool: the app is the canvas and the editor floats on it in rounded panels with a shadow.
+  - Top left: back to the apps, the name and Open. Top right: Share, whose panel opens under it.
+  - A rail at the left holds the context toggles under "Show".
+  - A chat bar at the bottom centre holds the request, the model menu and Send. It opens the chat above it when
+    it is focused, when its chat button is pressed or when a turn starts, and the chat closes with its button or
+    Escape. The activity drawer sits at the foot of the chat.
+- The app frame starts below the top panels and right of the rail, so no panel covers the top or left of the
+  app. The chat bar and the open chat do cover its bottom centre, as on a whiteboard.
+- Enter sends and Shift+Enter starts a new line, as a one-line bar invites. Before, Ctrl+Enter sent.
+- Checked in the browser with the mock agent: a turn opens the chat and the drawer, Escape closes the chat, the
+  bar returns to one line after sending, and Share opens its panel. On a phone the rail becomes a row under the
+  top bar.
+
 ## Decisions
 
 ### One server, one process, files
@@ -129,7 +144,7 @@ One page, with three areas:
 ```
 
 - The shell is itself a StateUI app, running from the runtime bundle like any other. Magnetic dogfoods the components.
-- **The chat box** is a minimal text field. Above it are toggle buttons that pick which context goes into the prompt:
+- **The chat box** is a minimal bar at the bottom centre that opens into the chat. A rail at the left has toggle buttons that pick which context goes into the prompt:
   `theme`, `layout`, `data`, `logic`, and `screens`. A selected node is always included.
 - **The activity drawer** slides up from the chat box while the agent runs. It shows what the agent says and each tool
   call (`ui_nodes_write` on the `home` screen, a screenshot, and so on), as one line each that you can open. It closes
