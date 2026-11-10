@@ -435,9 +435,9 @@ Results on the same requests:
 Haiku is about twenty times cheaper and right on simple apps; Sonnet makes fewer logic slips. With $5, Haiku turns
 like these cost about 1 cent each, so the budget covers several hundred builds. Tuning spent about $0.25.
 
-Seen while tuning, not yet fixed: a checkbox in a list row cannot run its own commands on the record (`$row` in an
-`on` command is the row's copy, so the change is lost); a link is the only way, and anything more (a count that
-follows the ticks) needs rules over the dataset.
+Seen while tuning: a checkbox in a list row with both a link ("<-checked": "$row.done") and a toggle of the same
+field on change wrote the tick twice, so it undid itself. A link alone saves the record, and so does a command alone.
+stateui-app now refuses the two together (SUI-ON-LINKED).
 
 ## Decisions
 1. **Hosting:** AWS, under `ai-minion.com`. M7 sets it up.
