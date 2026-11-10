@@ -408,6 +408,37 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   Before the LinkedIn run, the agent needs work: tell it the app exists and how to start writing screens, read less
   up front, and check Haiku against Sonnet on the same requests.
 
+### Tuning the agent
+What went wrong, from a logged rerun:
+- 20 of the first 21 calls only read, the request already shown in a guide topic.
+- `themes` had no type in the tool schema, so Haiku sent the list as a string.
+- It made "probe" screens to see what a pattern does.
+- A big home screen in one deeply nested write broke the JSON (one closing brace too many after the list row), and
+  the SDK's error for that was not retried.
+
+What changed:
+- Magnetic's instructions say the app exists, give a seven-step path and a to-do example built and checked in a
+  browser (type a task, Add, tick a box: the dataset changes), and explain the two rules a model cannot guess: links
+  write back, and a button only sets a flag that a rule acts on.
+- `themes` has an array schema. Bad tool JSON is retried twice with a note asking for shallower writes.
+
+Results on the same requests:
+
+| Request | Model | Tool calls | Cost | Seconds | Outcome |
+|---|---|---|---|---|---|
+| To-do list (before) | Haiku 5.5 | 40 | $0.021 | 69 | nothing built |
+| To-do list | Haiku 5.5 | 12 | $0.006 | 10 | built |
+| Reading list | Haiku 5.5 | 17 | $0.008 | 35 | built; the read count does not go down on untick |
+| Tip calculator | Haiku 5.5 | 20 | $0.014 | 45 | built, and tested its own sums |
+| Reading list | Sonnet 5.5 | 15 | $0.161 | 27 | built; the count goes down too |
+
+Haiku is about twenty times cheaper and right on simple apps; Sonnet makes fewer logic slips. With $5, Haiku turns
+like these cost about 1 cent each, so the budget covers several hundred builds. Tuning spent about $0.25.
+
+Seen while tuning, not yet fixed: a checkbox in a list row cannot run its own commands on the record (`$row` in an
+`on` command is the row's copy, so the change is lost); a link is the only way, and anything more (a count that
+follows the ticks) needs rules over the dataset.
+
 ## Decisions
 1. **Hosting:** AWS, under `ai-minion.com`. M7 sets it up.
 2. **Storage:** files, with a backup of the volume.
