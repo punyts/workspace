@@ -53,11 +53,21 @@ These pieces are new:
     so the pointer moves the board anywhere. Ctrl+scroll is how browsers report a trackpad pinch.
   - Fit never zooms past 100%, and a new app opens fitted into the space the panels leave free.
   - The host script of stateui-mcp now appends the frame to the element marked `data-app-frame`.
-- **Next: a board of all the apps.** The home page becomes a canvas with every app as a frame. Only the frames
-  on screen and large enough are live (about six at most, as each runs the runtime and a sync connection);
-  the others show their name. An app becomes active when it is centred and fills most of the view, or on a
-  double-click: it zooms to 100%, the chat switches to it and the address becomes `/edit/<appId>`. With no
-  app active, the chat makes a new one. Positions are kept per person on the server.
+- A board of all the apps, each a live frame on one canvas, was planned and dropped: too heavy (a runtime and
+  a sync connection per frame) for what it gave. Instead:
+  - **Your apps** is a StateUI app, `your-apps`, in each workspace: a grid of cards. Magnetic writes the lists
+    into its data on each visit, and the page acts on its `emit`s (open, create, sign out). It is Magnetic's
+    own UI built with StateUI. A stamp of its definition per person makes it again when the definition changes.
+  - **A card opens the app** at `/apps/<appId>`, full page, with the editor hidden.
+  - **Ctrl+Shift+E** (Cmd on a Mac) brings the editor in over the app: the canvas, so the app can be panned and
+    zoomed, the panels and the chat. Pressed again it goes. The address switches between `/apps/<appId>` and
+    `/edit/<appId>` without a reload. Ctrl+Shift+T was asked for first, but browsers keep it to reopen a tab.
+  - The app runs in a frame of another origin, so the page cannot hear a key pressed in it. stateui-app's `load`
+    now takes `keys`, and the runtime posts a matching key to the host as `key`. stateui-mcp's host script
+    reads them from `data-host-keys` and raises `stateui:key` and `stateui:emit` on the page.
+  - Checked in the browser: a card opens its app, the key opens and closes the editor from inside the app and
+    from the page, the board pans and zooms, Make makes an app and opens its editor, an empty name shows a
+    notice, and Sign out signs out.
 - Enter sends and Shift+Enter starts a new line, as a one-line bar invites. Before, Ctrl+Enter sent.
 - Checked in the browser with the mock agent: a turn opens the chat and the drawer, Escape closes the chat, the
   bar returns to one line after sending, and Share opens its panel. On a phone the rail becomes a row under the
