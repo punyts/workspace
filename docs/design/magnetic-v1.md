@@ -44,8 +44,20 @@ These pieces are new:
   - A chat bar at the bottom centre holds the request, the model menu and Send. It opens the chat above it when
     it is focused, when its chat button is pressed or when a turn starts, and the chat closes with its button or
     Escape. The activity drawer sits at the foot of the chat.
-- The app frame starts below the top panels and right of the rail, so no panel covers the top or left of the
-  app. The chat bar and the open chat do cover its bottom centre, as on a whiteboard.
+- At first the app frame started below the top panels and right of the rail. It is now a frame on a canvas
+  instead, so the person moves the app out from under a panel:
+  - The frame has a size, Desktop 1280×800, Tablet 834×1112 or Phone 390×844, and the app lays itself out at
+    that size. The canvas scales the frame with a CSS transform; the browser maps the pointer through it.
+  - The app runs in a frame from another origin, so the page never sees the pointer over it. Scrolling and
+    dragging move the board only outside the frame. The Move tool, or Space held, lays a cover over the frame
+    so the pointer moves the board anywhere. Ctrl+scroll is how browsers report a trackpad pinch.
+  - Fit never zooms past 100%, and a new app opens fitted into the space the panels leave free.
+  - The host script of stateui-mcp now appends the frame to the element marked `data-app-frame`.
+- **Next: a board of all the apps.** The home page becomes a canvas with every app as a frame. Only the frames
+  on screen and large enough are live (about six at most, as each runs the runtime and a sync connection);
+  the others show their name. An app becomes active when it is centred and fills most of the view, or on a
+  double-click: it zooms to 100%, the chat switches to it and the address becomes `/edit/<appId>`. With no
+  app active, the chat makes a new one. Positions are kept per person on the server.
 - Enter sends and Shift+Enter starts a new line, as a one-line bar invites. Before, Ctrl+Enter sent.
 - Checked in the browser with the mock agent: a turn opens the chat and the drawer, Escape closes the chat, the
   bar returns to one line after sending, and Share opens its panel. On a phone the rail becomes a row under the
