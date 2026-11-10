@@ -312,6 +312,46 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   - **Not yet checked against real LinkedIn.** That needs a LinkedIn app with the "Sign In with LinkedIn using
     OpenID Connect" product, and its redirect URI registered.
 
+### M3: the editor and the agent
+- **The editor page.** `/edit/<appId>` is a page of Magnetic's server, not a StateUI app as this design first had it.
+  - Its body carries the attributes stateui-mcp's host script reads, so the script builds the live app frame
+    beside the chat, as on `/apps/<appId>`. stateui-mcp now exports `hostPageCsp` and `requestHostName` for it.
+  - The chat, the five context toggles and the activity drawer are a small script, `/assets/shell.js`.
+  - Whether the shell becomes a StateUI app is left to M4 and M5, which add the state view and the editor overlay
+    to it.
+- **The agent.** `AgentTurns` runs on the server over the user's own tools (`createStateUiTools`).
+  - **One turn at a time per user.** A second request while one runs is refused with a message.
+  - **Each turn is a fresh conversation.** The last six exchanges of the chat go in as text, so no thinking block
+    has to be carried, or edited, across turns.
+  - **The toggles.** Each adds a `<context>` block, read with a read-only tool before the first request.
+  - **The requests.** Each streams, with adaptive thinking (`display: "updates"` for the progress notes in the
+    drawer), `eager_input_streaming` on each tool, and the system prompt cached with the tools.
+  - **Refusals.** On Opus 5.5 and Sonnet 5.5 the request carries `fallbacks: "default"`, so a request the model
+    declines is retried on the fallback model. A refusal that remains ends the turn with a message.
+  - **The ends of a turn.** A turn ends when the model answers without a tool call, after 40 tool calls, after 5
+    minutes, or on Stop.
+  - **Tools withheld.** The browser tools are withheld, because each workspace would open its own Chromium and the
+    headless page cannot sign in. `ui_call_answer` and `ui_effect_answer` are withheld too, because no logic waits
+    for an agent here (`agentAnswers: false`).
+- **The model.** The default is Opus 5.5 at `high` effort, set with `--model` and `--effort`; decision 5 is
+  still yours.
+- **Budgets.** Each request is priced from its token counts, cache reads and writes included.
+  - Defaults: $1 per user per UTC day, and $100 for the server per UTC month.
+  - The turn that crosses a limit finishes; the next is refused. Decision 3 sets the real numbers.
+- **A mock agent.** `--mock-agent`, on loopback only, plays a scripted agent that reads the app and adds the request
+  as a text on its first screen. `npm run magnetic` turns it on, so the editor can be tried without an API key.
+- **The checks.** The tests run turns against recorded answers through the HTTP routes:
+  - a turn writes nodes and streams its events;
+  - Stop, the tool-call limit, a refusal, and a spent budget.
+
+  The drawer's 4 s close, hovering, Stop and the live frame were checked in the browser pane with the mock agent.
+- **What building it found.**
+  - **A stop that came early was lost.** A turn wired its abort only after reading the chat, so a Stop in that
+    moment did nothing. The turn now wires it first. The test of Stop found it when it ran after other tests.
+  - **The drawer must open when the turn starts**, not at the first tool call, or Stop cannot be reached at once.
+  - **Not yet run against the real API.** No API key was set while it was built, so the requests were checked only
+    by their shape in the tests.
+
 ## Decisions needed from you
 1. **Hosting.** My recommendation is one small VM or a Fly.io machine with a persistent volume, behind Caddy for TLS.
    Which provider, and which domain?
