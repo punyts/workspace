@@ -8,6 +8,12 @@
       "port": 5180
     },
     {
+      "name": "stateui-mcp-lan",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start", "-w", "@punyts/stateui-mcp", "--", "--host", "0.0.0.0"],
+      "port": 4100
+    },
+    {
       "name": "magnetic",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "magnetic"],
