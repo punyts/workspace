@@ -389,6 +389,49 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   - **Not yet run against the real API.** No API key was set while it was built, so the requests were checked only
     by their shape in the tests.
 
+### M4 and M5: the inspector
+- **One StateUI app for both.** The state view and the editor overlay are the tabs Properties, Add and State of an
+  app, `inspector`, that floats at the right of the editor. Magnetic keeps it in a system workspace no one signs in
+  to, makes it again when its definition changes (a stamp, as for Your apps), and serves its assembled document at
+  `/assets/inspector.json`. The page drives it: `stateuiHost.mount` runs it in a second runtime frame in
+  `standalone` mode, the page writes records and whole nodes into it, and acts on its emits. It has no instance and
+  no socket. The chat, Share and the canvas stay hand-written.
+- **The page asks the app frame about its nodes.** A runtime message pair, `inspect` / `inspected`, answers for a
+  point or for paths: each node's path, component, layout, rect and children's rects, and for a point the chain of
+  ancestors up to `$.app`. The page draws the hover, the selection and where a node lands on an overlay inside
+  the artboard, so it pans and zooms with the frame.
+- **Edits are the user's own tools.** New routes under `/edit/<id>`: `/node` (a node's settings and its
+  component's properties), `/nodes` (one `ui_nodes_write` of one tree, at most 20 operations, 409 on a revision
+  conflict, 400 with the tool's errors), `/components`, `/state` (`$.data`, the nodes that link each path, and
+  the logic units with what they read and write, from `logicRunOrder`) and `/trace`. The live app follows
+  through its sync, as for the agent.
+- **What the page does** (`/assets/inspect.js`):
+  - The Select tool (S) outlines the node under the pointer; a click selects it, the breadcrumb selects a parent,
+    Escape lets go.
+  - Properties shows a field per property (switch, select, number or text; a linked property read only), and saves
+    a change as a `set`. Delete removes the node.
+  - Add places a component where the person clicks: between the children of a column or row, beside the nearest
+    child of a grid, at the point in an `adhoc` layout (`placement` in px). Dragging the selection moves it the
+    same way; Alt+Arrow moves it before or after its sibling.
+  - State shows `$.data` as a tree, and for a path its value, the nodes that show it and the logic that reads or
+    writes it, with "Ask the agent", which adds the path to the next turn as a `focus` context. Each change to
+    `$.data` (a `stateui:change` event of the host script) adds a line to the feed and flashes the path; logic
+    runs from the trace follow.
+  - The Data toggle shows the top-level data paths above the chat bar.
+- **The checks.**
+  - M4: route tests for `/state` (bindings and the paths logic reads and writes) and `/trace`; in the browser
+    pane, the State tab showed the showcase's ten data paths and who shows each, and a change added a feed line.
+  - M5: Playwright tests in `magnetic/src/server/editor.browser.test.ts`: select by click and by breadcrumb with
+    no write; place into a column, a grid and an `adhoc` layout; Alt+Arrow; each one revision.
+- **What building it found.**
+  - **A field reports its first value.** Writing generated fields into the inspector made each one emit `change`
+    with the value it was given, which saved every property again. Only a value that differs from the node's is
+    saved now.
+  - **The app re-renders after the answer.** A write's answer comes before the frame shows the change, so the
+    selection was measured on the old layout and a drag that started on it missed. The page measures again as the
+    app settles.
+  - **`adhoc` placements are lengths.** `x` and `y` are CSS lengths (`"20px"`), not numbers.
+
 ### M6: sharing
 - **Grants are Magnetic's.** `Grants` keeps each link in `grants.json`: its token, owner, app, right, when it was
   revoked, and the people who opened it. The principal is always a signed-in user. A link adds the user as a member
