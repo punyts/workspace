@@ -352,6 +352,40 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   - **Not yet run against the real API.** No API key was set while it was built, so the requests were checked only
     by their shape in the tests.
 
+### M6: sharing
+- **Grants are Magnetic's.** `Grants` keeps each link in `grants.json`: its token, owner, app, right, when it was
+  revoked, and the people who opened it. The principal is always a signed-in user. A link adds the user as a member
+  of its grant when they open it.
+- **Persona instances.** A `use` member syncs with the persona named by their user id. stateui-mcp keeps each
+  persona's instance under `personas/<persona>/` and runs one authority per persona. A `view` member syncs with the
+  owner's `default` instance, read only: the server rejects each change and drops each event before the authority.
+- **Who serves a shared app.** For `/apps/<appId>` of an app the person does not own, Magnetic answers with the
+  owner's workspace, the persona and the access. A member with a live `use` and `view` link gets `use`.
+- **Revoke.**
+  - The grant is marked revoked, not removed, so its members can be told.
+  - Each member's open views are closed. A member with no other live link is first sent the sync error `revoked`.
+    `state-sync`'s client then deletes the namespace's `confirmed`, `outbox` and `document`, stops for good and
+    calls `onRevoked`. The host script removes the frame and shows the note.
+  - A member who was away gets a page with `data-revoked`, so the host script deletes the namespace before it
+    connects. A socket opened anyway is sent the same error.
+- **Remix** copies the app and the parts it reaches (`copyAppParts`) into the person's workspace. Parts with the same
+  body are reused, and names already taken get `-2`. It copies no state and no uploaded files. Revoking a remix link
+  stops new copies only.
+- **The checks.**
+  - Tests: revoke closes a `use` member's socket with `revoked`; a member who was away gets `data-revoked` and the
+    error on connecting; a remix works after its link is revoked. The client's scrub is tested in `state-sync`.
+  - In the browser pane, a second person opened a `use` link and got their own instance, and Revoke removed the
+    frame, showed the note and emptied their local store. A reload kept it empty.
+- **What building it found.**
+  - **Starter apps share their ids.** The showcase has the same fixed id in every workspace, so a link to it opened
+    the person's own copy. Only apps with random ids can be shared now.
+  - **The client never heard a refusal.** `state-sync` ignored errors and reconnected forever, and the server
+    refused only at the upgrade, which a browser cannot read. The revoked socket now opens to send the error, and
+    the client stops on it.
+  - **Not yet:** an app deleted by its owner leaves the other personas' instances and its links behind. A member
+    moved from `use` to `view` keeps their `use` data in their browser.
+- **Decision 4** was taken as recommended: the default link is `use`, and Remix is a link of its own.
+
 ## Decisions needed from you
 1. **Hosting.** My recommendation is one small VM or a Fly.io machine with a persistent volume, behind Caddy for TLS.
    Which provider, and which domain?
