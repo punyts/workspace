@@ -394,7 +394,19 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
   tokens, counted with the token-counting endpoint. A build of about 15 requests, with the prefix and the growing
   chat cached, writes about 60K tokens to the cache, reads about 555K from it and outputs about 18K. That is roughly
   $0.02 on Haiku 5.5, $0.45 on Sonnet 5.5 and $0.80 on Opus 5.5. A small change of 3 to 5 requests costs a quarter of
-  that. These are estimates until a real turn is measured.
+  that.
+- **The first real turn** (Haiku 5.5, "make a to-do list" on a new app) confirmed the API path: streaming, adaptive
+  thinking, the cached prefix (22,071 tokens written once, then read) and the tools all worked. It cost **$0.0206**
+  over 22 requests (50K tokens written to the cache, 773K read, 13K output), in 69 seconds, as estimated.
+- **But it built nothing.** It reached the limit of 40 tool calls with an empty home screen:
+  - 25 calls only read: guide topics, component descriptions and searches;
+  - it called `ui_app_create` twice for an app that already existed, and was refused ("themes must be a list of
+    theme names");
+  - its one `ui_nodes_write` had blocking errors, and the retry used a stale revision;
+  - it wrote no text to the person.
+
+  Before the LinkedIn run, the agent needs work: tell it the app exists and how to start writing screens, read less
+  up front, and check Haiku against Sonnet on the same requests.
 
 ## Decisions
 1. **Hosting:** AWS, under `ai-minion.com`. M7 sets it up.
