@@ -386,12 +386,19 @@ M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
     moved from `use` to `view` keeps their `use` data in their browser.
 - **Decision 4** was taken as recommended: the default link is `use`, and Remix is a link of its own.
 
-## Decisions needed from you
-1. **Hosting.** My recommendation is one small VM or a Fly.io machine with a persistent volume, behind Caddy for TLS.
-   Which provider, and which domain?
-2. **Storage.** My recommendation is files for v1, with a nightly backup of the volume. Is that enough, or do you want
-   Postgres from the start?
-3. **AI cost.** What daily budget per user, what monthly cap, and how many new users a day?
-4. **Links.** My recommendation is that the default share link is `use` with a "Remix" button, and that `view` and
-   `remix` can be chosen in the share dialog. Do you agree?
-5. **The model.** My recommendation is Sonnet 5.5 by default, for cost. Do you want Opus 5.5 for quality instead?
+### After M6: the model menu and the budget
+- People pick the model of each turn in the editor: Haiku 5.5 (the default), Sonnet 5.5 or Opus 5.5.
+- A turn now ends as soon as a request spends the last of a budget, so the $5 limit of the first run is passed by one
+  request at most.
+- **What a turn costs, estimated.** The fixed prefix (Magnetic's instructions, the guide and 32 tools) is 22,003
+  tokens, counted with the token-counting endpoint. A build of about 15 requests, with the prefix and the growing
+  chat cached, writes about 60K tokens to the cache, reads about 555K from it and outputs about 18K. That is roughly
+  $0.02 on Haiku 5.5, $0.45 on Sonnet 5.5 and $0.80 on Opus 5.5. A small change of 3 to 5 requests costs a quarter of
+  that. These are estimates until a real turn is measured.
+
+## Decisions
+1. **Hosting:** AWS, under `ai-minion.com`. M7 sets it up.
+2. **Storage:** files, with a backup of the volume.
+3. **AI cost:** a hard limit of $5 for the first run.
+4. **Links:** the default link is `use`, and Remix is a link of its own (built in M6).
+5. **The model:** people choose per turn. The default is Haiku 5.5, for the $5 limit.
