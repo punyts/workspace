@@ -226,8 +226,8 @@ export function storeApp(brand) {
                     bordered: true,
                     layout: { type: 'row', align: 'end', wrap: true },
                     children: {
-                        // A field's width is a count of characters, not pixels
-                        qty: { component: 'numberField', _label: 'Quantity', stepper: true, min: 1, max: 20, step: 1, width: 12, '<-value': `${SESSION}.qty` },
+                        // The field fills the row beside the button (no width of its own, which would be a count of characters)
+                        qty: { component: 'numberField', _label: 'Quantity', stepper: true, min: 1, max: 20, step: 1, placement: { grow: 1 }, '<-value': `${SESSION}.qty` },
                         add: { component: 'button', size: 'lg', icon: 'shopping-bag-plus', _title: 'Add to bag', '<-disabled': `${SESSION}.soldOut` }
                     }
                 },
