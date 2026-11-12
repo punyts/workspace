@@ -1,8 +1,12 @@
 {
   "mcpServers": {
     "stateui": {
-      "type": "http",
-      "url": "http://127.0.0.1:4100/mcp"
+      "command": "node",
+      "args": [
+        "stateui-mcp/dist/cli.js",
+        "--data-dir",
+        "stateui-mcp/data"
+      ]
     }
   }
 }

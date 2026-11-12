@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "stateui-mcp",
+      "name": "stateui-view",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "mcp"],
-      "port": 4100
+      "port": 5180
     },
     {
       "name": "magnetic",

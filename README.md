@@ -23,9 +23,9 @@ npm run setup     # clone every library repo on develop, install, build, and ins
 | `npm run build` | `npm run build` in every library, in build order, then `build:runtime-bundle` of `stateui-app` (the `stateui-mcp` tests and the host page need it) |
 | `npm test` | Every library's node tests |
 | `npm run typecheck` | Every library's type check |
-| `npm run mcp:build` | Build only `stateui-mcp` and the libraries it uses, then the runtime bundle |
-| `npm run mcp` | Start the StateUI MCP server: apps at http://127.0.0.1:4100/, MCP at http://127.0.0.1:4100/mcp, data in `stateui-mcp/data` |
-| `npm run --silent mcp:stdio` | The same server, also speaking MCP on stdio, for a client that starts it (`--silent` keeps npm's output off stdout) |
+| `npm run mcp:build` | Build only `stateui-mcp` and the libraries it uses (`statenet` included), then the runtime bundle |
+| `npm run mcp` | Start what the StateUI live views need: the statenet at ws://127.0.0.1:4200/sync (data in `stateui-mcp/statenet-data`) and the Vite dev server of the view page at http://127.0.0.1:5180/ (the runtime frame on 5181) |
+| `npm run --silent mcp:stdio` | The StateUI MCP server on stdio, for a client that starts it (`--silent` keeps npm's output off stdout); data in `stateui-mcp/data` |
 | `npm run magnetic:build` | Build Magnetic and the libraries it uses, then the runtime bundle |
 | `npm run magnetic` | Start Magnetic at http://127.0.0.1:4300/ with the development users alice and bob, a mock sign-in provider and the scripted mock agent (no API key needed), data in `magnetic/data` |
 | `npm run status` | Branch, changed files and unpushed commits of the workspace and each library repo |
@@ -35,11 +35,23 @@ Browser tests run per library: `npm run test:browser -w @punyts/stateui-componen
 
 ## StateUI MCP server
 
-`npm run mcp` serves the MCP server over HTTP; `STATEUI_MCP_PORT`, `STATEUI_MCP_DATA_DIR` and the other
-`STATEUI_MCP_*` variables change its settings (`node stateui-mcp/dist/cli.js --help` lists them). `.mcp.json` points
-Claude Code sessions in this folder at http://127.0.0.1:4100/mcp, and `.claude/launch.json` starts the server from the
-Claude desktop app's preview pane. Rebuild with `npm run mcp:build` after changing a library the server uses, then
-restart it.
+The MCP server serves no HTTP. It speaks MCP on stdio, and its tools write each app's live state to a statenet; the
+view page that shows the apps is static (the Vite dev server of `stateui-mcp/view/` locally, a CDN in production) and
+reads the state from that statenet. Three processes, then:
+
+| Process | Port | Started by |
+|---------|------|------------|
+| statenet | 4200 (`ws://127.0.0.1:4200/sync`) | `npm run mcp` |
+| Vite: the view page, and the runtime frame on a second origin | 5180, 5181 | `npm run mcp` |
+| the MCP server | none (stdio) | the MCP client, through `.mcp.json` |
+
+Start `npm run mcp` once, then open Claude Code in this folder: `.mcp.json` starts `node stateui-mcp/dist/cli.js` on
+stdio. `ui_preview` answers the address of an app's view, such as `http://127.0.0.1:5180/?app=<id>&statenet=…`, and
+http://127.0.0.1:5180/ lists the apps. The MCP server keeps working while the statenet is down and catches the views up
+when it is back. `STATEUI_MCP_DATA_DIR`, `STATEUI_MCP_STATENET`, `STATEUI_MCP_VIEW_URL` and the other `STATEUI_MCP_*`
+variables change its settings (`node stateui-mcp/dist/cli.js --help` lists them). `.claude/launch.json` starts
+`npm run mcp` from the Claude desktop app's preview pane. Rebuild with `npm run mcp:build` after changing a library
+the server uses, then restart the MCP server (`/mcp` in Claude Code).
 
 ## Versions
 
@@ -57,5 +69,5 @@ there.
 
 `stateui-3d` (graphics epic 3, `github.com/punyts/stateui-3d`) is in the npm `workspaces` since story G3.2. It depends
 on no other punyts library, so it builds early, and `stateui-mcp` takes it as an optional dependency (from G3.3 the server serves
-its runtime chunk, `stateui-3d/dist/runtime-chunk/`), so `npm run mcp:build` builds it too. It brings `three` into
+its runtime chunk, `stateui-3d/dist/runtime-chunk/`), so `npm run mcp:build` builds it too (the view page's runtime origin serves the chunk). It brings `three` into
 the workspace lockfile.
