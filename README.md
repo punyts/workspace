@@ -29,6 +29,7 @@ npm run setup     # clone every library repo on develop, install, build, and ins
 | `npm run magnetic:build` | Build Magnetic and the libraries it uses, then the runtime bundle |
 | `npm run ui:build` | Build only the UI layers, in order (`stateui`, `stateui-app`, `stateui-components`, `stateui-mcp`, `magnetic`), then the runtime bundle: about 20 s, for a change to a component, the engine or the editor. The bundle must follow the components, or it ships their old CSS |
 | `npm run magnetic:dev` | `npm run ui:build`, then start Magnetic as `npm run magnetic` does |
+| `npm run magnetic:live` | Start Magnetic with the real agent (Claude, through the Anthropic API) instead of the scripted one, with the same development users. It reads `ANTHROPIC_API_KEY` from `.env` at the workspace root, which git ignores: copy `.env.example` to `.env` and fill in the key. Each person may spend $1 a day and the server $100 a month by default (`--daily-budget`, `--monthly-budget`) |
 | `npm run magnetic` | Start Magnetic at http://127.0.0.1:4300/ with the development users alice and bob, a mock sign-in provider and the scripted mock agent (no API key needed), data in `magnetic/data` |
 | `npm run status` | Branch, changed files and unpushed commits of the workspace and each library repo |
 | `node bin/workspace.mjs run <script> [library...]` | One npm script in the libraries that have it; stops at the first failure |

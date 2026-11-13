@@ -14,6 +14,12 @@
       "port": 4300
     },
     {
+      "name": "magnetic-live",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "magnetic:live"],
+      "port": 4300
+    },
+    {
       "name": "magnetic-old",
       "runtimeExecutable": "node",
       "runtimeArgs": ["C:/development/punyts-old-magnetic/dist/cli.js", "--port", "4310", "--runtime-port", "4311", "--data-dir", "C:/development/punyts-old-magnetic/.data", "--dev-user", "alice", "--mock-provider", "--mock-agent"],

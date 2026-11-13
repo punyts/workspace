@@ -38,6 +38,7 @@
         "magnetic": "npm run start -w @punyts/magnetic -- --dev-user alice --dev-user bob --mock-provider --mock-agent",
         "magnetic:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-3d stateui-app stateui-components stateui-mcp magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
         "ui:build": "node bin/workspace.mjs run build stateui stateui-app stateui-components stateui-mcp magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
-        "magnetic:dev": "npm run ui:build && npm run magnetic"
+        "magnetic:dev": "npm run ui:build && npm run magnetic",
+        "magnetic:live": "npm run start:live -w @punyts/magnetic -- --dev-user alice --dev-user bob --mock-provider"
     }
 }
