@@ -27,6 +27,8 @@ npm run setup     # clone every library repo on develop, install, build, and ins
 | `npm run mcp` | Start what the StateUI live views need: the statenet at ws://127.0.0.1:4200/sync (data in `stateui-mcp/statenet-data`) and the Vite dev server of the view page at http://127.0.0.1:5180/ (the runtime frame on 5181) |
 | `npm run --silent mcp:stdio` | The StateUI MCP server on stdio, for a client that starts it (`--silent` keeps npm's output off stdout); data in `stateui-mcp/data` |
 | `npm run magnetic:build` | Build Magnetic and the libraries it uses, then the runtime bundle |
+| `npm run ui:build` | Build only the UI layers, in order (`stateui`, `stateui-app`, `stateui-components`, `stateui-mcp`, `magnetic`), then the runtime bundle: about 20 s, for a change to a component, the engine or the editor. The bundle must follow the components, or it ships their old CSS |
+| `npm run magnetic:dev` | `npm run ui:build`, then start Magnetic as `npm run magnetic` does |
 | `npm run magnetic` | Start Magnetic at http://127.0.0.1:4300/ with the development users alice and bob, a mock sign-in provider and the scripted mock agent (no API key needed), data in `magnetic/data` |
 | `npm run status` | Branch, changed files and unpushed commits of the workspace and each library repo |
 | `node bin/workspace.mjs run <script> [library...]` | One npm script in the libraries that have it; stops at the first failure |
