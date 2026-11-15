@@ -390,3 +390,55 @@ P5 can run beside P3 and P4. P6 and P7 can run beside each other.
 - Bringing an app into an org: a move, with its instances, data, files and chat.
 - Embeddings: the local CPU model, in development and in hosting.
 - Key order: StateUI's JSON is stored as `json`, and record order as `position`.
+
+## As built (night of 14 November 2026)
+
+Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and in the new repo `stateui-pg`
+(`develop`; it is not on GitHub yet). Every stage below runs its tests against Postgres.
+
+### P1: Postgres foundation
+- `stateui-pg`: `createDatabase` (one pool; `transaction(work, { workspaceIds })` sets `app.workspace_ids` for
+  row-level security), the migrator (numbered SQL files per owner, each in its own transaction, under an advisory lock;
+  `assertMigrated` refuses a database that is behind) and `createTestDatabase` (a schema per test file). The tests use
+  `PUNYTS_TEST_DATABASE_URL`, or the database `npm run magnetic:db` starts (port 5433).
+- Magnetic: users, identities, sessions, links, the spend ledger (`agent_request`), chats, preferences and the stamps
+  of Magnetic's own apps in `migrations/0001_people.sql`; the JSON stores are gone. Commands `serve`, `migrate`,
+  `import` (from an earlier file data folder, idempotent) and `--migrate` for development.
+
+### P2: workspace state
+- `createServices({ storage })` takes a `ServicesStorage`; the preview error log is a port (`UiErrorLog`).
+  `installShowcaseInto` installs the showcase, its files included, into such storage.
+- `pgWorkspaceStorage(db, workspaceId)`: parts (`SELECT ... FOR UPDATE` for revisions, a rename in one transaction),
+  instances, persona records, file metadata (quotas under an advisory lock, safe across processes), file bytes
+  (`app_file_content`) and preview errors, all with row-level security. The stateui-mcp part contract runs against it.
+- Changed from the design: persona records are one `json` value per binding (`persona_dataset.records`), not
+  `dataset_record` rows, since the statenet design moves app data to `state_node` anyway. `app_file_usage` was not
+  needed: the quota is summed under the app's advisory lock.
+
+### P3: orgs, roles and access
+- `migrations/0002_orgs.sql`; `Orgs` (members and roles, groups, invites, the audit log), `AppAccess` (permissions,
+  access lists, open to the org, where an app is) and `moveAppToOrg`. JSON routes under `/orgs`, `/invites` and
+  `/apps/<id>/move` (listed in Magnetic's README). Pages, the editor, agent turns, shares and view sockets all ask
+  `AppAccess`; members use org apps with persona = their user id; losing an app closes its views. Your apps lists the
+  org apps a person may open.
+- Changed from the design: no `app_directory`. An app's workspace is found by looking in the person's own workspace,
+  then their orgs' (`AppAccess.locate`), so the table had nothing to add. A moved app's reached parts are copied, and
+  the person's own workspace keeps its copies, so nothing there breaks; a later clean-up can drop the ones no app uses.
+
+### P5 and P6: embeddings and search
+- `stateui-pg/migrations/0002_embeddings.sql`, `EmbeddingIndex` (queue, worker with SKIP LOCKED, per-model HNSW
+  index over a cast, partial on the model), `localEmbedder` (all-MiniLM-L6-v2 through the optional
+  `@huggingface/transformers`) and `hashEmbedder` (no model; tests).
+- Magnetic: parts and chat entries are queued as they change; `GET /search`, and the agent's `parts_search` and
+  `chat_recall`; `magnetic reindex`.
+
+### Not built yet
+- **P3, the rest:** a settings page for orgs (the routes are JSON), a per-app agent turn lock in org workspaces, the
+  inspector's list of an app's instances, and support views of a member's instance.
+- **P4:** org SSO, verified domains, `requireSso` and `autoJoin`, policies (`externalLinks`, `personalWorkspaces`,
+  models, retention), org budgets, export and deletion. The audit log itself is in.
+- **P5:** the component catalog's hybrid search (the vectors are there to use).
+- **P7:** `embed: true` model fields and the `similar` data operation.
+- **The statenet stages S1 to S6** (`statenet-relays.md`).
+- Hosting notes: a superuser bypasses row-level security, so a hosted Magnetic connects as a role that is not one;
+  `magnetic reindex` and `import` run as the owner role, as they read every workspace.
