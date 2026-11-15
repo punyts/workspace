@@ -377,3 +377,21 @@ connection's own, and carries the grant that lets it write.
     reached. One sequence keeps catch-up and gap detection as they are.
   - The aggregate is not yet a separate role writing batches to `state_change`: in one process the authority's save
     is the write. A separate aggregate comes with the directory (S5) and the mesh (S6).
+
+### S3: subscriptions to external state (15 November 2026)
+- state-sync `createRelay`: a subscription table by address and prefix, one upstream subscription for all the
+  listeners of a prefix, a cache of the prefix with its revision and recent changes, catch-up from the cache, leases
+  swept on a timer, and a new upstream subscription from the cache's revision when a batch skips one (checked: a
+  thousand listeners make one upstream subscription; a listener that stops renewing is dropped with the upstream
+  subscription only it needed; a listener behind a gap never misses or repeats a change).
+- `createAuthorityUpstream`: the owner node's side, which projects each committed change onto the prefix (a change
+  above it as the set or delete of the prefix). `Authority.onChanges` and `changesSince` feed it.
+- stateui-app `uses.external` (alias to another app's id and a path); logic reads `$.external` and may not write it.
+- stateui-mcp: `createServices` runs the in-process relay over the workspace's instances; `ExternalReads` subscribes
+  each alias to `<persona>/<appId>/user` and writes what arrives into `$.external.<alias>` through the instance's
+  logic. `$.external` is ephemeral and refuses client writes.
+- Deviations:
+  - Only a person's own state of another app in the same workspace can be read: reading another person's state, or an
+    app in another workspace, needs a grant (S4). The app state namespace still holds nothing (S1), so `/app`
+    addresses resolve to nothing yet.
+  - The subscription messages are function calls in one process; on the wire they come with the mesh protocol (S6).
