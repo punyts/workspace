@@ -181,6 +181,47 @@ N6 is the largest: about as much work as N2 to N5 together.
   - no secret appears in a page, a document, a log or an agent's context;
   - a `view` link runs no effect.
 
+## As built
+### The beta's budget (before N1)
+- Each person gets $5 of agent use once: `--user-allowance` / `MAGNETIC_USER_ALLOWANCE`, summed over the whole ledger.
+- `MAGNETIC_DAILY_BUDGET=off` drops the daily pace, and the server stops at $100 a month.
+- When the $5 is spent, the chat says so, and everything else still works.
+- Deployed on 2026-11-15; the live server's log shows "budget $5 per user in all, $100 per month".
+
+### N1: the Playwright suite
+- **Where it lives:** `magnetic/e2e` and `magnetic/playwright.config.ts`, run with `@playwright/test` 1.61.1.
+  `npm run e2e` builds, then runs it.
+  - 29 tests in five specs, each run at 1440×900 and at a phone's 390×844: 58 runs, about 3 minutes, one worker.
+  - A failure leaves a trace and a screenshot (`npm run e2e:report`).
+- **The server:** `e2e/server.mjs` starts Magnetic from `dist` on a fresh schema of the test database, with:
+  - the dev users alice, bob, carol and dan;
+  - the mock provider;
+  - the scripted agent;
+  - the beta's budget.
+  
+  A control port (the page port + 2) sets who the mock provider signs in next, so a test can be a person with a
+  verified email, as an invite needs.
+- **What the page objects learned about the pages:**
+  - Every Magnetic page except the org settings, Shared by me and privacy is a StateUI app in a frame from the
+    runtime origin, and an accessibility snapshot does not reach into it. The page objects locate by role and text
+    inside each frame instead.
+  - The frames are:
+    - the sign-in page: `#page-app iframe`;
+    - Your apps: `body.home iframe`, with its notices on the page in `#notice`;
+    - the editor: `#editor iframe`, over the app at `#artboard iframe`;
+    - an app opened on its own: its only frame.
+  - Pressing an idea on a blank app sends it at once; it does not fill the request.
+  - Leaving the editor with Ctrl+Shift+E only drops the `editing` class, so the editor's frame stays in the DOM.
+  - On a phone the frame opens at Phone size.
+  - An invite link shows Join to anyone signed in; the email is checked when Join is pressed.
+- **What the suite found:**
+  - No broken flows.
+  - One gap for N2: the library narrows only once Enter is pressed or the box is left. The `searchBox` component
+    raises `change` on the native change event, not on each letter. N2's panel narrows as you type, and its test
+    will type without Enter.
+- The scripted agent adds each request as a text on the first screen. `EditorPage.ask` waits for that text, not just
+  for Stop to go, because Stop is not yet shown just after Send.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
 - Paying for more agent use after the $5.
