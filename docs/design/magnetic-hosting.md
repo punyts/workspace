@@ -152,6 +152,37 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
 - Found on the way: Git Bash turns a leading `/` in an argument into a Windows path, so AWS CLI calls with
   Parameter Store names (`/aws/service/...`) need `MSYS_NO_PATHCONV=1`.
 
+### H3: the deploy (15 November 2026)
+- **`node infra/aws/deploy.mjs`** builds the image, tags it `<commit>[-dirty]-<UTC minute>`, pushes it to ECR, and
+  through Session Manager writes the compose files and `infra/aws/host-deploy.sh` to `/opt/magnetic/docker` and runs
+  it. The host script fetches the secrets, downloads the RDS certificate authority, makes the `vector` and `ltree`
+  extensions and the `magnetic_app` role (its password from `magnetic/app-db-password`, set again on every deploy),
+  writes two 0600 env files, pulls, and runs `docker compose -p magnetic up -d`.
+  - `deploy.env` is for compose only: the image, the host names and both database URLs. The owner's URL reaches
+    `migrate` alone; the servers get `magnetic_app`'s.
+  - `magnetic.env` is the containers': the secret key, LinkedIn, Anthropic, the budgets ($5 a month, $0.25 a day
+    each), who runs the service, and `NODE_EXTRA_CA_CERTS`, so the database connections verify RDS
+    (`sslmode=verify-full`).
+  - `docker/magnetic.aws.compose.yml` mounts the authority and sends every container's log to CloudWatch `/magnetic`.
+- **`/privacy`**: with `MAGNETIC_OPERATOR` and `MAGNETIC_CONTACT_EMAIL` set, Magnetic says what it keeps, why, who
+  else sees it, how long, and how to have it deleted, without a sign-in. LinkedIn's app links to it.
+- **The keys** are in Parameter Store in `us-east-1`, so the stack's `ParameterRegion` says where the host reads
+  them. `infra/aws/put-secrets.sh` puts them there with hidden prompts.
+- Checked: both names serve HTTPS with Let's Encrypt certificates; HTTP redirects to HTTPS; the sign-in page frames
+  `https://run.ai-minion.com`; Caddy sets the `magnetic_server` cookie; a socket without a session is answered by
+  Magnetic (400), and a post from another origin gets 403; the migrations ran as the owner and the servers run as
+  `magnetic_app`; the relay is linked to the mesh; LinkedIn's redirect URI is the public one.
+- Found on the way:
+  - **Docker's Windows credential store refuses ECR's token** ("The stub received bad data"). The push uses a
+    Docker config of its own, holding the login as `auths`, which keeps Docker from picking the store, and is deleted
+    after.
+  - **Session Manager runs commands with `sh`**, which has no `pipefail`; the host script runs under `bash`.
+  - **Semantic search is off**: the image has no `@huggingface/transformers`, so `local` falls back to nothing.
+    Next: install it in the image (and keep the model in the `models` volume), or run with `hash` meanwhile.
+  - **Two servers starting at once race** to install Magnetic's own pages on the first request: one `/signin` failed
+    with a revision conflict, and every request after it answers. A server should take the other's write as done.
+- Not checked yet: a LinkedIn sign-in end to end, which needs a person; and the restore drill.
+
 ## Decisions (15 November 2026)
 1. **This shape:** one EC2 machine with Compose, Caddy and RDS, about $50 a month, over ECS Fargate with an ALB
    (about $120), which pays off only when one machine is not enough.

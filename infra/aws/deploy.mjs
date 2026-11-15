@@ -2,8 +2,10 @@
 // it to ECR, and through Session Manager puts the compose files on the host and runs infra/aws/host-deploy.sh there.
 //   node infra/aws/deploy.mjs            (with the magnetic SSO profile signed in: aws sso login --profile magnetic)
 // Plain Node, like the workspace scripts, so it runs from cmd, PowerShell and bash.
-import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -16,7 +18,7 @@ const env = { ...process.env, AWS_PROFILE: process.env.AWS_PROFILE ?? 'magnetic'
 
 /** Runs a command and answers its output; its errors go to the console */
 function run(command, args, options = {}) {
-    return execFileSync(command, args, { cwd: ROOT, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024, ...options }).trim();
+    return execFileSync(command, args, { cwd: ROOT, env, encoding: 'utf8', stdio: ['pipe', 'pipe', 'inherit'], maxBuffer: 64 * 1024 * 1024, ...options })?.trim() ?? '';
 }
 const aws = (...args) => JSON.parse(run('aws', [...args, '--output', 'json']) || 'null');
 const step = (text) => process.stdout.write(`\n== ${text}\n`);
@@ -32,10 +34,19 @@ const dirty = ['.', 'magnetic', 'stateui-mcp', 'stateui-pg', 'stateui-app', 'sta
 const tag = `${commit}${dirty ? '-dirty' : ''}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`;
 const image = `${repository}:${tag}`;
 run('docker', ['build', '-f', 'docker/Dockerfile', '-t', image, '.'], { stdio: 'inherit' });
-const password = run('aws', ['ecr', 'get-login-password']);
-const login = spawnSync('docker', ['login', '--username', 'AWS', '--password-stdin', repository.split('/')[0]], { cwd: ROOT, env, input: password, encoding: 'utf8' });
-if (login.status !== 0) throw new Error(`docker login to ECR failed: ${login.stderr}`);
-run('docker', ['push', '--quiet', image], { stdio: 'inherit' });
+// The login gets a Docker config of its own: Windows' credential store refuses ECR's long token ("The stub received
+// bad data"), so it is kept in this folder's file for the push and the folder is deleted after
+const dockerConfig = mkdtempSync(join(tmpdir(), 'magnetic-ecr-'));
+try {
+    // Written as `auths` rather than through `docker login`: a config that already holds a login keeps Docker from
+    // picking the platform's credential store
+    const password = run('aws', ['ecr', 'get-login-password']);
+    const auth = Buffer.from(`AWS:${password}`).toString('base64');
+    writeFileSync(join(dockerConfig, 'config.json'), JSON.stringify({ auths: { [repository.split('/')[0]]: { auth } } }), { mode: 0o600 });
+    run('docker', ['push', '--quiet', image], { stdio: 'inherit', env: { ...env, DOCKER_CONFIG: dockerConfig } });
+} finally {
+    rmSync(dockerConfig, { recursive: true, force: true });
+}
 
 step('the host');
 const files = {
@@ -46,7 +57,7 @@ const files = {
 };
 const quote = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const commands = [
-    'set -euo pipefail',
+    'set -eu',
     'mkdir -p /opt/magnetic/docker',
     ...Object.entries(files).map(([name, path]) => `echo ${readFileSync(new URL(`../../${path}`, import.meta.url)).toString('base64')} | base64 -d > /opt/magnetic/docker/${name}`),
     `bash /opt/magnetic/docker/host-deploy.sh ${[image, outputs.DatabaseEndpoint, outputs.DatabaseMasterSecretArn, outputs.AppDbPasswordArn, outputs.SecretKeyArn, OPERATOR, CONTACT].map(quote).join(' ')}`
