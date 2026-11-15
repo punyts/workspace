@@ -15,6 +15,7 @@
         "stateui-app",
         "stateui-components",
         "stateui-mcp",
+        "stateui-pg",
         "magnetic",
         "example"
     ],
@@ -35,10 +36,12 @@
         "mcp": "npm run dev -w @punyts/stateui-mcp",
         "mcp:stdio": "npm run start -w @punyts/stateui-mcp",
         "mcp:build": "node bin/workspace.mjs run build core expression state state-sync statenet stateui stateui-3d stateui-app stateui-components stateui-mcp && npm run build:runtime-bundle -w @punyts/stateui-app",
-        "magnetic": "npm run start -w @punyts/magnetic -- --dev-user alice --dev-user bob --mock-provider --mock-agent",
-        "magnetic:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-3d stateui-app stateui-components stateui-mcp magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
-        "ui:build": "node bin/workspace.mjs run build stateui stateui-app stateui-components stateui-mcp magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "magnetic": "npm run start -w @punyts/magnetic -- --database-url postgres://magnetic:magnetic@127.0.0.1:5433/magnetic --migrate --dev-user alice --dev-user bob --mock-provider --mock-agent",
+        "magnetic:db": "docker compose -f magnetic/docker-compose.yml up -d",
+        "magnetic:migrate": "npm run start -w @punyts/magnetic -- migrate --database-url postgres://magnetic:magnetic@127.0.0.1:5433/magnetic",
+        "magnetic:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-3d stateui-app stateui-components stateui-mcp stateui-pg magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "ui:build": "node bin/workspace.mjs run build stateui stateui-app stateui-components stateui-mcp stateui-pg magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
         "magnetic:dev": "npm run ui:build && npm run magnetic",
-        "magnetic:live": "npm run start:live -w @punyts/magnetic -- --dev-user alice --dev-user bob --mock-provider"
+        "magnetic:live": "npm run start:live -w @punyts/magnetic -- --database-url postgres://magnetic:magnetic@127.0.0.1:5433/magnetic --migrate --dev-user alice --dev-user bob --mock-provider"
     }
 }
