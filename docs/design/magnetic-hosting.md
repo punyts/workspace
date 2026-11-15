@@ -199,7 +199,15 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
   4. The log now keeps what a provider said: its `error` and `error_description` on the callback and at the token
      endpoint, and which check of its response failed; never the response body, which may hold tokens.
   Checked: a person signed in with LinkedIn at `https://magnetic.ai-minion.com` (15 November 2026).
-- Not checked yet: the restore drill.
+- **The restore drill** (15 November 2026): `magnetic` restored to its latest restorable point, 20:58:33 UTC (after
+  the first person signed in at 20:56:41), as `magnetic-restore-drill`, in the same subnets and security group. It
+  took 10 minutes. `infra/aws/restore-check.sh`, run on the host, counts what a database holds (it names every
+  workspace, as row-level security holds the master user too), and printed the same as for the live database:
+  10 migrations, 1 person with a LinkedIn identity, 1 session, 32 parts, 2 embeddings. `magnetic_app` logs in to the
+  copy and is held by row-level security there as on the live one. The copy was deleted after, without a snapshot.
+  - RDS ships its transaction log every few minutes, so the latest restorable point trails by up to about 5
+    minutes: a restore can lose that much.
+  - To switch to a restored copy: point `DB_HOST` in a deploy at its endpoint (or rename the instances) and deploy.
 
 ## Decisions (15 November 2026)
 1. **This shape:** one EC2 machine with Compose, Caddy and RDS, about $50 a month, over ECS Fargate with an ALB
