@@ -424,6 +424,18 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
 - Changed from the design: no `app_directory`. An app's workspace is found by looking in the person's own workspace,
   then their orgs' (`AppAccess.locate`), so the table had nothing to add. A moved app's reached parts are copied, and
   the person's own workspace keeps its copies, so nothing there breaks; a later clean-up can drop the ones no app uses.
+- Finished on 15 November 2026: the org settings pages (`/settings/orgs`, the **Orgs** button on Your apps): members and
+  roles, groups, invites, making an app in the org or bringing one in, access lists and open to the org, who uses each
+  app, the audit log, and leaving. An invite link opens a page that joins the org (before, only the JSON accept route
+  existed, so the link itself was a 404). `AgentTurns` runs one turn at a time per app (`<workspaceId>:<appId>`) as well
+  as per person. `AppInstances` lists who uses an app (for people who manage it) and opens a member's instance read
+  only for org admins and owners, writing `instance.support_view` to the audit log. Taking someone out of a group now
+  closes their views of the apps they had only through it.
+- Changed from the design: the settings pages are plain HTML forms, not StateUI apps, as Magnetic's page policy allows
+  no script and every control is a form post. Who uses an app and the support view are on the org's settings page, not
+  in the editor's inspector, and the support view shows the member's state as last saved (their instance diff and
+  persona records) as text, rather than opening the app live as them; opening it live would cache their state in the
+  admin's browser.
 
 ### P5 and P6: embeddings and search
 - `stateui-pg/migrations/0002_embeddings.sql`, `EmbeddingIndex` (queue, worker with SKIP LOCKED, per-model HNSW
@@ -433,8 +445,6 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   `chat_recall`; `magnetic reindex`.
 
 ### Not built yet
-- **P3, the rest:** a settings page for orgs (the routes are JSON), a per-app agent turn lock in org workspaces, the
-  inspector's list of an app's instances, and support views of a member's instance.
 - **P4:** org SSO, verified domains, `requireSso` and `autoJoin`, policies (`externalLinks`, `personalWorkspaces`,
   models, retention), org budgets, export and deletion. The audit log itself is in.
 - **P5:** the component catalog's hybrid search (the vectors are there to use).
