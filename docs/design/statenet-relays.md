@@ -333,8 +333,7 @@ connection's own, and carries the grant that lets it write.
 - Nodes find each other through a directory in Postgres, and talk over the mesh protocol.
 
 ## As built
-Every stage, S1 to S6, is built. What is left after them is at the end of S5 and S6: Magnetic's own namespaces on owner
-nodes behind the mesh.
+Every stage, S1 to S6, is built, and Magnetic runs behind the mesh on any number of servers (the last section).
 
 ### S1: addresses and storage (15 November 2026)
 - Addresses: `formatAddress`, `parseAddress`, `userStateAddress` and `appStateAddress` in stateui-mcp
@@ -456,4 +455,57 @@ nodes behind the mesh.
     that only nodes Magnetic certified can link.
   - Magnetic does not start a mesh server yet: its namespaces still live in one process (S5), and its pages speak the
     stateui-mcp view protocol, not the sync protocol a relay serves. Putting Magnetic's instances on owner nodes behind
-    the mesh is the next step after this design.
+    the mesh came next (below).
+
+### Magnetic behind the mesh (15 November 2026)
+Topology steps 2 and 3: any number of Magnetic servers on one database, each an owner node, with relays in front.
+- **Owner nodes with a host of their own (state-sync).** `OwnerNode` takes a `NamespaceHost`: Magnetic gives its own
+  authorities (each an instance with its app's logic and storage), which it may restart over a changed definition
+  between writes. `place(address)` says where a namespace is ordered (here, taking it when nobody holds it, or at its
+  owner). The nodes an owner reaches are `NodePeer`s, so a peer can be another process.
+- **Owner nodes over the mesh (statenet).** `startOwnerMesh`: peer links to the other owner nodes the directory names,
+  with forwarded writes, `claim`/`handoff`/`handed` (a handoff over the wire, its queued writes answered back to the
+  node that waits on them) and `take` (the owner asks the node that sends most writes to claim). A placed upstream
+  keeps a relay subscription on the namespace as it moves between nodes. The mesh server serves relays below from it.
+- **Instances on several servers (stateui-mcp).** With an `InstancePlacement` an instance runs only on the server that
+  owns its address: the tools claim it first, its saves carry the epoch (`InstanceWriteFence`), a view's socket gets
+  its session wherever it runs, the owner node starts and stops instances by address, and a part change restarts the
+  running instances that show it even with no view on that server.
+- **Fencing (stateui-pg).** `PgStateStore` refuses a write under an epoch older than the namespace's newest
+  (`FencedError`) and raises the head's epoch with a newer one.
+- **Part changes across servers (stateui-pg, stateui-mcp).** Every part change is announced on `stateui_part` in its
+  transaction; each server listens on a connection of its own, skips its own notices, and feeds the others through
+  `partChangedElsewhere`, which updates the usage index and tells the same listeners a local change does.
+- **Magnetic.** `--mesh-port` makes a server a node: it registers and heartbeats in the directory, signs its own node
+  certificate with the statenet's authority (an `owner_key` of the owner `statenet`), runs the owner mesh with the
+  workspaces as host, announces and hears part changes, keeps open the workspaces whose instances it owns, and on stop
+  lets its instances go at once (their leases end now). `magnetic relay-certificate` issues a relay's key and
+  certificate. `docker/statenet.compose.yml` runs two servers, Postgres and a relay.
+- Checked: in-process and over real sockets, a view at one server of an instance another runs, with its writes applied
+  there; a part changed at one server reaching the views at the other and restarting the instance where it runs; an
+  instance moving to the server whose tools act on it with its state and its views reconnecting through the mesh; and
+  a stopped server's instances taken over at once (`statenet.test.ts`). Writes forwarded and applied once, a
+  tunnelled session with its emits both ways, a claim over the wire with writes landing meanwhile, a subscription
+  following a moving namespace, and takeover of a lost node (`ownerMesh.test.ts`). Saves under an older epoch refused
+  on Postgres (`state.test.ts`).
+- Deviations:
+  - **A view at another server is tunnelled, not served by a relay subscription.** A view's socket carries events
+    both ways (logic events, calls, effects) and its acks and access checks are the authority's, which a relay's
+    subscription does not carry. So a server that does not run an instance opens a real session with the owner over
+    the mesh (`open`, `say`, `shut`). Relays keep subscriptions for what only reads (`uses.external`, relays' clients).
+  - **Which workspace an address is in** is kept in `statenet_namespace`, written by the server that places it: the
+    parts have row-level security, so a server cannot find an app's workspace from its id alone. An address no server
+    placed yet (a persona's state read by `uses.external` before it was ever opened) cannot be taken over.
+  - **The applied change ids are not kept across a handoff** for instances: their storage keeps the instance's state,
+    not the authority's log, so a write resent across a handoff could be applied twice. The plain host keeps them.
+  - **Relays learn every owner key** with each read of the directory, every two seconds; a server's own relay checks
+    no grants (its readers are its own instances, and relays below check their listeners).
+  - **The agent's events** are recorded at the server that runs the instance; the tools claim the instance, so they
+    run where its events are.
+  - **`stop` of an app** claims only the default persona's instance; another person's instance running on another
+    server is not stopped.
+  - **A notice missed** while a server's listener reconnects rebuilds its usage index, but open views are not sent
+    the change until the next one.
+  - **A new server is unknown to the others** until they read the directory (every two seconds); a server that cannot
+    reach a namespace's owner reads it once more before it gives up.
+  - **The development sign-in is off in containers**, which bind 0.0.0.0: the compose file's servers need a provider.

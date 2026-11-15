@@ -1,0 +1,110 @@
+# Two Magnetic servers on one database, each a node of the statenet, and a relay in front of them
+# (docs/design/statenet-relays.md, "Topology, in steps", 2 and 3).
+#
+#   docker compose -f docker/statenet.compose.yml up --build
+#
+# magnetic-1 is at http://127.0.0.1:4401 and magnetic-2 at http://127.0.0.1:4402; the relay's browser port is
+# ws://127.0.0.1:4411. Each server owns the instances it was first asked for and reaches the others over the mesh.
+# The servers bind 0.0.0.0, so the development sign-in buttons are off: sign in with a provider (MAGNETIC_LINKEDIN_*).
+#
+# To check it end to end, make a session and run docker/check.mjs from the workspace with its cookie:
+#   docker compose -f docker/statenet.compose.yml exec magnetic-2 node docker/session.mjs tester
+#   node docker/check.mjs 'magnetic_session=...'
+x-magnetic: &magnetic
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  image: punyts/magnetic:dev
+  environment: &magnetic-env
+    MAGNETIC_DATABASE_URL: postgres://magnetic:magnetic@db:5432/magnetic
+    MAGNETIC_SECRET_KEY: ${MAGNETIC_SECRET_KEY:-statenet-compose-secret-change-me}
+    MAGNETIC_EMBEDDING: hash
+    MAGNETIC_STARTER: none
+    MAGNETIC_HOST: 0.0.0.0
+    MAGNETIC_MESH_PORT: '4310'
+    MAGNETIC_MESH_HOST: 0.0.0.0
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: magnetic
+      POSTGRES_PASSWORD: magnetic
+      POSTGRES_DB: magnetic
+    volumes:
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U magnetic']
+      interval: 2s
+      retries: 30
+
+  migrate:
+    image: punyts/magnetic:dev
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ['migrate']
+    environment:
+      MAGNETIC_DATABASE_URL: postgres://magnetic:magnetic@db:5432/magnetic
+    depends_on:
+      db:
+        condition: service_healthy
+
+  magnetic-1:
+    <<: *magnetic
+    environment:
+      <<: *magnetic-env
+      MAGNETIC_NODE_ID: magnetic-1
+      MAGNETIC_MESH_URL: ws://magnetic-1:4310
+      MAGNETIC_PUBLIC_ORIGIN: http://127.0.0.1:4401
+    ports:
+      - '127.0.0.1:4401:4300'
+
+  magnetic-2:
+    <<: *magnetic
+    environment:
+      <<: *magnetic-env
+      MAGNETIC_NODE_ID: magnetic-2
+      MAGNETIC_MESH_URL: ws://magnetic-2:4310
+      MAGNETIC_PUBLIC_ORIGIN: http://127.0.0.1:4402
+    ports:
+      - '127.0.0.1:4402:4300'
+
+  # Signs the relay's certificate with the statenet's authority, which the servers keep in the database
+  relay-certificate:
+    image: punyts/magnetic:dev
+    command: ['relay-certificate', '--node-id', 'relay-1', '--out', '/certs']
+    environment:
+      MAGNETIC_DATABASE_URL: postgres://magnetic:magnetic@db:5432/magnetic
+      MAGNETIC_SECRET_KEY: ${MAGNETIC_SECRET_KEY:-statenet-compose-secret-change-me}
+    volumes:
+      - relay-certs:/certs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  relay-1:
+    image: punyts/magnetic:dev
+    entrypoint: ['node', 'statenet/dist/relayCli.js']
+    environment:
+      STATENET_NODE_ID: relay-1
+      STATENET_PARENTS: ws://magnetic-1:4310,ws://magnetic-2:4310
+      STATENET_NODE_KEY_FILE: /certs/relay-1.key.json
+      STATENET_NODE_CERTIFICATE_FILE: /certs/relay-1.certificate
+      STATENET_AUTHORITY_PUBLIC_KEY_FILE: /certs/relay-1.authority
+      STATENET_HOST: 0.0.0.0
+    ports:
+      - '127.0.0.1:4411:4311'
+    volumes:
+      - relay-certs:/certs:ro
+    depends_on:
+      relay-certificate:
+        condition: service_completed_successfully
+      magnetic-1:
+        condition: service_started
+
+volumes:
+  relay-certs:
