@@ -331,3 +331,30 @@ connection's own, and carries the grant that lets it write.
 - Magnetic holds every key: one signing key per owner, users and orgs alike.
 - Storage: one row per dataset record and per other top-level key.
 - Nodes find each other through a directory in Postgres, and talk over the mesh protocol.
+
+## As built
+
+### S1: addresses and storage (15 November 2026)
+- Addresses: `formatAddress`, `parseAddress`, `userStateAddress` and `appStateAddress` in stateui-mcp
+  (`src/domain/StateAddress.ts`). A persona's state of an app is at `<persona>/<appId>/user`; the workspace's default
+  persona (its builders' preview, and the person in their own workspace) is the workspace's id, so a person's state of
+  their own app is at their id and keeps its address when the app moves into an org (only its workspace changes).
+- stateui-pg `0004_state.sql`: `state_node`, `state_change` and `namespace_head`. It moves the rows of `instance` and
+  `persona_dataset` to their addresses, in key order, keeping when each last changed, and drops both tables.
+- `PgStateStore`: one row per top-level key and per record under `data.<binding>`, each with its position among its
+  siblings, so a namespace reads back in its key order; a write rewrites and logs only the rows it changed and takes
+  the namespace's next revision under a lock on its head. `PgUiInstanceRepository` stores on it: the instance diff
+  as top-level rows (its own unbound `data` as `localData`, since `data` holds the persona records), each persona
+  binding's records under `data.<binding>` with the binding's model on its row.
+- Moved onto it: the persona record embeddings (P7; a persona record's source id is now `<address>/<binding>/<key>`),
+  and in Magnetic the support view, the org export (`magnetic-org-export/2`, each address's state), org deletion,
+  retention (by `namespace_head.updated_at`), moving an app into an org, and `magnetic import`.
+- Deviations:
+  - The app's state namespace (`<ownerId>/<appId>/app`) is addressed but holds nothing yet. Shared dataset records stay
+    in their data parts: a dataset can be bound by several apps, so it has no one app to live in. They move when S3
+    lets an app read another app's paths, so a dataset can belong to one app and be read by the others.
+  - Row-level security is by the workspace the app is in, as for every workspace table, not by the owner in the
+    address: a person's state of an org's app is theirs but lives in the org's workspace.
+  - Paths are text (`data.notes.k1`), not `ltree`: a record key may hold characters an ltree label cannot.
+  - The log records the rows each write changed, not the authority's changes: the authority still keeps its own log
+    in memory, and S2's aggregate is where its changes reach the database.
