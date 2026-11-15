@@ -177,10 +177,16 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
     Docker config of its own, holding the login as `auths`, which keeps Docker from picking the store, and is deleted
     after.
   - **Session Manager runs commands with `sh`**, which has no `pipefail`; the host script runs under `bash`.
-  - **Semantic search is off**: the image has no `@huggingface/transformers`, so `local` falls back to nothing.
-    Next: install it in the image (and keep the model in the `models` volume), or run with `hash` meanwhile.
-  - **Two servers starting at once race** to install Magnetic's own pages on the first request: one `/signin` failed
-    with a revision conflict, and every request after it answers. A server should take the other's write as done.
+  - **Semantic search was off**: the image had no `@huggingface/transformers`, so `local` fell back to nothing. The
+    Dockerfile now installs it (4.3.2, `--no-save`, so the workspace keeps it optional); the model is fetched on
+    first use into the `models` volume. Checked in the local stack: `migrate` makes the index of
+    `Xenova/all-MiniLM-L6-v2`, the servers embed with it, and each uses about 300 MB. The image is 2.05 GB.
+  - **Two servers starting at once raced** to make Magnetic's own apps on the first request: one `/signin` failed
+    with a revision conflict. They are now made under a Postgres advisory lock (`magnetic/src/storage/exclusive.ts`):
+    one key for the system workspace (the page apps and the default editor, which share the theme) and one per person
+    (their editor and home app). A server checks without the lock, and only when the app looks missing or old takes
+    it, reads the parts again past its own index, and makes the app if it is still needed. `startupRace.test.ts`
+    gets 500s without the lock; after the deploy, six simultaneous first requests all answered 200.
 - Not checked yet: a LinkedIn sign-in end to end, which needs a person; and the restore drill.
 
 ## Decisions (15 November 2026)
