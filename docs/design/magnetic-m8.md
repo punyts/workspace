@@ -222,6 +222,40 @@ N6 is the largest: about as much work as N2 to N5 together.
 - The scripted agent adds each request as a text on the first screen. `EditorPage.ask` waits for that text, not just
   for Stop to go, because Stop is not yet shown just after Send.
 
+### N2: the library panel
+- **The panel:** `library` is a floating panel of the editor app beside the rail (`LIBRARY` in `EditorApp.ts`).
+  - On a wide window it is 288px wide, from below the corners to above the chat bar.
+  - Below 760px it is a sheet across the bottom, using the same `clamp` trick as the inspector.
+  - It shows when the editor opens on a wide window and starts hidden on a phone. After that the browser keeps the
+    person's choice (`magnetic.library`).
+  - The rail has a fourth button under the tools, Components (A), which is soft while the panel shows. `A` toggles it
+    from the page and from the editor's frame.
+  - `freeArea` fits the app to the right of the panel.
+  - The inspector lost its Add tab and keeps Properties and State.
+- **Search as you type:** `searchBox` in stateui-components raises `input` with each letter, as `input` and
+  `textarea` do. The library listens to `input` and `change`.
+- **Drag, as built differently from the plan:**
+  - The plan laid the Move tool's cover over the frame and dragged with the pointer.
+  - A native HTML drag was tried next. It crosses frames in a browser, but Playwright cannot drive one out of a
+    cross-origin frame (it ran `dragstart` but never `dragover` on the page, with site isolation on or off). It could
+    not be tested, so it was dropped.
+  - **As built:** the `card` component has `draggable`. A press that moves past 5px raises `dragStart`, then
+    `dragMove` and `dragEnd` with the pointer's `{ x, y }` in its window. The card holds the pointer capture for
+    the whole drag, so the editor's frame keeps the moves even over the canvas. That frame covers the window, so its
+    pixels are the page's. Escape, or a cancelled pointer, ends the drag with `cancelled: true`. A drag is not a press.
+  - **The page side** (`inspect.ts`): `grab` starts placing. `dragMove` over the artboard asks the frame where the
+    component would land and draws the line. `dragEnd` there commits one `add`. Anywhere else, or cancelled, it says
+    "Cancelled."
+  - **Phones:** a touch on a card scrolls the list rather than dragging (no `touch-action: none`, so the list stays
+    scrollable). On a phone the component is pressed, then placed.
+- **Tests:**
+  - stateui-components `card.browser.test.ts`: the drag events, a press without a drag, Escape and a cancelled pointer.
+  - `search-box.browser.test.ts`: `input` with each letter.
+  - The Playwright suite has a "component library" group: 5 tests at two sizes, with the two drag tests skipped on a
+    phone. The suite now runs 64 times: 62 pass and 2 are skipped.
+- **Also fixed:** `importFiles.test.ts` expected the old shape of `Budgets.spent`, from before the beta's allowance
+  added `total`.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
 - Paying for more agent use after the $5.
