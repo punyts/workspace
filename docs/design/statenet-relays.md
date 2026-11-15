@@ -395,3 +395,23 @@ connection's own, and carries the grant that lets it write.
     app in another workspace, needs a grant (S4). The app state namespace still holds nothing (S1), so `/app`
     addresses resolve to nothing yet.
   - The subscription messages are function calls in one process; on the wire they come with the mesh protocol (S6).
+
+### S4: grants (15 November 2026)
+- state-sync `Grants.ts`: grant tokens (the claims and an Ed25519 signature, base64url), `verifyGrant` (the chain to
+  a root the owner of the address signed, each grant passed on by the subject of the one before and no wider, retired
+  keys verifying only what they signed before, expiry, revocation anywhere in the chain), `checkAccess` (the owner
+  reads and writes freely), `RevocationList`. A relay with `grants` checks reads on subscribe and every renewal and
+  passes `revoked` down to the relays below; an authority with `access` checks every client change, so a revoked
+  write grant stops at once.
+- Magnetic: `owner_key` (one key per owner as addresses name it, a user or a workspace, the private part sealed with
+  `MAGNETIC_SECRET_KEY`), rotation, `state_grant` (the standing right; tokens are signed for it, four hours at a time),
+  revocation down every grant passed on, Shared by me (`/settings/shared`, `GET /grants`), the org's standing read
+  (`org-read`, made when the org first reads, revoked when the member leaves; the support view reads through it and
+  audits its id), and the policy `grantsInOrg` at issue.
+- Deviations:
+  - An org's standing read is one grant per member for all the org's apps, `<userId>/*/user`: a granted address may use
+    `*` for the app. One per member and app would need a grant for every app made later.
+  - Grants are checked in Magnetic's process; no relay serves browsers or other servers yet, so nothing presents a
+    grant over the wire until S6.
+  - Share links (`use`, `view`, `remix`) keep their own `link_grant` rows: they open an instance for the visitor,
+    which is not yet a read or write of someone's state at an address.
