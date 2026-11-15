@@ -415,3 +415,22 @@ connection's own, and carries the grant that lets it write.
     grant over the wire until S6.
   - Share links (`use`, `view`, `remix`) keep their own `link_grant` rows: they open an instance for the visitor,
     which is not yet a read or write of someone's state at an address.
+
+### S5: the directory and moving ownership (15 November 2026)
+- state-sync `Ownership.ts`: `OwnerNode` (hosts the namespaces it owns, forwards the rest, `claim`/`handoff` with the
+  durable wait and the queue passed on, takeover after a lease runs out, renewals that stop the node at once when it
+  has lost ownership), the `OwnershipStore` and `EpochStorage` ports, and `ClaimPolicy` (a share of the writes over a
+  window, a minimum count, a cooldown). Relays refuse batches from an older epoch and start over under a newer one.
+- stateui-pg `0005_directory.sql`: `statenet_node`, `namespace_owner`, and the applied ids on `namespace_head`.
+  `PgOwnershipStore` (one compare-and-swap statement, the database's clock for leases), `PgDirectory` (register,
+  heartbeat, sweep) and `PgEpochStorage` (a namespace row by row with the authority's log in `state_change`, refusing
+  a save from an older epoch).
+- Checked: no change ordered twice or lost during a handoff, and writes sent meanwhile landing after it in order (in
+  memory and on Postgres with two owner nodes); an old owner after its lease ran out refused by the storage and the
+  relays; two nodes writing equally keep one owner; a lost node's namespaces taken over once their leases run out; and
+  two servers that both get a namespace's first write agreeing on one owner.
+- Deviations:
+  - The owner decides when ownership moves (it sees every write and its source), rather than the node that forwards:
+    a forwarder sees only its own share.
+  - Magnetic still runs every namespace in one process: its instances move onto owner nodes when the mesh (S6) lets a
+    browser connected to one server reach a namespace another server owns.
