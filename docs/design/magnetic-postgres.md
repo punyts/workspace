@@ -503,6 +503,7 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
 ### Not built yet
 - **After P4:** SAML and SCIM (outside this design); a hosted server needs `MAGNETIC_SECRET_KEY` set for orgs to use
   their own sign-in.
-- **The statenet stages S1 to S6** (`statenet-relays.md`).
+- The statenet stages S1 to S6 are built (`statenet-relays.md`, "As built"); Magnetic's instances move onto owner nodes
+  behind the mesh next.
 - Hosting notes: a superuser bypasses row-level security, so a hosted Magnetic connects as a role that is not one;
   `magnetic reindex` and `import` run as the owner role, as they read every workspace.

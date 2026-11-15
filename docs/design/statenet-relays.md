@@ -333,6 +333,8 @@ connection's own, and carries the grant that lets it write.
 - Nodes find each other through a directory in Postgres, and talk over the mesh protocol.
 
 ## As built
+Every stage, S1 to S6, is built. What is left after them is at the end of S5 and S6: Magnetic's own namespaces on owner
+nodes behind the mesh.
 
 ### S1: addresses and storage (15 November 2026)
 - Addresses: `formatAddress`, `parseAddress`, `userStateAddress` and `appStateAddress` in stateui-mcp
@@ -434,3 +436,24 @@ connection's own, and carries the grant that lets it write.
     a forwarder sees only its own share.
   - Magnetic still runs every namespace in one process: its instances move onto owner nodes when the mesh (S6) lets a
     browser connected to one server reach a namespace another server owns.
+
+### S6: the mesh protocol and separate relays (15 November 2026)
+- statenet `src/mesh/`: node certificates (`issueNodeCertificate`, `verifyNodeCertificate`) and a proof of each node's
+  key in the handshake; `startMeshServer` (links below: `link-hello`, `link-welcome` with the directory, `link-proof`,
+  then batched frames; credits per link, folding while a node has none, and `resync` past `maxHeld`);
+  `createMeshUpstream` (the link up: the directory from the parent, pings, reconnects to the next parent or one the
+  directory names, every subscription made again from its revision, writes sent again and applied once by id);
+  `startClientServer` (browsers speak state-sync protocol 2 to a relay, their changes going up the mesh);
+  `startRelayNode` and the `statenet-relay` command.
+- Checked over real sockets: a browser behind a regional relay sees the same changes in the same order as one at the
+  server, and its own write reaches the owner; a node whose certificate the authority did not sign cannot link; a slow
+  node lags and catches up while its parent holds at most its limit for it; a relay whose parent goes away links to
+  another and misses nothing; a relay with no database learns the owners, nodes and keys and checks grants with them.
+- Deviations:
+  - Node certificates are Ed25519 statements signed by Magnetic's authority key and checked in the link handshake,
+    over the TLS the operator configures (`tls` on the mesh server), not X.509 mutual TLS: Node can check X.509
+    certificates but has no way to issue them without another dependency, and the handshake gives the same guarantee
+    that only nodes Magnetic certified can link.
+  - Magnetic does not start a mesh server yet: its namespaces still live in one process (S5), and its pages speak the
+    stateui-mcp view protocol, not the sync protocol a relay serves. Putting Magnetic's instances on owner nodes behind
+    the mesh is the next step after this design.
