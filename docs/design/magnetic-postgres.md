@@ -465,11 +465,20 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   `@huggingface/transformers`) and `hashEmbedder` (no model; tests).
 - Magnetic: parts and chat entries are queued as they change; `GET /search`, and the agent's `parts_search` and
   `chat_recall`; `magnetic reindex`.
+- The catalog's hybrid search (15 November 2026): a `CatalogMeanings` port in stateui-mcp, which `SearchComponents` and
+  `SearchPatterns` call only when the keyword result is weak; the catalog merges the two rankings by reciprocal rank
+  (k = 60), keeps to the category, tier or kind asked for, marks hits found by meaning `byMeaning: true`, and stays
+  weak only when the best meaning is below the model's close score. `CatalogEmbeddings` in stateui-pg implements it
+  over `0003_catalog_embeddings.sql`: the version is the hash of the entries' texts, so a changed catalog is embedded
+  again, and older versions are removed. Deviations: the table has no vector index (about 200 rows), and owner
+  components and patterns are not embedded (the design's table is shared by every workspace).
+  - Not checked yet: the design's check that requests weak today find the right component in the top three with the
+    local model. The tests use the hash embedder, as the model is not installed here, and the local model's close
+    score (0.45) is a starting value to tune against those requests.
 
 ### Not built yet
 - **After P4:** SAML and SCIM (outside this design); a hosted server needs `MAGNETIC_SECRET_KEY` set for orgs to use
   their own sign-in.
-- **P5:** the component catalog's hybrid search (the vectors are there to use).
 - **P7:** `embed: true` model fields and the `similar` data operation.
 - **The statenet stages S1 to S6** (`statenet-relays.md`).
 - Hosting notes: a superuser bypasses row-level security, so a hosted Magnetic connects as a role that is not one;
