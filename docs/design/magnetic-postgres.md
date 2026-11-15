@@ -437,6 +437,28 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   persona records) as text, rather than opening the app live as them; opening it live would cache their state in the
   admin's browser.
 
+### P4: enterprise controls (15 November 2026)
+- `migrations/0003_enterprise.sql`: `org_domain`, `org_sso`, `org_policy`, `identity.org_id`, and triggers that make
+  `audit_event` append only for every role (the database raises on update, delete and truncate).
+- `OrgDomains` (claim, verify by a TXT record at `_magnetic-challenge.<domain>`, a domain belongs to one org), `OrgSso`
+  (an org's OIDC provider, its secret sealed with AES-256-GCM under `MAGNETIC_SECRET_KEY`), `OrgPolicies` (the seven
+  policies, checked values, `requireSso` for owners only, the hourly retention sweep), `SignInRules` (the `requireSso`
+  gate, `autoJoin`, and a `user.signed_in` event in each org of the person, with their address), org spend in `Budgets`,
+  `exportOrg` and `deleteOrg`.
+- Sign-in: "Sign in with your work email" (`/signin/sso`) finds the org that verified the domain and starts its
+  provider; every org provider returns to `/auth/sso/callback`, and its identities are `org:<orgId>`. An org's provider
+  vouches for an email only at that org's verified domains, so it cannot make someone verified elsewhere.
+- Enforced: `externalLinks` when a link is opened and when its view connects; `personalWorkspaces` when making or
+  remixing an app; `agentModels` on turns and in the editor's model list; `monthlyBudget` before and during each turn
+  in the org's apps (`AgentTurns.workspaceRefusal`).
+- The org settings page shows admins the policies, domains, sign-in and this month's spend by person and app, and
+  owners the export and deletion. Each is also a JSON route.
+- Fixed on the way: `profileOf` never set `emailVerified`, so nobody signing in through a provider had a verified email
+  (and so could not accept an invite).
+- Changed from the design: moving an app into an org does not revoke its links when `externalLinks` is off; they stop
+  opening for people outside the org instead, as every org link does. The org budget is a policy (`monthlyBudget`),
+  not a table. Deleting an org keeps its `agent_request` rows (the server's spend ledger) and its audit events.
+
 ### P5 and P6: embeddings and search
 - `stateui-pg/migrations/0002_embeddings.sql`, `EmbeddingIndex` (queue, worker with SKIP LOCKED, per-model HNSW
   index over a cast, partial on the model), `localEmbedder` (all-MiniLM-L6-v2 through the optional
@@ -445,8 +467,8 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   `chat_recall`; `magnetic reindex`.
 
 ### Not built yet
-- **P4:** org SSO, verified domains, `requireSso` and `autoJoin`, policies (`externalLinks`, `personalWorkspaces`,
-  models, retention), org budgets, export and deletion. The audit log itself is in.
+- **After P4:** SAML and SCIM (outside this design); a hosted server needs `MAGNETIC_SECRET_KEY` set for orgs to use
+  their own sign-in.
 - **P5:** the component catalog's hybrid search (the vectors are there to use).
 - **P7:** `embed: true` model fields and the `similar` data operation.
 - **The statenet stages S1 to S6** (`statenet-relays.md`).
