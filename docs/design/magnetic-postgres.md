@@ -476,10 +476,33 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
     local model. The tests use the hash embedder, as the model is not installed here, and the local model's close
     score (0.45) is a starting value to tune against those requests.
 
+### P7: vectors in app data (15 November 2026)
+- `embed: true` on a model's string field (`FieldDeclaration.embed` in stateui-app; `readModel` refuses it on any
+  other type, and on screen and module params); `ui_model_write` sets it, and the local server ignores it.
+- stateui-pg `records.ts`: two sources, `record` (`<dataset part id>/<key>`) and `persona-record`
+  (`<app id>/<binding>/<persona>/<key>`, owned by the persona), one vector per embedded field. A part change now carries
+  its body before and after (`PartChange`), and a persona binding's write the records it replaces
+  (`PersonaDataWrite`), so a record edit queues only the records and fields it changed; a model that starts or stops
+  embedding a field queues that field of every record of its datasets and persona bindings; `queueAllRecords` for
+  `magnetic reindex`. `EmbeddingIndex.search` takes `sourcePrefix` and `field`.
+- `RecordSimilarity`: `{ binding, field, text, limit }` resolved through the app's `uses.data`, refused for a field the
+  model does not embed, answered with record keys and scores; a persona binding searches only that persona's records.
+- Magnetic: workspaces queue records (`embedRecords`), the server registers the `similar` procedure in every workspace,
+  and the agent gets `data_similar` (the person's own records over a persona binding: the default persona in their own
+  workspace, their id in an org's).
+- Deviations:
+  - `similar` is a server procedure that logic reaches with `call`, not a new logic command. Logic commands run
+    synchronously in a transition, and embedding the text and searching cannot; `call` already answers a machine
+    later as a named result. To let it search a persona binding, a procedure now gets the persona whose instance calls
+    it (`AppProcedureContext.persona` in stateui-mcp). The design's `dataset_record` table was never built: records
+    stay in their part body and `persona_dataset`, and their vectors are keyed by their place there.
+  - The guide's text is a topic of its own (`similar`), as the `logic` topic is at its size cap.
+  - A record written moments ago is found once the worker has embedded it (every 2 seconds), as the design says of
+    every embedding.
+
 ### Not built yet
 - **After P4:** SAML and SCIM (outside this design); a hosted server needs `MAGNETIC_SECRET_KEY` set for orgs to use
   their own sign-in.
-- **P7:** `embed: true` model fields and the `similar` data operation.
 - **The statenet stages S1 to S6** (`statenet-relays.md`).
 - Hosting notes: a superuser bypasses row-level security, so a hosted Magnetic connects as a role that is not one;
   `magnetic reindex` and `import` run as the owner role, as they read every workspace.
