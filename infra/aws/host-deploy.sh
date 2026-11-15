@@ -62,8 +62,10 @@ MAGNETIC_LINKEDIN_CLIENT_SECRET='$LINKEDIN_SECRET'
 # invalid_client. The client secret, state and nonce still hold the flow
 MAGNETIC_LINKEDIN_PKCE='false'
 ANTHROPIC_API_KEY='$ANTHROPIC_KEY'
-MAGNETIC_MONTHLY_BUDGET='5'
-MAGNETIC_DAILY_BUDGET='0.25'
+# The beta: each person gets $5 of agent use once, with no daily pace; the server stops at $100 a month in all
+MAGNETIC_USER_ALLOWANCE='5'
+MAGNETIC_DAILY_BUDGET='off'
+MAGNETIC_MONTHLY_BUDGET='100'
 MAGNETIC_OPERATOR='$OPERATOR'
 MAGNETIC_CONTACT_EMAIL='$CONTACT'
 NODE_EXTRA_CA_CERTS='/etc/magnetic/rds-ca.pem'
