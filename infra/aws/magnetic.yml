@@ -30,6 +30,10 @@ Parameters:
   DbInstanceClass:
     Type: String
     Default: db.t4g.micro
+  ParameterRegion:
+    Type: String
+    Description: The region whose Parameter Store holds /magnetic/* (the LinkedIn and Anthropic keys)
+    Default: us-east-1
 
 Resources:
   # --- The image registry ---------------------------------------------------------------------------------------
@@ -153,7 +157,7 @@ Resources:
                   - !GetAtt Database.MasterUserSecret.SecretArn
               - Effect: Allow
                 Action: [ssm:GetParameter, ssm:GetParameters, ssm:GetParametersByPath]
-                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/magnetic/*
+                Resource: !Sub arn:aws:ssm:${ParameterRegion}:${AWS::AccountId}:parameter/magnetic/*
               - Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !Sub ${LogGroup.Arn}:*

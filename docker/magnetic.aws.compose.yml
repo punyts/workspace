@@ -1,0 +1,36 @@
+# What the hosted stack adds to docker/magnetic.compose.yml on AWS (infra/aws/deploy.mjs):
+# - the RDS certificate authority, so the database connections verify the server (sslmode=verify-full);
+# - logs to CloudWatch, in the log group /magnetic, one stream per container.
+x-logging: &logging
+  driver: awslogs
+  options:
+    awslogs-region: us-east-2
+    awslogs-group: /magnetic
+    tag: '{{.Name}}'
+
+x-database-ca: &database-ca
+  - ./rds-ca.pem:/etc/magnetic/rds-ca.pem:ro
+
+services:
+  migrate:
+    logging: *logging
+    volumes: *database-ca
+  magnetic-1:
+    logging: *logging
+    volumes:
+      - models:/models
+      - ./rds-ca.pem:/etc/magnetic/rds-ca.pem:ro
+  magnetic-2:
+    logging: *logging
+    volumes:
+      - models:/models
+      - ./rds-ca.pem:/etc/magnetic/rds-ca.pem:ro
+  relay-certificate:
+    logging: *logging
+    volumes:
+      - relay-certs:/certs
+      - ./rds-ca.pem:/etc/magnetic/rds-ca.pem:ro
+  relay-1:
+    logging: *logging
+  caddy:
+    logging: *logging
