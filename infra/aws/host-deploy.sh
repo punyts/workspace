@@ -58,6 +58,9 @@ cat > magnetic.env <<EOF
 MAGNETIC_SECRET_KEY='$SECRET_KEY'
 MAGNETIC_LINKEDIN_CLIENT_ID='$LINKEDIN_ID'
 MAGNETIC_LINKEDIN_CLIENT_SECRET='$LINKEDIN_SECRET'
+# LinkedIn takes PKCE only from apps it has enabled as native; a web app's code exchange with a verifier fails with
+# invalid_client. The client secret, state and nonce still hold the flow
+MAGNETIC_LINKEDIN_PKCE='false'
 ANTHROPIC_API_KEY='$ANTHROPIC_KEY'
 MAGNETIC_MONTHLY_BUDGET='5'
 MAGNETIC_DAILY_BUDGET='0.25'
