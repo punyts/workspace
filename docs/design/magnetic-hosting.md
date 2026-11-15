@@ -130,6 +130,28 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
     user is neither, so on RDS they need a maintenance role with `BYPASSRLS`, made when they are first needed. Neither
     is needed to launch.
 
+### H2: the AWS stack (15 November 2026)
+- **`infra/aws/magnetic.yml`**, the CloudFormation stack `magnetic` in `us-east-2`, made with the `magnetic` SSO
+  profile (`aws cloudformation create-stack --stack-name magnetic --template-body file://infra/aws/magnetic.yml
+  --capabilities CAPABILITY_NAMED_IAM`). It holds:
+  - ECR `punyts/magnetic`, scanned on push, keeping the last 10 images.
+  - Secrets Manager `magnetic/secret-key` and `magnetic/app-db-password`, generated; RDS keeps the master password in
+    its own secret (`ManageMasterUserPassword`). The LinkedIn and Anthropic keys go in Parameter Store under
+    `/magnetic/` by hand.
+  - RDS `magnetic`: Postgres 16.15, db.t4g.micro, 20 GB gp3 growing to 100, encrypted, private, 7 days of backups
+    (08:00 UTC), deletion protection, and a final snapshot if the stack is deleted.
+  - The machine: Ubuntu 24.04 (the image pinned, so a stack update never replaces it by itself), t3.medium, 30 GB
+    encrypted, IMDSv2 only, a 2 GB swap file; Docker 29, Compose 2.40, the AWS CLI and psql 16 from its user data. No
+    SSH: Session Manager only. Its role `/magnetic/magnetic-host` is under `magnetic-workload-boundary`.
+  - The Elastic IP and `A` records for `magnetic.ai-minion.com` and `run.ai-minion.com`. No certificate yet: Caddy
+    gets them from Let's Encrypt when the stack is deployed (H3).
+  - The log group `/magnetic`, 30 days.
+- Checked: both names resolve to the Elastic IP; the machine is online in Session Manager and, through it, logs in
+  to ECR and reaches the database with the master secret; RDS offers `vector` 0.8.2 and `ltree` 1.2; its master user
+  is neither superuser nor `BYPASSRLS`, as expected.
+- Found on the way: Git Bash turns a leading `/` in an argument into a Windows path, so AWS CLI calls with
+  Parameter Store names (`/aws/service/...`) need `MSYS_NO_PATHCONV=1`.
+
 ## Decisions (15 November 2026)
 1. **This shape:** one EC2 machine with Compose, Caddy and RDS, about $50 a month, over ECS Fargate with an ALB
    (about $120), which pays off only when one machine is not enough.

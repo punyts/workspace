@@ -1,0 +1,250 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Magnetic for the LinkedIn test (docs/design/magnetic-hosting.md, H2): one machine running docker/magnetic.compose.yml,
+  RDS Postgres with backups, the secrets, the image registry, and the two host names.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-8ee199e6
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Public subnets of the VPC in at least two zones; the machine goes in the first
+    Default: subnet-f41f6b9c,subnet-49cf6233,subnet-0363734e
+  HostedZoneId:
+    Type: AWS::Route53::HostedZone::Id
+    Default: Z06059441TMLYYMTKMNZQ
+  HostName:
+    Type: String
+    Default: magnetic.ai-minion.com
+  RuntimeHostName:
+    Type: String
+    Default: run.ai-minion.com
+  ImageId:
+    Type: AWS::EC2::Image::Id
+    Description: Ubuntu 24.04, pinned so an update of the stack never replaces the machine by itself
+    Default: ami-096d6538c463eb1db
+  InstanceType:
+    Type: String
+    Default: t3.medium
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.micro
+
+Resources:
+  # --- The image registry ---------------------------------------------------------------------------------------
+  Repository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: punyts/magnetic
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: >-
+          {"rules":[{"rulePriority":1,"description":"Keep the last 10 images","selection":{"tagStatus":"any","countType":"imageCountMoreThan","countNumber":10},"action":{"type":"expire"}}]}
+
+  # --- Secrets the stack makes; the LinkedIn and Anthropic ones are put in Parameter Store by hand under /magnetic/ --
+  SecretKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: magnetic/secret-key
+      Description: MAGNETIC_SECRET_KEY, which seals owner keys and the statenet's authority
+      GenerateSecretString:
+        PasswordLength: 48
+        ExcludePunctuation: true
+
+  AppDbPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: magnetic/app-db-password
+      Description: The password of magnetic_app, the role the servers connect as
+      GenerateSecretString:
+        PasswordLength: 32
+        ExcludePunctuation: true
+
+  # --- Network ---------------------------------------------------------------------------------------------------
+  HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Magnetic host - HTTP and HTTPS only; reached for administration through Session Manager
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0 }
+        - { IpProtocol: tcp, FromPort: 80, ToPort: 80, CidrIpv6: '::/0' }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIpv6: '::/0' }
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Magnetic database - Postgres from the host only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref HostSecurityGroup
+
+  # --- Database ----------------------------------------------------------------------------------------------------
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Magnetic database subnets
+      SubnetIds: !Ref SubnetIds
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: magnetic
+      Engine: postgres
+      EngineVersion: '16.15'
+      DBInstanceClass: !Ref DbInstanceClass
+      DBName: magnetic
+      MasterUsername: magnetic
+      ManageMasterUserPassword: true
+      AllocatedStorage: '20'
+      MaxAllocatedStorage: 100
+      StorageType: gp3
+      StorageEncrypted: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DbSecurityGroup]
+      PubliclyAccessible: false
+      MultiAZ: false
+      BackupRetentionPeriod: 7
+      PreferredBackupWindow: '08:00-08:30'
+      PreferredMaintenanceWindow: 'sun:09:00-sun:09:30'
+      AutoMinorVersionUpgrade: true
+      CopyTagsToSnapshot: true
+      DeletionProtection: true
+
+  # --- The machine ---------------------------------------------------------------------------------------------------
+  HostRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: magnetic-host
+      Path: /magnetic/
+      PermissionsBoundary: !Sub arn:aws:iam::${AWS::AccountId}:policy/magnetic-workload-boundary
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: magnetic-host
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ecr:GetAuthorizationToken
+                Resource: '*'
+              - Effect: Allow
+                Action: [ecr:BatchGetImage, ecr:GetDownloadUrlForLayer, ecr:BatchCheckLayerAvailability]
+                Resource: !GetAtt Repository.Arn
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref SecretKey
+                  - !Ref AppDbPassword
+                  - !GetAtt Database.MasterUserSecret.SecretArn
+              - Effect: Allow
+                Action: [ssm:GetParameter, ssm:GetParameters, ssm:GetParametersByPath]
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/magnetic/*
+              - Effect: Allow
+                Action: [logs:CreateLogStream, logs:PutLogEvents]
+                Resource: !Sub ${LogGroup.Arn}:*
+
+  HostProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: magnetic-host
+      Path: /magnetic/
+      Roles: [!Ref HostRole]
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /magnetic
+      RetentionInDays: 30
+
+  Host:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref HostProfile
+      SubnetId: !Select [0, !Ref SubnetIds]
+      SecurityGroupIds: [!Ref HostSecurityGroup]
+      MetadataOptions:
+        HttpTokens: required
+        HttpPutResponseHopLimit: 2
+      BlockDeviceMappings:
+        - DeviceName: /dev/sda1
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            Encrypted: true
+      Tags:
+        - { Key: Name, Value: magnetic }
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          # Docker with Compose, the AWS CLI and psql; the deploy (H3) brings the stack
+          set -euxo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y docker.io docker-compose-v2 postgresql-client-16 jq
+          systemctl enable --now docker
+          snap install aws-cli --classic
+          # Room for the embedding model and two Node servers on 4 GB
+          fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+          echo '/swapfile none swap sw 0 0' >> /etc/fstab
+          mkdir -p /opt/magnetic
+          touch /opt/magnetic/.provisioned
+
+  HostAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref Host
+      Tags:
+        - { Key: Name, Value: magnetic }
+
+  # --- The two host names (the zone's apex and www are left alone) ---------------------------------------------------
+  HostRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref HostName
+      Type: A
+      TTL: '300'
+      ResourceRecords: [!Ref HostAddress]
+
+  RuntimeHostRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !Ref RuntimeHostName
+      Type: A
+      TTL: '300'
+      ResourceRecords: [!Ref HostAddress]
+
+Outputs:
+  InstanceId:
+    Value: !Ref Host
+  PublicIp:
+    Value: !Ref HostAddress
+  RepositoryUri:
+    Value: !GetAtt Repository.RepositoryUri
+  DatabaseEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  DatabaseMasterSecretArn:
+    Value: !GetAtt Database.MasterUserSecret.SecretArn
+  SecretKeyArn:
+    Value: !Ref SecretKey
+  AppDbPasswordArn:
+    Value: !Ref AppDbPassword
