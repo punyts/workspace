@@ -6,6 +6,9 @@ ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 WORKDIR /punyts
 COPY . .
 RUN npm ci --no-audit --no-fund
+# The runtime of the local embedding model (MAGNETIC_EMBEDDING=local), which the workspace leaves optional: without it
+# semantic search is off. The model itself is fetched on first use into MAGNETIC_MODEL_CACHE
+RUN npm install --no-save --no-audit --no-fund --workspaces=false @huggingface/transformers@4.3.2
 RUN node bin/workspace.mjs run build core expression state state-sync statenet stateui stateui-3d stateui-app stateui-components stateui-mcp stateui-pg magnetic \
     && npm run build:runtime-bundle -w @punyts/stateui-app
 
