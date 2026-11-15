@@ -187,7 +187,19 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
     (their editor and home app). A server checks without the lock, and only when the app looks missing or old takes
     it, reads the parts again past its own index, and makes the app if it is still needed. `startupRace.test.ts`
     gets 500s without the lock; after the deploy, six simultaneous first requests all answered 200.
-- Not checked yet: a LinkedIn sign-in end to end, which needs a person; and the restore drill.
+- **Signing in with LinkedIn took four fixes**, each found by making the log say what LinkedIn said:
+  1. The redirect URL had to be added to the LinkedIn app's Auth tab, and the app needed the "Sign In with LinkedIn
+     using OpenID Connect" product.
+  2. **No PKCE.** With a code challenge, LinkedIn's code exchange failed with `invalid_client: Client authentication
+     failed`, though the secret was right: LinkedIn takes PKCE only from apps it enabled as native. Off by default
+     for LinkedIn now (`MAGNETIC_LINKEDIN_PKCE=true` turns it on).
+  3. **No nonce.** LinkedIn's ID token has no `nonce` claim, so checking one failed (`JWT "nonce" claim missing`).
+     Providers take `nonce: false`, and `linkedInProvider` sets it. State and the client secret hold the flow, as
+     OpenID Connect allows for the code flow of a confidential client.
+  4. The log now keeps what a provider said: its `error` and `error_description` on the callback and at the token
+     endpoint, and which check of its response failed; never the response body, which may hold tokens.
+  Checked: a person signed in with LinkedIn at `https://magnetic.ai-minion.com` (15 November 2026).
+- Not checked yet: the restore drill.
 
 ## Decisions (15 November 2026)
 1. **This shape:** one EC2 machine with Compose, Caddy and RDS, about $50 a month, over ECS Fargate with an ALB
