@@ -358,3 +358,22 @@ connection's own, and carries the grant that lets it write.
   - Paths are text (`data.notes.k1`), not `ltree`: a record key may hold characters an ltree label cannot.
   - The log records the rows each write changed, not the authority's changes: the authority still keeps its own log
     in memory, and S2's aggregate is where its changes reach the database.
+
+### S2: durability (15 November 2026)
+- state-sync protocol 2 (version 1 clients keep working): `durable { revision }`, `welcome.durable`, and
+  `ephemeral: true` on a pushed change. The in-process aggregate is the authority's save: when a save lands, the
+  watermark moves to the revision the save copied, or to the current revision when only ephemeral changes came since.
+  `Authority.durable()`, `whenDurable()`, `onDurable()`; the client's `pending` count, `durable()` and `onDurable`.
+- Ephemeral paths: `AuthorityOptions.ephemeral`, declared by an app as `ephemeral` (stateui-app; `ui_app_configure`).
+  Their changes are pushed like any other but never saved, stripped from the stored state and log, and never move or
+  hold the watermark: a pointer at 60 changes a second writes nothing (checked in `Authority.test.ts`).
+- `await`: a `save-data` or `delete-data` with `as` waits for durability by default (`await: 'applied'` does not), as
+  the design asks for form saves. In stateui-mcp the logic host's `durable` waits for the instance's save and for the
+  shared dataset writes it made (`DatasetHub.durable`), and a failed write-through rejects the save with its reason,
+  so a form never says Saved for a record that was put back.
+- Deviations:
+  - Ephemeral changes share the namespace's revision sequence rather than having one of their own. They still never
+    hold up the watermark: it skips over them, and `whenDurable` answers at once for a revision only ephemeral changes
+    reached. One sequence keeps catch-up and gap detection as they are.
+  - The aggregate is not yet a separate role writing batches to `state_change`: in one process the authority's save
+    is the write. A separate aggregate comes with the directory (S5) and the mesh (S6).
