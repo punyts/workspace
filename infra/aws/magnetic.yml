@@ -20,6 +20,10 @@ Parameters:
   RuntimeHostName:
     Type: String
     Default: run.ai-minion.com
+  MailDomain:
+    Type: String
+    Default: ai-minion.com
+    Description: The domain invites are emailed from (magnetic@<domain>), verified in SES with DKIM records in the zone
   ImageId:
     Type: AWS::EC2::Image::Id
     Description: Ubuntu 24.04, pinned so an update of the stack never replaces the machine by itself
@@ -161,6 +165,10 @@ Resources:
               - Effect: Allow
                 Action: [logs:CreateLogStream, logs:PutLogEvents]
                 Resource: !Sub ${LogGroup.Arn}:*
+              # Invites, emailed from the mail domain only
+              - Effect: Allow
+                Action: [ses:SendEmail, ses:SendRawEmail]
+                Resource: !Sub arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/${MailDomain}
 
   HostProfile:
     Type: AWS::IAM::InstanceProfile
@@ -237,7 +245,46 @@ Resources:
       TTL: '300'
       ResourceRecords: [!Ref HostAddress]
 
+  # --- Email: the domain as an SES identity, signed with Easy DKIM (its three CNAMEs in the zone) -----------------------
+  # Until the account leaves the SES sandbox (a request in the SES console), mail goes only to verified addresses; an
+  # invite that cannot be sent still shows its link
+  MailIdentity:
+    Type: AWS::SES::EmailIdentity
+    Properties:
+      EmailIdentity: !Ref MailDomain
+      DkimSigningAttributes:
+        NextSigningKeyLength: RSA_2048_BIT
+
+  MailDkim1:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt MailIdentity.DkimDNSTokenName1
+      Type: CNAME
+      TTL: '1800'
+      ResourceRecords: [!GetAtt MailIdentity.DkimDNSTokenValue1]
+
+  MailDkim2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt MailIdentity.DkimDNSTokenName2
+      Type: CNAME
+      TTL: '1800'
+      ResourceRecords: [!GetAtt MailIdentity.DkimDNSTokenValue2]
+
+  MailDkim3:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      Name: !GetAtt MailIdentity.DkimDNSTokenName3
+      Type: CNAME
+      TTL: '1800'
+      ResourceRecords: [!GetAtt MailIdentity.DkimDNSTokenValue3]
+
 Outputs:
+  MailFrom:
+    Value: !Sub magnetic@${MailDomain}
   InstanceId:
     Value: !Ref Host
   PublicIp:

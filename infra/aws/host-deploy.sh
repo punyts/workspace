@@ -69,6 +69,9 @@ MAGNETIC_MONTHLY_BUDGET='100'
 MAGNETIC_OPERATOR='$OPERATOR'
 MAGNETIC_CONTACT_EMAIL='$CONTACT'
 NODE_EXTRA_CA_CERTS='/etc/magnetic/rds-ca.pem'
+# Invites are emailed through SES from the stack's mail domain; one SES refuses (the sandbox) still shows its link
+MAGNETIC_MAIL_FROM='magnetic@ai-minion.com'
+MAGNETIC_MAIL_REGION='$STACK_REGION'
 EOF
 
 echo "== the image"

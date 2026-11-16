@@ -21,7 +21,8 @@
         "backup:*",
         "acm:*",
         "application-autoscaling:*",
-        "cloudformation:*"
+        "cloudformation:*",
+        "ses:*"
       ],
       "Resource": "*",
       "Condition": {

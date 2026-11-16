@@ -313,6 +313,39 @@ N6 is the largest: about as much work as N2 to N5 together.
   - The suite runs 80 times: 73 pass and 7 are skipped.
   - stateui-mcp: 1069 tests pass.
 
+### N5: adding people to an org
+- **Changed from the plan: no adding without asking.** "Add by email" was to put an existing person straight into
+  the org. It does not, for two reasons:
+  - An org's admins can see a member's state in org apps ("See their state"), so joining is the person's choice.
+  - An answer of "added" against "invited" would tell an admin which emails have an account.
+
+  Instead, every invite is the same to the admin, and it reaches the person two ways:
+  - by email;
+  - on their Your apps, if their verified email has an account, where they Join or Decline.
+- **The data:** `org_invite.declined_at` (migration 0006), with an index on open invites by email.
+  - `Orgs.pendingFor` lists a person's open, current invites to orgs they are not in.
+  - `acceptInvite` and `decline` act by invite id, only for the person whose verified email the invite names.
+  - A declined invite's link stops working.
+- **Email:** a `Mailer` port (`src/mail/Mailer.ts`).
+  - `sesMailer` sends through SES v2 with the machine's credentials; `memoryMailer` is for tests.
+  - `MAGNETIC_MAIL_FROM` turns it on.
+  - A failed send is reported and the link shown, so the sandbox, or a missing permission, breaks nothing.
+  - The SDK came in through the image's own npm 10, run in a container with `--package-lock-only` (362 lines added,
+    3 changed: `tslib` is no longer dev-only), then `npm ci` locally. That avoids the pruning of the local npm 11.
+- **AWS** (`infra/aws`):
+  - The stack gets `MailIdentity` (the mail domain as an SES identity, Easy DKIM 2048) and its three DKIM CNAMEs in
+    the zone.
+  - The host role may `ses:SendEmail` from that identity only.
+  - The workload boundary allows `ses:SendEmail` and `ses:SendRawEmail`, and the deployer gets `ses:*` in its two
+    regions. Both are guardrails the deployer cannot change, so they are applied by hand in the account (below).
+  - `host-deploy.sh` sets `MAGNETIC_MAIL_FROM=magnetic@ai-minion.com`.
+- **What is left to you:**
+  1. Put the new boundary into the `magnetic-workload-boundary` policy, and the new deployer policy into the
+     `MagneticDeployer` permission set.
+  2. After the stack update, ask in the SES console (us-east-2) to leave the sandbox. Until then, mail goes only to
+     addresses verified in SES.
+- **Not done:** the editor's top bar does not show the workspace an app is in yet.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
 - Paying for more agent use after the $5.

@@ -12,7 +12,8 @@
         "secretsmanager:GetSecretValue", "kms:Decrypt",
         "s3:GetObject", "s3:PutObject", "s3:ListBucket",
         "ec2:CreateSnapshot", "ec2:DescribeSnapshots", "ec2:DescribeVolumes", "ec2:CreateTags",
-        "cloudwatch:PutMetricData"
+        "cloudwatch:PutMetricData",
+        "ses:SendEmail", "ses:SendRawEmail"
       ],
       "Resource": "*"
     }
