@@ -5,7 +5,33 @@ can try it out. We should have 1 org that we do this on, and only the first 100 
 a url and the first 100 people get the $5. After that users are told that the 100 users has been reached and try back
 after the beta test." The monthly cap goes from $100 to $500, so the whole beta can be spent in a month.
 
-## How it goes
+Then: "Let's remove the sign in with email, we're doing a beta with linkedin... let's remove the create org... Everyone
+should be on my org and I'm the only admin. I want to post a link on LinkedIn and as people sign up they get added to
+my org. They get $5 and can use the editor as much as they want. They need to see their budget and usage in the
+editor, and when their $5 is up the chat textbox is disabled with a message saying they can continue manually. Once
+the 100 person limit is hit, the login will say we've met our limit, but they can log in using LinkedIn and that we'll
+contact them when we do the next beta test." That is **Signing up** below; it changes steps 1 to 4 where it says.
+
+## Signing up (the beta as it runs now)
+- **Only the server's providers sign people in** (LinkedIn on the host). The work-email field of orgs with their own
+  sign-in is gone from the sign-in page, and `/signin/sso` is a 404.
+- **The admin's sign-in makes the org.** When someone whose verified email is in `MAGNETIC_ADMIN_EMAILS` signs in (or
+  opens Your apps) and there is no beta org yet, it is made with them as its owner, as Start the beta does.
+- **Everyone else who signs in joins it**, as a builder with a place, while places are left: at sign-in, and again on
+  Your apps for those who signed in before the org was there. The link to post is the server's own address; the beta
+  link still works too.
+- **Once the places are taken**, the sign-in page says so: "The beta is full. It has reached its 100 people. You can
+  still sign in with LinkedIn, and we'll contact you when we run the next beta test." They sign in without a place or
+  free agent use, and the refusals and the Agent use page say the same.
+- **Nobody makes an org**: Make an org is gone from Your apps and from Orgs, and making one answers 403 ("Making an org
+  is not open yet."). The admin's beta org is the only one.
+- **The editor shows agent use** on a line above the chat bar: "Agent use: $1.20 of $5.00 used, $3.80 left" (from
+  `GET /edit/<app>/budget`, again after every turn). Once the agent may not be asked, the request and Send are off and
+  the line says why; when the $5 is spent: "You have used your $5.00 of agent use. You can carry on building by hand:
+  select anything in your app to change it." Editing by hand has no limit.
+- All of this holds while `--beta-org` is set; without it, sign-in and orgs are as before.
+
+## How it goes (with the link alone, as first built)
 1. An admin opens **Admin** and presses **Start the beta**. That makes the org `beta` ("Magnetic beta") with them as
    its owner, and shows the **beta link**, `https://<server>/beta/<code>`, with the places taken.
 2. The admin hands out the link. Whoever opens it signs in (or signs up), then sees how many of the 100 places are left
