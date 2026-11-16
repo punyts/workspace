@@ -352,6 +352,41 @@ N6 is the largest: about as much work as N2 to N5 together.
     addresses that bounced or complained, as the request says.
 - **Not done:** the editor's top bar does not show the workspace an app is in yet.
 
+### N6: connections
+- **Done as planned:**
+  - a workspace's connections (migration 0007: `connection`, `connection_oauth`);
+  - sealed secrets;
+  - the four sign-ins, including OAuth sign-in with PKCE and refresh;
+  - endpoints with `{param}` templates;
+  - the `http` effect with its guards and rate limit;
+  - every call logged with no secret or body;
+  - the agent told of the connections;
+  - the Share panel's note.
+- **How the effect knows its app:** a stateui-mcp effect function gets only the request. `logicFunctions` can now be a
+  factory called per running instance (`LogicInstance`), and Magnetic makes one `http` effect per app.
+  - A `view` link runs no effect, because its viewer cannot write the state that starts one.
+  - A `use` link runs effects on the owner's connections, and the Share panel says so.
+- **The guard against reaching inside:**
+  - `checkUrl` refuses non-https, credentials in the URL, IP literals in blocked ranges and `localhost`/`.local`/`.internal`.
+  - The request's own `lookup` checks every address the name resolves to as the socket connects, so a name cannot
+    pass a check and then resolve elsewhere (DNS rebinding).
+  - Blocked: `node:net` `BlockList` with this machine, private networks, link-local, CGNAT, documentation, benchmarking,
+    multicast and reserved ranges in both families. IPv4-mapped IPv6 is checked as IPv4.
+  - Tests and the e2e server pass `connectionGuard: { allowHttp, allowPrivate }`, refused off loopback.
+- **Connect is a link:** the settings pages' CSP has `form-action 'self'`, which also stops the redirect after a form.
+  So Connect answers with a "Sign in at <host>" link to follow. Found by the Playwright test.
+- **Not done:**
+  - **An org policy to turn connections off.** `httpEffect` takes `allowed`, but no policy sets it yet.
+  - **The Connections page in English only.** The rest of Magnetic speaks four languages.
+  - **No editor panel for connections.** The editor reaches them only through Your apps; the agent knows them and
+    writes the effects.
+- **Tests:**
+  - `connections.test.ts`: 11 tests;
+  - `appCalls.test.ts`: 2, through the real server;
+  - `e2e/connections.spec.ts`: 5 at two sizes.
+  - The suite runs 96 times: 89 pass and 7 are skipped.
+  - magnetic has 211 unit tests, and stateui-mcp 1069.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
 - Paying for more agent use after the $5.
