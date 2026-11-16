@@ -41,10 +41,26 @@
         "budgets:ViewBudget",
         "ce:Get*",
         "iam:Get*",
-        "iam:List*",
-        "iam:CreateServiceLinkedRole"
+        "iam:List*"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "ServiceLinkedRolesOfTheServicesMagneticUses",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": [
+            "rds.amazonaws.com",
+            "ecs.amazonaws.com",
+            "elasticloadbalancing.amazonaws.com",
+            "autoscaling.amazonaws.com",
+            "backup.amazonaws.com"
+          ]
+        }
+      }
     },
     {
       "Sid": "MakeRolesOnlyUnderTheBoundary",
