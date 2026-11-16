@@ -350,7 +350,7 @@ N6 is the largest: about as much work as N2 to N5 together.
   - Production access was requested on 2026-11-16 (`put-account-details`, transactional, the site, a description of
     the invites and the operator's contact); the review is `PENDING`. The account's suppression list already drops
     addresses that bounced or complained, as the request says.
-- **Not done:** the editor's top bar does not show the workspace an app is in yet.
+- **Filled after N6:** the editor's top bar shows the workspace an app is in: "Yours", or the org's name.
 
 ### N6: connections
 - **Done as planned:**
@@ -375,17 +375,26 @@ N6 is the largest: about as much work as N2 to N5 together.
   - Tests and the e2e server pass `connectionGuard: { allowHttp, allowPrivate }`, refused off loopback.
 - **Connect is a link:** the settings pages' CSP has `form-action 'self'`, which also stops the redirect after a form.
   So Connect answers with a "Sign in at <host>" link to follow. Found by the Playwright test.
-- **Not done:**
-  - **An org policy to turn connections off.** `httpEffect` takes `allowed`, but no policy sets it yet.
-  - **The Connections page in English only.** The rest of Magnetic speaks four languages.
-  - **No editor panel for connections.** The editor reaches them only through Your apps; the agent knows them and
-    writes the effects.
+- **Filled after N6:**
+  - **An org policy to turn connections off:** `connections`, on by default, an admin's switch on the org's page.
+    - Off: `httpEffect`'s `allowed` refuses every call of the org's apps, the agent is not told of the org's
+      connections, and the Connections page says so and has no Try.
+    - An org's settings form without the box turns it off, as its other switches do.
+  - **The Connections page in four languages** (`connectionText.ts`). The reasons a change was refused stay in English,
+    as on the org pages.
+  - **An editor panel for connections** (key C), in the library's place, from `GET /edit/<id>/connections`:
+    - the endpoints with their method, host, path and params, never a secret;
+    - pressing one asks the agent to show what it answers;
+    - Manage connections for the people who manage them.
+    - A row's id is `<connection>_<endpoint>`: a dot would split the state path (found by the Playwright test).
 - **Tests:**
   - `connections.test.ts`: 11 tests;
   - `appCalls.test.ts`: 2, through the real server;
   - `e2e/connections.spec.ts`: 5 at two sizes.
   - The suite runs 96 times: 89 pass and 7 are skipped.
   - magnetic has 211 unit tests, and stateui-mcp 1069.
+  - With the gaps filled: `appCalls.test.ts` has 4, `e2e/connections.spec.ts` 8 at two sizes; the suite runs 102
+    times (95 pass, 7 skipped), and magnetic has 213 unit tests.
 
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
