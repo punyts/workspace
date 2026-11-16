@@ -339,11 +339,16 @@ N6 is the largest: about as much work as N2 to N5 together.
   - The workload boundary allows `ses:SendEmail` and `ses:SendRawEmail`, and the deployer gets `ses:*` in its two
     regions. Both are guardrails the deployer cannot change, so they are applied by hand in the account (below).
   - `host-deploy.sh` sets `MAGNETIC_MAIL_FROM=magnetic@ai-minion.com`.
-- **What is left to you:**
-  1. Put the new boundary into the `magnetic-workload-boundary` policy, and the new deployer policy into the
-     `MagneticDeployer` permission set.
-  2. After the stack update, ask in the SES console (us-east-2) to leave the sandbox. Until then, mail goes only to
-     addresses verified in SES.
+- **Applied on 2026-11-16:**
+  - The boundary and the deployer policy were updated by hand. The deployer's `iam:CreateServiceLinkedRole` is now
+    limited to the roles of RDS, ECS, load balancing, auto scaling and Backup (the IAM editor flagged it on `*`).
+  - The stack was updated through a change set, `ses-mail`: the host role changed in place, and the identity and its
+    three DKIM records were added.
+  - ai-minion.com verified at once (`VerifiedForSendingStatus` true, DKIM `SUCCESS`).
+- **Still in the SES sandbox:** `ProductionAccessEnabled` is false, with a quota of 200 a day.
+  - Mail goes only to verified identities. The whole of ai-minion.com is one, so its own addresses get invites.
+  - Leaving the sandbox is a request to AWS: in the SES console, or `aws sesv2 put-account-details` with the site, a
+    description of the mail and a contact.
 - **Not done:** the editor's top bar does not show the workspace an app is in yet.
 
 ## Not in M8
