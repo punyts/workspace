@@ -347,8 +347,9 @@ N6 is the largest: about as much work as N2 to N5 together.
   - ai-minion.com verified at once (`VerifiedForSendingStatus` true, DKIM `SUCCESS`).
 - **Still in the SES sandbox:** `ProductionAccessEnabled` is false, with a quota of 200 a day.
   - Mail goes only to verified identities. The whole of ai-minion.com is one, so its own addresses get invites.
-  - Leaving the sandbox is a request to AWS: in the SES console, or `aws sesv2 put-account-details` with the site, a
-    description of the mail and a contact.
+  - Production access was requested on 2026-11-16 (`put-account-details`, transactional, the site, a description of
+    the invites and the operator's contact); the review is `PENDING`. The account's suppression list already drops
+    addresses that bounced or complained, as the request says.
 - **Not done:** the editor's top bar does not show the workspace an app is in yet.
 
 ## Not in M8
