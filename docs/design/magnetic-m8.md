@@ -256,6 +256,33 @@ N6 is the largest: about as much work as N2 to N5 together.
 - **Also fixed:** `importFiles.test.ts` expected the old shape of `Budgets.spent`, from before the beta's allowance
   added `total`.
 
+### N3: layout and placement
+- **The sections:** the Properties tab now opens with two sections, above the component's own properties so they
+  are found without scrolling. The component's properties follow under a "Properties" heading.
+  - **Layout:** on a node whose component lays out parts (`layout: true` in the catalog) or that has a `layout`.
+  - **Place in its parent:** on a node whose parent lays it out.
+- **Where the fields come from:** stateui-app's `LAYOUTS`, sent once with `/components`.
+  - A FieldSpec becomes a field: an enum is a select with "Not set" first, an integer or number a number field (with
+    its min and max), a boolean a switch, and a size a text field (saved after a pause).
+  - An emptied field takes its key out.
+- **The writes:** one `set` of the node's `layout` (or `placement`) object, through the same `ui_nodes_write` as
+  everything else, so undo and the agent's view stay one.
+  - A type change carries over the settings the new type has.
+  - In the same write, it sets each child's `placement` to the fields the new type gives a child.
+- **The node route:** `/edit/<id>/node` now gives:
+  - `parentLayout`: the parent's `layout.type`, `column` for a parent with children and no layout, and `null` for
+    a root;
+  - `childPlacements`;
+  - `component.layout`.
+- **The plan asked for a segmented control** for the type. It is a select, like the other fields: five options with
+  English names fit a select and keep the panel one column wide.
+- **Not checked:** the plan's "the agent, asked afterwards, describes the new layout". The agent reads the same
+  document through `ui_tree`, but no test asks it.
+- **Tests:**
+  - Playwright "Layout and placement", 3 tests at two sizes: column to grid, span 2, the gap kept from column to row.
+  - `inspectRoutes.test.ts`: the node's layout answers.
+  - The suite runs 70 times: 68 pass and 2 are skipped.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
 - Paying for more agent use after the $5.
