@@ -28,6 +28,9 @@ ANTHROPIC_KEY=$(param /magnetic/anthropic-api-key)
 # Buying agent use after the allowance (docs/design/magnetic-payments.md): on only once both parameters are there
 STRIPE_KEY=$(param /magnetic/stripe-secret-key 2>/dev/null || true)
 STRIPE_WEBHOOK=$(param /magnetic/stripe-webhook-secret 2>/dev/null || true)
+# Who reaches /admin: the emails in /magnetic/admin-emails (comma-separated), or else the privacy contact
+ADMIN_EMAILS=$(param /magnetic/admin-emails 2>/dev/null || true)
+ADMIN_EMAILS=${ADMIN_EMAILS:-$CONTACT}
 
 echo "== the RDS certificate authority"
 umask 022
@@ -73,6 +76,8 @@ MAGNETIC_DAILY_BUDGET='off'
 MAGNETIC_MONTHLY_BUDGET='100'
 MAGNETIC_OPERATOR='$OPERATOR'
 MAGNETIC_CONTACT_EMAIL='$CONTACT'
+# The people whose verified email is listed see Admin on Your apps: feedback, people, and giving agent use
+MAGNETIC_ADMIN_EMAILS='$ADMIN_EMAILS'
 NODE_EXTRA_CA_CERTS='/etc/magnetic/rds-ca.pem'
 # Invites are emailed through SES from the stack's mail domain; one SES refuses (the sandbox) still shows its link
 MAGNETIC_MAIL_FROM='magnetic@ai-minion.com'

@@ -18,7 +18,8 @@ feature requests."
 - **Emailed to whoever runs the server**: the privacy contact (`MAGNETIC_CONTACT_EMAIL`), through the mailer that
   sends invites (SES), with the sender's address as Reply-To. Without a mailer or a contact, it is only kept. A failed
   email is logged; the feedback is still kept.
-- **Read with `magnetic feedback`**, which prints the latest hundred, oldest first. No page for it yet.
+- **Read with `magnetic feedback`**, which prints the latest hundred, oldest first, or on the admin pages
+  (`docs/design/magnetic-admin.md`), where an admin marks it done.
 - **Twenty an hour per person**, so the button cannot be used to flood the operator's inbox.
 - Only people who may edit the app see the editor, so only they can send. Visitors to a shared app have no button.
 
