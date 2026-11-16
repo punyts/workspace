@@ -39,7 +39,7 @@ Status: built (see "As built"). Follows M8's "Not in M8": "Paying for more agent
   amounts. The webhook's URL is `<origin>/billing/stripe`, with the events `checkout.session.completed`,
   `checkout.session.async_payment_succeeded` and `charge.refunded`.
 - **Credit stays at cost** (decided 2026-11-16): each dollar paid buys a dollar of agent use at the model prices.
-- **The beta's $5 goes to the first 100 people** (`--allowance-users 100`), by when they first signed in. Later
+- **The beta's $5 goes to the first 100 people (since 2026-11-16, the first 100 to join the beta org through its link: magnetic-beta.md)** (`--allowance-users 100`), by when they first signed in. Later
   people start with none, the page and the agent's refusal say why, and they may buy agent use. A deleted account
   frees its place for the next person.
 - Payments need a one-time allowance (`--user-allowance`): without one there is nothing to top up, and the page says

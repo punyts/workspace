@@ -68,12 +68,14 @@ MAGNETIC_LINKEDIN_CLIENT_SECRET='$LINKEDIN_SECRET'
 # invalid_client. The client secret, state and nonce still hold the flow
 MAGNETIC_LINKEDIN_PKCE='false'
 ANTHROPIC_API_KEY='$ANTHROPIC_KEY'
-# The beta: the first 100 people get $5 of agent use once, with no daily pace; the server stops at $100 a month in
-# all. Later people start with none and may buy agent use when Stripe is on
+# The beta (docs/design/magnetic-beta.md): one org, beta, joined through the link on Admin; its first 100 members get
+# $5 of agent use once, with no daily pace, and those after are told it is full. The server stops at $500 a month in
+# all, the whole beta. Anyone else starts with none and may buy agent use when Stripe is on
 MAGNETIC_USER_ALLOWANCE='5'
 MAGNETIC_ALLOWANCE_USERS='100'
+MAGNETIC_BETA_ORG='beta'
 MAGNETIC_DAILY_BUDGET='off'
-MAGNETIC_MONTHLY_BUDGET='100'
+MAGNETIC_MONTHLY_BUDGET='500'
 MAGNETIC_OPERATOR='$OPERATOR'
 MAGNETIC_CONTACT_EMAIL='$CONTACT'
 # The people whose verified email is listed see Admin on Your apps: feedback, people, and giving agent use

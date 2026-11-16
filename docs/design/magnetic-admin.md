@@ -22,8 +22,10 @@ the top: Overview, Feedback, People, Your apps.
   kind, the sender and their email to reply to, when, the app, the frame size and the language, the text as written
   (escaped, line breaks kept) and the browser. **Done** marks it handled (who and when are kept); **Reopen** undoes it.
   The filters stay as they were after either.
-- **People** (`/admin/people`): everyone in the order they signed in, which is the order the allowance goes by; for
-  each, what they got free, paid, were given, used and have left, and a form to **give agent use**.
+- **The beta** (on the overview, with `--beta-org`): Start the beta, then the link to hand out and the places taken
+  (`docs/design/magnetic-beta.md`).
+- **People** (`/admin/people`): everyone in the order they signed in, with their beta place when they hold one, which
+  is what the allowance goes by in a beta (otherwise sign-in order); for each, what they got free, paid, were given, used and have left, and a form to **give agent use**.
 
 ## Giving agent use
 - Up to $500 at a time, in cents, more than 0; a leading `$` is fine. A note says why.
