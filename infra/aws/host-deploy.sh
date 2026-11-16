@@ -25,6 +25,9 @@ SECRET_KEY=$(secret "$KEY_SECRET")
 LINKEDIN_ID=$(param /magnetic/linkedin-client-id)
 LINKEDIN_SECRET=$(param /magnetic/linkedin-client-secret)
 ANTHROPIC_KEY=$(param /magnetic/anthropic-api-key)
+# Buying agent use after the allowance (docs/design/magnetic-payments.md): on only once both parameters are there
+STRIPE_KEY=$(param /magnetic/stripe-secret-key 2>/dev/null || true)
+STRIPE_WEBHOOK=$(param /magnetic/stripe-webhook-secret 2>/dev/null || true)
 
 echo "== the RDS certificate authority"
 umask 022
@@ -73,6 +76,10 @@ NODE_EXTRA_CA_CERTS='/etc/magnetic/rds-ca.pem'
 MAGNETIC_MAIL_FROM='magnetic@ai-minion.com'
 MAGNETIC_MAIL_REGION='$STACK_REGION'
 EOF
+if [ -n "$STRIPE_KEY" ] && [ -n "$STRIPE_WEBHOOK" ]; then
+  printf "MAGNETIC_STRIPE_SECRET_KEY='%s'\nMAGNETIC_STRIPE_WEBHOOK_SECRET='%s'\n" "$STRIPE_KEY" "$STRIPE_WEBHOOK" >> magnetic.env
+  echo "   agent use can be bought (Stripe)"
+fi
 
 echo "== the image"
 aws ecr get-login-password --region "$STACK_REGION" | docker login --username AWS --password-stdin "${IMAGE%%/*}" >/dev/null

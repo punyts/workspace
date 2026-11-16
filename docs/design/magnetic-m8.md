@@ -402,5 +402,5 @@ N6 is the largest: about as much work as N2 to N5 together.
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant). Since built after M8:
   [magnetic-shared-data.md](magnetic-shared-data.md).
-- Paying for more agent use after the $5.
+- Paying for more agent use after the $5. Since built after M8: [magnetic-payments.md](magnetic-payments.md).
 - Running the Playwright suite in a hosted CI. Since built after M8: the CI workflow runs it.
