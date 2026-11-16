@@ -400,6 +400,7 @@ N6 is the largest: about as much work as N2 to N5 together.
     times (95 pass, 7 skipped), and magnetic has 213 unit tests.
 
 ## Not in M8
-- Reading another owner's state from an app's logic (statenet datasets by grant).
+- Reading another owner's state from an app's logic (statenet datasets by grant). Since built after M8:
+  [magnetic-shared-data.md](magnetic-shared-data.md).
 - Paying for more agent use after the $5.
-- Running the Playwright suite in a hosted CI.
+- Running the Playwright suite in a hosted CI. Since built after M8: the CI workflow runs it.
