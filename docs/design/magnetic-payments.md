@@ -38,6 +38,10 @@ Status: built (see "As built"). Follows M8's "Not in M8": "Paying for more agent
   both, the page shows the balance and says buying is not available here. `MAGNETIC_TOP_UPS` (`--top-ups`) lists the
   amounts. The webhook's URL is `<origin>/billing/stripe`, with the events `checkout.session.completed`,
   `checkout.session.async_payment_succeeded` and `charge.refunded`.
+- **Credit stays at cost** (decided 2026-11-16): each dollar paid buys a dollar of agent use at the model prices.
+- **The beta's $5 goes to the first 100 people** (`--allowance-users 100`), by when they first signed in. Later
+  people start with none, the page and the agent's refusal say why, and they may buy agent use. A deleted account
+  frees its place for the next person.
 - Payments need a one-time allowance (`--user-allowance`): without one there is nothing to top up, and the page says
   agent use has no limit per person here.
 

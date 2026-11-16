@@ -65,8 +65,10 @@ MAGNETIC_LINKEDIN_CLIENT_SECRET='$LINKEDIN_SECRET'
 # invalid_client. The client secret, state and nonce still hold the flow
 MAGNETIC_LINKEDIN_PKCE='false'
 ANTHROPIC_API_KEY='$ANTHROPIC_KEY'
-# The beta: each person gets $5 of agent use once, with no daily pace; the server stops at $100 a month in all
+# The beta: the first 100 people get $5 of agent use once, with no daily pace; the server stops at $100 a month in
+# all. Later people start with none and may buy agent use when Stripe is on
 MAGNETIC_USER_ALLOWANCE='5'
+MAGNETIC_ALLOWANCE_USERS='100'
 MAGNETIC_DAILY_BUDGET='off'
 MAGNETIC_MONTHLY_BUDGET='100'
 MAGNETIC_OPERATOR='$OPERATOR'
