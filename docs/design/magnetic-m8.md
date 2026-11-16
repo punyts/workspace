@@ -345,11 +345,14 @@ N6 is the largest: about as much work as N2 to N5 together.
   - The stack was updated through a change set, `ses-mail`: the host role changed in place, and the identity and its
     three DKIM records were added.
   - ai-minion.com verified at once (`VerifiedForSendingStatus` true, DKIM `SUCCESS`).
-- **Still in the SES sandbox:** `ProductionAccessEnabled` is false, with a quota of 200 a day.
-  - Mail goes only to verified identities. The whole of ai-minion.com is one, so its own addresses get invites.
+- **Out of the SES sandbox:** production access was granted (case 179479514700071), so invites reach any address.
+  - Until then mail went only to verified identities, with a quota of 200 a day. The whole of ai-minion.com is one,
+    so its own addresses got invites.
   - Production access was requested on 2026-11-16 (`put-account-details`, transactional, the site, a description of
-    the invites and the operator's contact); the review is `PENDING`. The account's suppression list already drops
-    addresses that bounced or complained, as the request says.
+    the invites and the operator's contact). The account's suppression list drops addresses that bounced or
+    complained, as the request says.
+  - Granted: `ProductionAccessEnabled` true, enforcement `HEALTHY`, a quota of 50,000 a day at 14 a second. Magnetic
+    needed no change: it already sent through SES. The invite page still shows the link as well.
 - **Filled after N6:** the editor's top bar shows the workspace an app is in: "Yours", or the org's name.
 
 ### N6: connections
