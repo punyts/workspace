@@ -1,0 +1,13 @@
+{
+    "name": "@punyts/shop",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Tide & Timber: a storefront and a back office built as StateUI apps through the stateui-mcp tools",
+    "scripts": {
+        "build": "node build.mjs --fresh",
+        "serve": "node server.mjs --serve",
+        "mcp": "node server.mjs",
+        "check": "node payments.check.mjs && node build.mjs --fresh && node check.mjs && node build.mjs --fresh"
+    }
+}

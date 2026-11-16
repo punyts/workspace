@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "stateui": {
+      "command": "node",
+      "args": [
+        "stateui-mcp/dist/cli.js",
+        "--data-dir",
+        "stateui-mcp/data"
+      ]
+    }
+  }
+}

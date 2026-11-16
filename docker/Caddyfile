@@ -1,0 +1,18 @@
+# TLS and routing for docker/magnetic.compose.yml. Caddy gets the certificates itself: from Let's Encrypt for public
+# names, and from its own local authority for *.localhost.
+# The pages, the API and the sockets. Sticky by cookie: a sign-in with a provider is kept by the server that began it
+{$MAGNETIC_HOST_NAME} {
+	reverse_proxy magnetic-1:4300 magnetic-2:4300 {
+		lb_policy cookie magnetic_server
+		lb_try_duration 5s
+		fail_duration 30s
+	}
+}
+
+# Only the runtime frame: the apps people made run here, apart from the session cookie
+{$MAGNETIC_RUNTIME_HOST_NAME} {
+	reverse_proxy magnetic-1:4301 magnetic-2:4301 {
+		lb_try_duration 5s
+		fail_duration 30s
+	}
+}

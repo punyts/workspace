@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "stateui-view",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "mcp"],
+      "port": 5180
+    },
+    {
+      "name": "magnetic",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "magnetic"],
+      "port": 4300
+    },
+    {
+      "name": "magnetic-e2e",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["magnetic/e2e/server.mjs"],
+      "port": 4390
+    },
+    {
+      "name": "magnetic-live",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "magnetic:live"],
+      "port": 4300
+    },
+    {
+      "name": "magnetic-old",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["C:/development/punyts-old-magnetic/dist/cli.js", "--port", "4310", "--runtime-port", "4311", "--data-dir", "C:/development/punyts-old-magnetic/.data", "--dev-user", "alice", "--mock-provider", "--mock-agent"],
+      "port": 4310
+    },
+    {
+      "name": "example",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@punyts/example", "--", "--port", "5173", "--strictPort"],
+      "port": 5173
+    }
+  ]
+}

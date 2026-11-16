@@ -1,0 +1,90 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BuildMagneticInTwoRegions",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:*",
+        "ecr:*",
+        "ecs:*",
+        "elasticloadbalancing:*",
+        "autoscaling:*",
+        "rds:*",
+        "s3:*",
+        "ssm:*",
+        "secretsmanager:*",
+        "kms:*",
+        "logs:*",
+        "cloudwatch:*",
+        "events:*",
+        "backup:*",
+        "acm:*",
+        "application-autoscaling:*",
+        "cloudformation:*",
+        "ses:*"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": { "aws:RequestedRegion": ["us-east-1", "us-east-2"] }
+      }
+    },
+    {
+      "Sid": "GlobalServices",
+      "Effect": "Allow",
+      "Action": [
+        "route53:*",
+        "route53domains:Get*",
+        "route53domains:List*",
+        "cloudfront:*",
+        "sts:GetCallerIdentity",
+        "budgets:ViewBudget",
+        "ce:Get*",
+        "iam:Get*",
+        "iam:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ServiceLinkedRolesOfTheServicesMagneticUses",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/*",
+      "Condition": {
+        "StringEquals": {
+          "iam:AWSServiceName": [
+            "rds.amazonaws.com",
+            "ecs.amazonaws.com",
+            "elasticloadbalancing.amazonaws.com",
+            "autoscaling.amazonaws.com",
+            "backup.amazonaws.com"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "MakeRolesOnlyUnderTheBoundary",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:PutRolePermissionsBoundary", "iam:AttachRolePolicy", "iam:DetachRolePolicy", "iam:PutRolePolicy", "iam:DeleteRolePolicy"],
+      "Resource": "arn:aws:iam::*:role/magnetic/*",
+      "Condition": {
+        "StringLike": { "iam:PermissionsBoundary": "arn:aws:iam::*:policy/magnetic-workload-boundary" }
+      }
+    },
+    {
+      "Sid": "ManageMagneticRoles",
+      "Effect": "Allow",
+      "Action": ["iam:DeleteRole", "iam:TagRole", "iam:UntagRole", "iam:UpdateRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole",
+                 "iam:CreateInstanceProfile", "iam:DeleteInstanceProfile", "iam:AddRoleToInstanceProfile", "iam:RemoveRoleFromInstanceProfile"],
+      "Resource": ["arn:aws:iam::*:role/magnetic/*", "arn:aws:iam::*:instance-profile/magnetic/*"]
+    },
+    {
+      "Sid": "NeverTouchTheGuardrails",
+      "Effect": "Deny",
+      "Action": ["iam:DeleteRolePermissionsBoundary", "iam:CreatePolicyVersion", "iam:DeletePolicy", "iam:SetDefaultPolicyVersion",
+                 "iam:CreateUser", "iam:CreateAccessKey", "iam:CreateLoginProfile", "iam:AttachUserPolicy", "iam:PutUserPolicy",
+                 "organizations:*", "account:*", "sso:*", "budgets:Modify*", "budgets:Delete*"],
+      "Resource": "*"
+    }
+  ]
+}

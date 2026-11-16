@@ -1,0 +1,47 @@
+{
+    "name": "punyts",
+    "version": "1.0.0",
+    "private": true,
+    "description": "The development workspace for the punyts system: each library is its own repo, cloned here by bin/workspace.mjs",
+    "workspaces": [
+        "core",
+        "expression",
+        "state",
+        "state-sync",
+        "state-react",
+        "statenet",
+        "stateui",
+        "stateui-3d",
+        "stateui-app",
+        "stateui-components",
+        "stateui-mcp",
+        "stateui-pg",
+        "magnetic",
+        "example"
+    ],
+    "overrides": {
+        "playwright": "1.61.1",
+        "playwright-core": "1.61.1",
+        "vitest": "4.1.10",
+        "@vitest/browser-playwright": "4.1.10",
+        "vite": "8.1.5"
+    },
+    "scripts": {
+        "setup": "node bin/workspace.mjs clone && npm install && npm run build && npx playwright install chromium chromium-headless-shell",
+        "clone": "node bin/workspace.mjs clone",
+        "build": "node bin/workspace.mjs run build && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "test": "node bin/workspace.mjs run test",
+        "typecheck": "node bin/workspace.mjs run typecheck",
+        "status": "node bin/workspace.mjs status",
+        "mcp": "npm run dev -w @punyts/stateui-mcp",
+        "mcp:stdio": "npm run start -w @punyts/stateui-mcp",
+        "mcp:build": "node bin/workspace.mjs run build core expression state state-sync statenet stateui stateui-3d stateui-app stateui-components stateui-mcp && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "magnetic": "npm run start -w @punyts/magnetic -- --database-url postgres://magnetic:magnetic@127.0.0.1:5433/magnetic --migrate --dev-user alice --dev-user bob --mock-provider --mock-agent",
+        "magnetic:db": "docker compose -f magnetic/docker-compose.yml up -d",
+        "magnetic:migrate": "npm run start -w @punyts/magnetic -- migrate --database-url postgres://magnetic:magnetic@127.0.0.1:5433/magnetic",
+        "magnetic:build": "node bin/workspace.mjs run build core expression state state-sync stateui stateui-3d stateui-app stateui-components stateui-mcp stateui-pg magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "ui:build": "node bin/workspace.mjs run build stateui stateui-app stateui-components stateui-mcp stateui-pg magnetic && npm run build:runtime-bundle -w @punyts/stateui-app",
+        "magnetic:dev": "npm run ui:build && npm run magnetic",
+        "magnetic:live": "npm run start:live -w @punyts/magnetic -- --database-url postgres://magnetic:magnetic@127.0.0.1:5433/magnetic --migrate --dev-user alice --dev-user bob --mock-provider"
+    }
+}

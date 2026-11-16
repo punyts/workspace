@@ -1,0 +1,135 @@
+# Magnetic as hosted (docs/design/magnetic-hosting.md): Caddy in front of two Magnetic servers and a relay, at two
+# public origins over HTTPS. The database is outside the stack (RDS when hosted).
+#
+# Settings come from an env file (MAGNETIC_ENV_FILE, default docker/magnetic.env): the two host names, the database
+# URLs and the secrets. On the host the deploy writes it from Parameter Store. To try it here, with Postgres in the
+# stack and Caddy's own certificates for magnetic.localhost and run.localhost:
+#
+#   docker compose -f docker/magnetic.compose.yml --env-file docker/magnetic.local.env --profile local up --build
+#
+# then open https://magnetic.localhost:8443 (accept the local certificate on both host names).
+x-magnetic: &magnetic
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
+  restart: unless-stopped
+  env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
+  environment: &magnetic-env
+    # The servers connect as magnetic_app, a role row-level security holds; migrations run as the owner
+    MAGNETIC_DATABASE_URL: ${MAGNETIC_APP_DATABASE_URL}
+    MAGNETIC_PUBLIC_ORIGIN: https://${MAGNETIC_HOST_NAME}${MAGNETIC_PUBLIC_PORT_SUFFIX:-}
+    MAGNETIC_RUNTIME_ORIGIN: https://${MAGNETIC_RUNTIME_HOST_NAME}${MAGNETIC_PUBLIC_PORT_SUFFIX:-}
+    MAGNETIC_STARTER: ${MAGNETIC_STARTER:-showcase}
+    MAGNETIC_EMBEDDING: ${MAGNETIC_EMBEDDING:-local}
+    MAGNETIC_MODEL_CACHE: /models
+    MAGNETIC_HOST: 0.0.0.0
+    MAGNETIC_MESH_PORT: '4310'
+    MAGNETIC_MESH_HOST: 0.0.0.0
+  volumes:
+    - models:/models
+  depends_on:
+    migrate:
+      condition: service_completed_successfully
+
+services:
+  # Only for trying the stack on one machine: Postgres with the two roles the hosted database has
+  db:
+    profiles: [local]
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: magnetic
+      POSTGRES_PASSWORD: magnetic
+      POSTGRES_DB: magnetic
+    volumes:
+      - ./initdb/extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql:ro
+      - ./initdb-local/roles.sql:/docker-entrypoint-initdb.d/02-roles.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U magnetic']
+      interval: 2s
+      retries: 30
+
+  migrate:
+    image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: ['migrate', '--app-role', 'magnetic_app']
+    env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
+    environment:
+      MAGNETIC_DATABASE_URL: ${MAGNETIC_OWNER_DATABASE_URL}
+      # The search index of this model is made here, by the owner
+      MAGNETIC_EMBEDDING: ${MAGNETIC_EMBEDDING:-local}
+      MAGNETIC_MODEL_CACHE: /models
+    depends_on:
+      db:
+        condition: service_healthy
+        required: false
+
+  magnetic-1:
+    <<: *magnetic
+    environment:
+      <<: *magnetic-env
+      MAGNETIC_NODE_ID: magnetic-1
+      MAGNETIC_MESH_URL: ws://magnetic-1:4310
+
+  magnetic-2:
+    <<: *magnetic
+    environment:
+      <<: *magnetic-env
+      MAGNETIC_NODE_ID: magnetic-2
+      MAGNETIC_MESH_URL: ws://magnetic-2:4310
+
+  # Signs the relay's certificate with the statenet's authority, which the servers keep in the database
+  relay-certificate:
+    image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
+    command: ['relay-certificate', '--node-id', 'relay-1', '--out', '/certs']
+    env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
+    environment:
+      MAGNETIC_DATABASE_URL: ${MAGNETIC_APP_DATABASE_URL}
+    volumes:
+      - relay-certs:/certs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Links to the servers' mesh; not public in M7
+  relay-1:
+    image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
+    restart: unless-stopped
+    entrypoint: ['node', 'statenet/dist/relayCli.js']
+    environment:
+      STATENET_NODE_ID: relay-1
+      STATENET_PARENTS: ws://magnetic-1:4310,ws://magnetic-2:4310
+      STATENET_NODE_KEY_FILE: /certs/relay-1.key.json
+      STATENET_NODE_CERTIFICATE_FILE: /certs/relay-1.certificate
+      STATENET_AUTHORITY_PUBLIC_KEY_FILE: /certs/relay-1.authority
+      STATENET_HOST: 0.0.0.0
+    volumes:
+      - relay-certs:/certs:ro
+    depends_on:
+      relay-certificate:
+        condition: service_completed_successfully
+      magnetic-1:
+        condition: service_started
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    ports:
+      - '${MAGNETIC_HTTP_PORT:-80}:80'
+      - '${MAGNETIC_HTTPS_PORT:-443}:443'
+    environment:
+      MAGNETIC_HOST_NAME: ${MAGNETIC_HOST_NAME}
+      MAGNETIC_RUNTIME_HOST_NAME: ${MAGNETIC_RUNTIME_HOST_NAME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - magnetic-1
+      - magnetic-2
+
+volumes:
+  relay-certs:
+  models:
+  caddy-data:
