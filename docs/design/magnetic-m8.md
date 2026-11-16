@@ -283,6 +283,36 @@ N6 is the largest: about as much work as N2 to N5 together.
   - `inspectRoutes.test.ts`: the node's layout answers.
   - The suite runs 70 times: 68 pass and 2 are skipped.
 
+### N4: screens
+- **As built differently from the plan:** the plan gave every screen a live frame, made possible by a `localRoute`
+  load option and a host that mounts one `LiveView` per frame. That is three changes deep (stateui-app, the host, the
+  sync of `$.route`), and each live frame is a sync connection.
+- **As built:**
+  - **One live frame**, the app as before, moved into the slot of the screen it shows.
+  - **The other screens are previews:** panels of the host (`stateuiHost.mount`, as the editor itself is), loaded
+    with the app's document with `start` set to the screen. Each gets the live frame's `$.data` and its changes from
+    `stateui:change`.
+  - **No route trouble:** a preview never syncs, so moving around inside it moves nothing else. The live frame's route
+    stays the owner's, as before.
+  - **Pressing a preview** (a cover takes the pointer) navigates the live frame there with the new
+    `stateuiHost.navigate`, and the live frame takes the preview's place.
+  - **What a preview lacks:** it shows the screen as it is, but changes in it are not kept. To work on a screen, make
+    it the live one.
+- **Weight:** an `IntersectionObserver` mounts the previews in view, at most six, and disposes the others. The plan's
+  "last screenshot" of a frame out of view is its name instead: a frame from another origin cannot be drawn to a
+  canvas from the page.
+- **The panel** shares the library's slot. `P` toggles it. Adding a screen gives it a blank column root through the
+  agent's own `ui_screen_create`, and copying passes the screen's root to it.
+- **The fit:** the board fits around the live frame wherever its slot is (`--slot-x`). A route the app moved to
+  shifts the board to keep the live frame in place on the screen.
+- **Also fixed:** stateui-mcp's showcase parts were stale after N2's catalog changes (`showcase.test.ts` caught it,
+  since N2 did not run stateui-mcp's tests). They are built again.
+- **Tests:**
+  - `screens.spec.ts`: 5 tests, desktop only.
+  - `inspectRoutes.test.ts`: the screens route.
+  - The suite runs 80 times: 73 pass and 7 are skipped.
+  - stateui-mcp: 1069 tests pass.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant).
 - Paying for more agent use after the $5.
