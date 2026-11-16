@@ -89,6 +89,9 @@ if [ -n "$STRIPE_KEY" ] && [ -n "$STRIPE_WEBHOOK" ]; then
 fi
 
 echo "== the image"
+# Each deploy's image is about 2 GB and the disk is 29 GB: drop the ones no container uses (the running stack's stays;
+# every image is still in ECR to go back to) before pulling the new one
+docker image prune --all --force | tail -1
 aws ecr get-login-password --region "$STACK_REGION" | docker login --username AWS --password-stdin "${IMAGE%%/*}" >/dev/null
 COMPOSE=(docker compose -p magnetic --env-file deploy.env -f magnetic.compose.yml -f magnetic.aws.compose.yml)
 "${COMPOSE[@]}" pull --quiet migrate
