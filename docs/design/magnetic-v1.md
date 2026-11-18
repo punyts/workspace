@@ -1,5 +1,8 @@
 # Magnetic v1: an AI app builder you can hand out as a link
 
+Status: M1 to M6 built (see "As built"). M7, hosting, is built as `magnetic-hosting.md` describes. Storage moved from
+files to Postgres (`magnetic-postgres.md`), and the image has no Chromium (below).
+
 ## Summary
 Magnetic is a web app where a person signs in with LinkedIn, describes an app in a chat box, and watches an agent build
 it as a live StateUI app. They can see the app's state, select components and change them by hand, drag new components
@@ -83,8 +86,10 @@ These pieces are new:
   apart because each user has their own folder, so no repository needs a user filter.
 - Storage stays on files for v1. A single machine with a persistent volume is enough for the LinkedIn test. The storage
   ports (`UiPartRepository`, `UiInstanceRepository`, `NamespaceStorage`) are where a database goes later.
+  Replaced by `magnetic-postgres.md`: Magnetic keeps everything in Postgres, and nothing is written to disk.
 - The headless Chromium is shared, with one browser context per user, and pages are closed when idle. The agent
   needs it for screenshots. A limit on open pages per user and in total keeps memory bounded.
+  Not built: the browser tools are withheld and the image has no Chromium (`magnetic-hosting.md`, "Not in M7").
 
 ### Two origins, as today
 - `magnetic.<domain>` serves the shell, the sign-in pages and the API, and holds the session cookie.
@@ -252,6 +257,8 @@ Each stage ends in something you can run and is committed on `develop`, like the
 | M7 | Hosting: container with Chromium, TLS, the two domains, backups of the data volume, invite flow, then the LinkedIn post | all |
 
 M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
+M7 was built as `magnetic-hosting.md` describes: no Chromium, and Postgres on RDS with its backups in place of a
+data volume.
 
 ## Checks
 - **M1:**
@@ -521,7 +528,7 @@ stateui-app now refuses the two together (SUI-ON-LINKED).
 
 ## Decisions
 1. **Hosting:** AWS, under `ai-minion.com`. M7 sets it up.
-2. **Storage:** files, with a backup of the volume.
+2. **Storage:** files, with a backup of the volume. Replaced by Postgres (`magnetic-postgres.md`).
 3. **AI cost:** a hard limit of $5 for the first run.
 4. **Links:** the default link is `use`, and Remix is a link of its own (built in M6).
 5. **The model:** people choose per turn. The default is Haiku 5.5, for the $5 limit.

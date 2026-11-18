@@ -69,8 +69,7 @@ one persona did in an app, laid over its definition. Logic is machines, rules, l
 - `npm run build` / `test` / `typecheck`: every library in order; `node bin/workspace.mjs run <script> <lib…>` for
   some. `npm test` runs each library's unit tests only; browser suites need
   `node bin/workspace.mjs run test:browser <lib…>` (stateui, state-sync, stateui-app, stateui-components, stateui-3d).
-- `npm run magnetic:build` (Magnetic and what it uses, but **not statenet**: build it too after changing it),
-  `ui:build`, `mcp:build`. Everything runs from `dist/`, so rebuild after a change; tests of a consumer otherwise run
+- `npm run magnetic:build` (Magnetic and every library it uses), `ui:build`, `mcp:build`. Everything runs from `dist/`, so rebuild after a change; tests of a consumer otherwise run
   against the old code.
 - Never pipe test or build output through `tail`/`head`: the exit code becomes the pipe's.
 
@@ -133,8 +132,8 @@ one persona did in an app, laid over its definition. Logic is machines, rules, l
   Anthropic, Stripe and admin-email parameters are in SSM Parameter Store in **us-east-1** (`/magnetic/*`). Design:
   `docs/design/magnetic-hosting.md`.
 - `node infra/aws/deploy.mjs` (after `aws sso login --profile magnetic`) builds the image from the working tree, so
-  uncommitted changes ship. It tags `-dirty` only for changes in the workspace, magnetic, stateui-mcp, stateui-pg,
-  stateui-app, statenet and state-sync. `infra/aws/host-deploy.sh` runs on the host: it writes the env (beta
+  uncommitted changes ship; the tag ends in `-dirty` when any repo the image builds has changes.
+  `infra/aws/host-deploy.sh` runs on the host: it writes the env (beta
   settings included), prunes old images (the disk filled once), pulls and restarts.
 - Deploys, SSO sign-in, SSM values, Stripe, IAM changes and LinkedIn redirect URIs are the owner's: ask first.
 

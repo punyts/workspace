@@ -3,7 +3,7 @@ node_modules/
 .env
 dist/
 coverage/
-# Each library is its own repo, cloned by bin/clone-repos.sh
+# Each library is its own repo, cloned by bin/workspace.mjs
 core/
 expression/
 state/

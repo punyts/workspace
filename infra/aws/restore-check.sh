@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs on the Magnetic host (infra/aws/restore-drill.mjs sends it): counts what a database holds, so a restored copy can
+# Runs on the Magnetic host through Session Manager, after a restore drill (docs/design/magnetic-hosting.md): counts what a database holds, so a restored copy can
 # be compared with the live one. Prints counts and times only, never anyone's data.
 #   restore-check.sh <database host> <master secret>
 set -euo pipefail

@@ -5,7 +5,7 @@ two servers and a relay, Postgres with backups, sign-in with LinkedIn, and a har
 `magnetic-v1.md`, updated for what was built since: storage moved to Postgres (`magnetic-postgres.md`) and the
 servers became nodes of the statenet (`statenet-relays.md`).
 
-## What is there today
+## What was there before M7 (15 November 2026)
 | Piece | State |
 |---|---|
 | AWS account | `047947909044`, reached through the `magnetic` SSO profile with the `MagneticDeployer` permission set (`infra/aws/`) |
@@ -28,7 +28,8 @@ servers became nodes of the statenet (`statenet-relays.md`).
    └─ relay-1      links to the mesh; not public in M7
                                           |
   RDS Postgres 16 db.t4g.micro with pgvector, private, 7 days of backups and point-in-time restore
-  SSM Parameter Store (SecureString): secret key, LinkedIn client, Anthropic key, database URL
+  Secrets Manager (us-east-2): the secret key and the database passwords
+  SSM Parameter Store (SecureString, us-east-1, /magnetic/*): LinkedIn client, Anthropic key, Stripe, admin emails
   ECR: punyts/magnetic, built here and pushed; the instance pulls it
 ```
 
@@ -37,7 +38,8 @@ Why this shape:
   each other's addresses. ECS can come when one machine is not enough; the servers already share the database, so
   moving them changes no data.
 - **Caddy, not a load balancer.** It gets the certificates by itself and costs nothing; an ALB is about $18 a month.
-  The servers tunnel a view to whichever server runs the instance, so Caddy needs no sticky sessions.
+  The servers tunnel a view to whichever server runs the instance, so views need no sticky sessions; Caddy is sticky
+  by cookie on the pages' origin only because a sign-in with a provider is kept by the server that began it (H1).
 - **RDS, not Postgres in a container.** Everything Magnetic keeps is in the database, uploaded files included, so the
   "backup of the volume" of `magnetic-v1.md` becomes RDS's automated backups. RDS has pgvector, and its master user is
   not a true superuser, so row-level security holds; Magnetic still connects as its own role (below).
@@ -50,13 +52,14 @@ Why this shape:
    set, the pages put the runtime origin in the frame URL and the host page's policy, and the runtime page's policy
    names the public origin, instead of building `http://<Host>:<port>`. Unset, it behaves as today.
 2. **Allowed hosts.** With public origins set, a request whose `Host` is neither origin's host (nor loopback, for a
-   health check on the machine) gets 403, so a server bound to `0.0.0.0` answers only to its own names. Caddy keeps
+   health check on the machine) gets 403 (`forbidden_host`), so a server bound to `0.0.0.0` answers only to its own names. Caddy keeps
    `Host` as sent.
 3. **Behind a proxy.** Cookies are already `Secure` when the public origin is HTTPS. The servers do not read
    `X-Forwarded-*` for anything else; the check is that redirects and the OIDC callback use the public origin.
 4. **The application role.** `magnetic migrate` creates `magnetic_app` (no superuser, no `BYPASSRLS`) and grants it the
    tables; the servers connect as it, migrate and `reindex` as the owner.
-5. **`docker/magnetic.compose.yml`**, the hosted stack: the compose file above without `db` and `migrate`, with Caddy,
+5. **`docker/magnetic.compose.yml`**, the hosted stack: the compose file above with `migrate` (run as the owner) and
+   without `db` except under `--profile local`, with Caddy,
    `MAGNETIC_EMBEDDING=local` and a volume for the model cache, environment from a file the instance writes from
    Parameter Store, and `restart: unless-stopped`.
 
@@ -72,23 +75,26 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
   instance only.
 - The instance role `/magnetic/magnetic-host`, under `magnetic-workload-boundary`: pull from ECR, read
   `/magnetic/*` parameters, Session Manager, logs.
-- Parameters you put in by hand (I never see them): `/magnetic/linkedin-client-id`, `/magnetic/linkedin-client-secret`,
-  `/magnetic/anthropic-api-key`. The stack makes `/magnetic/secret-key` and the database password itself.
+- Parameters you put in by hand (I never see them), in Parameter Store in `us-east-1`:
+  `/magnetic/linkedin-client-id`, `/magnetic/linkedin-client-secret`, `/magnetic/anthropic-api-key`, and optionally
+  `/magnetic/stripe-secret-key`, `/magnetic/stripe-webhook-secret` and `/magnetic/admin-emails`. The stack makes the
+  secret key and the database passwords itself, in Secrets Manager in `us-east-2`.
 - DNS: `A` records for `magnetic` and `run` to the Elastic IP. The apex and `www` are left alone.
 
 ## Deploy and launch (H3, H4)
 - `infra/aws/deploy.mjs`: build the image, push it to ECR, and on the instance (through SSM) pull, migrate, and
   `docker compose up -d`. Plain Node, like the workspace scripts.
 - LinkedIn: add `https://magnetic.ai-minion.com/auth/linkedin/callback` to the app's redirect URLs (you).
-- AI spend: `MAGNETIC_MONTHLY_BUDGET=5` and `MAGNETIC_DAILY_BUDGET=0.25`, and a $10 monthly limit on the Anthropic
-  key as the backstop (you, in the Anthropic console).
+- AI spend: the beta's budgets (`magnetic-beta.md`): `MAGNETIC_MONTHLY_BUDGET=500`, no daily limit
+  (`MAGNETIC_DAILY_BUDGET=off`), and $5 once for each of the first 100 people; a monthly limit on the Anthropic key is
+  the backstop (you, in the Anthropic console).
 - Who may sign in: see the decisions.
 - Before the post: a restore drill (restore the latest backup to a new instance and sign in to it), then the post.
 
 ## Checks
 - **H1:** the compose stack runs locally behind Caddy with two host names (`magnetic.localhost`, `run.localhost`):
   sign in with the mock provider, open an app, and the frame loads from the run origin; a request with another `Host`
-  gets 421; a frame script cannot read the session cookie; the servers' role cannot see another workspace's rows.
+  gets 403; a frame script cannot read the session cookie; the servers' role cannot see another workspace's rows.
 - **H2:** `https://magnetic.ai-minion.com` and `https://run.ai-minion.com` answer with valid certificates; port 5432
   and the mesh ports are closed from outside; the instance reads its parameters and nothing else.
 - **H3:** LinkedIn sign-in end to end; `docker/check.mjs` against the hosted servers; stop `magnetic-1` and a view on
@@ -160,14 +166,18 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
   writes two 0600 env files, pulls, and runs `docker compose -p magnetic up -d`.
   - `deploy.env` is for compose only: the image, the host names and both database URLs. The owner's URL reaches
     `migrate` alone; the servers get `magnetic_app`'s.
-  - `magnetic.env` is the containers': the secret key, LinkedIn, Anthropic, the budgets ($5 a month, $0.25 a day
-    each), who runs the service, and `NODE_EXTRA_CA_CERTS`, so the database connections verify RDS
+  - `magnetic.env` is the containers': the secret key, LinkedIn, Anthropic, the beta's budgets (org `beta`, $5 once
+    for each of the first 100 people, no daily limit, $500 a month for the server), the admin emails (or else the
+    privacy contact), Stripe when both its parameters are there, who runs the service, and `NODE_EXTRA_CA_CERTS`, so the database connections verify RDS
     (`sslmode=verify-full`).
   - `docker/magnetic.aws.compose.yml` mounts the authority and sends every container's log to CloudWatch `/magnetic`.
 - **`/privacy`**: with `MAGNETIC_OPERATOR` and `MAGNETIC_CONTACT_EMAIL` set, Magnetic says what it keeps, why, who
   else sees it, how long, and how to have it deleted, without a sign-in. LinkedIn's app links to it.
-- **The keys** are in Parameter Store in `us-east-1`, so the stack's `ParameterRegion` says where the host reads
-  them. `infra/aws/put-secrets.sh` puts them there with hidden prompts.
+- **Where the secrets are.** The secret key, `magnetic_app`'s password and RDS's master password are in Secrets
+  Manager in `us-east-2`, made by the stack. The keys put in by hand are in Parameter Store in `us-east-1` under
+  `/magnetic/` (LinkedIn, Anthropic, and optionally Stripe and the admin emails), so the stack's `ParameterRegion`
+  says where the host reads them. `infra/aws/put-secrets.sh` puts them there with hidden prompts, in `us-east-1` by
+  default, asking for the optional ones too; Enter skips one.
 - Checked: both names serve HTTPS with Let's Encrypt certificates; HTTP redirects to HTTPS; the sign-in page frames
   `https://run.ai-minion.com`; Caddy sets the `magnetic_server` cookie; a socket without a session is answered by
   Magnetic (400), and a post from another origin gets 403; the migrations ran as the owner and the servers run as
@@ -208,6 +218,12 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
   - RDS ships its transaction log every few minutes, so the latest restorable point trails by up to about 5
     minutes: a restore can lose that much.
   - To switch to a restored copy: point `DB_HOST` in a deploy at its endpoint (or rename the instances) and deploy.
+
+### Running it
+- **The host's disk filled** (16 November 2026) with the images of earlier deploys: each is about 2 GB and the disk
+  is 29 GB, so a deploy could no longer pull. `host-deploy.sh` now runs `docker image prune --all --force` before it
+  pulls, dropping every image no container uses; the running stack's stays, and every image is still in ECR to go
+  back to.
 
 ## Decisions (15 November 2026)
 1. **This shape:** one EC2 machine with Compose, Caddy and RDS, about $50 a month, over ECS Fargate with an ALB

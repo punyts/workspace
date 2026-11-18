@@ -394,7 +394,7 @@ P5 can run beside P3 and P4. P6 and P7 can run beside each other.
 ## As built (night of 14 November 2026)
 
 Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and in the new repo `stateui-pg`
-(`develop`; it is not on GitHub yet). Every stage below runs its tests against Postgres.
+(`github.com/punyts/stateui-pg`). Every stage below runs its tests against Postgres.
 
 ### P1: Postgres foundation
 - `stateui-pg`: `createDatabase` (one pool; `transaction(work, { workspaceIds })` sets `app.workspace_ids` for
@@ -501,9 +501,11 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
     every embedding.
 
 ### Not built yet
-- **After P4:** SAML and SCIM (outside this design); a hosted server needs `MAGNETIC_SECRET_KEY` set for orgs to use
-  their own sign-in.
-- The statenet stages S1 to S6 are built (`statenet-relays.md`, "As built"); Magnetic's instances move onto owner nodes
-  behind the mesh next.
-- Hosting notes: a superuser bypasses row-level security, so a hosted Magnetic connects as a role that is not one;
-  `magnetic reindex` and `import` run as the owner role, as they read every workspace.
+- SAML and SCIM (outside this design).
+
+### Since
+- The statenet stages S1 to S6 are built, and Magnetic's instances run on owner nodes behind the mesh, any number of
+  servers on one database (`statenet-relays.md`, "Magnetic behind the mesh").
+- Hosting (`magnetic-hosting.md`): the host sets `MAGNETIC_SECRET_KEY`, so orgs can use their own sign-in. A superuser
+  bypasses row-level security, so the servers connect as `magnetic_app`, which is not one; `magnetic reindex` and
+  `import` read every workspace, so they need the owner or a `BYPASSRLS` role.

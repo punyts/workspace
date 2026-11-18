@@ -49,8 +49,9 @@ of data, and the third is this milestone's biggest piece.
 - **Each stage below lands with its own tests in the suite.** N1 covers what exists today.
 - The existing vitest browser tests stay as they are. They test the overlay's internals; the suite tests what a
   person does.
-- Chromium is not in the server image, and doesn't need to be: the suite runs on a developer machine. It can also
-  point at the live site with `MAGNETIC_E2E_URL` for a smoke test that changes nothing.
+- Chromium is not in the server image, and doesn't need to be: the suite runs on a developer machine and in CI. It
+  always runs against its own server (`e2e/server.mjs`), on `MAGNETIC_E2E_PORT` (default 4390); there is no smoke
+  test of the live site.
 
 ### The library becomes a panel of its own
 - The Add tab leaves the inspector and becomes a **library panel docked at the left of the canvas**, open by default

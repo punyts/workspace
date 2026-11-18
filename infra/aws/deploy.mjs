@@ -30,7 +30,7 @@ process.stdout.write(`${outputs.InstanceId} at ${outputs.PublicIp}, image ${repo
 
 step('the image');
 const commit = run('git', ['rev-parse', '--short', 'HEAD']);
-const dirty = ['.', 'magnetic', 'stateui-mcp', 'stateui-pg', 'stateui-app', 'statenet', 'state-sync'].some((dir) => run('git', ['-C', dir, 'status', '--porcelain']) !== '');
+const dirty = ['.', 'core', 'expression', 'state', 'state-sync', 'statenet', 'stateui', 'stateui-3d', 'stateui-app', 'stateui-components', 'stateui-mcp', 'stateui-pg', 'magnetic'].some((dir) => run('git', ['-C', dir, 'status', '--porcelain']) !== '');
 const tag = `${commit}${dirty ? '-dirty' : ''}-${new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')}`;
 const image = `${repository}:${tag}`;
 run('docker', ['build', '-f', 'docker/Dockerfile', '-t', image, '.'], { stdio: 'inherit' });

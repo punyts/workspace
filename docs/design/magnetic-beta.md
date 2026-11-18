@@ -67,3 +67,24 @@ contact them when we do the next beta test." That is **Signing up** below; it ch
 - Admin: Start the beta and the link on the overview; "Beta place n" and the free use by place on People.
 - The Agent use page says the beta is full, or that free use comes with the invite link.
 - Tests: `src/server/beta.test.ts`, options.
+
+### Trying it locally (the development seed)
+- `--seed beta|beta-full` (`MAGNETIC_SEED`; needs `--beta-org`, loopback hosts only),
+  `magnetic/src/testing/betaPersonas.ts`: the beta org with the admin as its owner, and people to sign in as with
+  their spend, gifts, payments and feedback. It runs on every start and adds only what is missing.
+- From the workspace: `npm run magnetic:beta` (`--seed beta`) and `npm run magnetic:beta-full` (`--seed beta-full`),
+  with `--migrate`, `--mock-provider` and `--mock-agent`; their settings are in `magnetic/beta.dev.env`, the host's
+  beta (org `beta`, $5 each for 100 places, no daily limit, $500 a month) with a development secret key and `hash`
+  embedding. `npm run magnetic:reset` deletes the local database volume and starts it empty.
+- The sign-in page has a button for each persona:
+  - Avery, the admin who runs the beta (owns the org, opens `/admin`);
+  - Nell, who has never signed in and takes a place on first sign-in (fresh only after a reset);
+  - Hana, $2.40 of $5 used;
+  - Nico, $4.90 used: one more turn;
+  - Uma, all $5 used: chat off, editing by hand;
+  - Gia, used $5 and given $3 more by the admin;
+  - Theo, used $5 and bought $10 more.
+- Testers hold the other places, leaving 3 open with `beta`, or none with `beta-full`.
+- The personas are development users with profiles (`/signin/dev`): the sign-in gives each a name and a verified
+  email, which plain dev users do not have, and the seed adds Avery's email to the admins.
+- The mock agent charges about $0.15 a turn when seeded, so allowances move as people use the editor.
