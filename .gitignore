@@ -18,3 +18,5 @@ stateui-3d/
 magnetic/
 example/
 stateui-pg/
+# ai-minion (github.com/ai-minion/ai-minion) is cloned here too; it links its libraries/ to these repos
+ai-minion/

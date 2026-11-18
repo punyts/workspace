@@ -9,7 +9,8 @@
 // Usage:
 //   node bin/workspace.mjs clone [branch]            clone the repos that are not here yet (default branch: develop)
 //   node bin/workspace.mjs run <script> [library...] run an npm script in each library that has it; stops at a failure
-//   node bin/workspace.mjs status                    branch, changed files and unpushed commits of every repo
+//   node bin/workspace.mjs status                    branch, changed files and unpushed commits of every repo, and
+//                                                    of ai-minion when it is cloned here
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -69,7 +70,9 @@ function runScript(script, libs) {
 }
 
 function status() {
-    for (const lib of ['.', ...REPOS]) {
+    // ai-minion is not a library, but is cloned here too when it is worked on alongside them
+    const extra = existsSync(join(ROOT, 'ai-minion', '.git')) ? ['ai-minion'] : [];
+    for (const lib of ['.', ...REPOS, ...extra]) {
         const dir = join(ROOT, lib);
         if (!existsSync(join(dir, '.git'))) {
             console.log(`${lib.padEnd(20)} not cloned`);

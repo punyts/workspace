@@ -2,8 +2,9 @@
 
 The development workspace for the punyts libraries (a reactive state store, its sync and network, and StateUI: apps as
 declarative JSON documents) and Magnetic, the AI app builder built on them. The owner's main product, ai-minion
-(`../ai-minion`, branch `develop`), consumes these libraries; its `knowledge-base/design/stateui-*.md` hold StateUI's
-design history.
+(`ai-minion/`, its own repo `github.com/ai-minion/ai-minion` cloned inside this workspace and gitignored, branch
+`develop`), consumes these libraries; its `knowledge-base/design/stateui-*.md` hold StateUI's design history. Its own
+`CLAUDE.md` governs work inside it.
 
 ## Working style
 Be discerning without being argumentative: state facts, name problems, propose fixes directly. No apologies or
@@ -19,8 +20,8 @@ validation-seeking. Write docs and messages in plain declarative sentences, no h
 - Commit straight to `develop` in every punyts repo: no feature branches or pull requests (owner, 2026-11-17). ai-minion
   is different: branch from its `develop` and merge through a pull request. Pushing a library's `develop` is its
   release: ai-minion's CI and Docker clone `develop` of each library fresh, and locally ai-minion links
-  `libraries/<name>` to these checkouts (its scripts default to `../punyts`, beside the ai-minion checkout). Nothing is published to npm. Bump a
-  `version` only when a consumer raises its range; if a library's dependencies change, ai-minion's lockfile is
+  `libraries/<name>` to these checkouts (its scripts default to the workspace that holds it). Nothing is published to
+  npm. Bump a `version` only when a consumer raises its range; if a library's dependencies change, ai-minion's lockfile is
   regenerated with npm 10 (`npx npm@10 install --package-lock-only`).
 
 ## The libraries (build order)

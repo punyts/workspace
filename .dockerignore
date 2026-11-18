@@ -7,3 +7,5 @@ magnetic/data
 docker/certs
 **/*.tsbuildinfo
 **/.build-stamp
+# ai-minion, cloned into the workspace, is not part of the Magnetic image
+ai-minion

@@ -63,8 +63,10 @@ tools and in the same Chromium as there. Move them together with ai-minion's.
 
 ## ai-minion
 
-ai-minion links its `libraries/<name>` to these repos (`bash bin/clone-libraries.sh --link` in ai-minion, which
-expects this workspace at `../../punyts` from its repo root), so both build against the same checkouts. A library
+ai-minion is cloned inside this workspace (`git clone -b develop https://github.com/ai-minion/ai-minion.git` here;
+`ai-minion/` is gitignored) and links its `libraries/<name>` to these repos (`bash bin/clone-libraries.sh --link` in
+ai-minion finds the workspace that holds it), so both build against the same checkouts. `npm run status` lists it
+too. A library
 `package.json` dependency change needs ai-minion's lockfile regenerated: `npx npm@10 install --package-lock-only`
 there.
 
