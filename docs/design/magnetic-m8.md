@@ -299,9 +299,37 @@ N6 is the largest: about as much work as N2 to N5 together.
     `stateuiHost.navigate`, and the live frame takes the preview's place.
   - **What a preview lacks:** it shows the screen as it is, but changes in it are not kept. To work on a screen, make
     it the live one.
-- **Weight:** an `IntersectionObserver` mounts the previews in view, at most six, and disposes the others. The plan's
-  "last screenshot" of a frame out of view is its name instead: a frame from another origin cannot be drawn to a
-  canvas from the page.
+- **Weight:** an `IntersectionObserver` mounts the previews in view and disposes the others. The plan's "last
+  screenshot" of a frame out of view is its name instead: a frame from another origin cannot be drawn to a canvas from
+  the page.
+  - Asked for on 2026-11-18: "at a certain height the screens just show their name, all of them. That way we don't
+    overload the browser. Maybe at the point more than 3-4 screens are visible". With more than four screens in view
+    (the live frame counts, `MOST_IN_VIEW` in `screens.ts`), every preview shows only its name, so zooming out over
+    many screens runs one app. This replaced a cap of six mounted previews.
+  - Asked for on 2026-11-18, once names were in: "The screen should not render when only the name is shown, that's
+    wasteful", "No screens should render when we're zoomed out at a certain level", "I like the idea that you can
+    select a screen and it renders (at a certain zoom level), but we have to be able to deselect it as well".
+  - **Names:** with more than four screens in view, or below a zoom of 0.15 (`NAMES_BELOW_ZOOM`), nothing
+    renders: no preview mounts and the live frame hides, its screen a name tile like the others. A tile shows its name
+    inside and no label above it.
+  - **Selecting:** pressing a tile selects its screen: the live frame shows it in its slot while the others stay names.
+    The × at the slot's corner, Escape, or a click on the empty board deselects it. Zooming in past the threshold
+    ends names and the selection with it.
+  - **Escape** on the page now runs the shell's whole Escape turn (inspector, then the selected screen, then the
+    chat), as Escape from the editor's frame already did.
+- **Ordering by name** (owner, 2026-11-18: "allow users to order the screens when they are just showing the name"):
+  while the previews show their names, a name is dragged to another slot; a dashed drop slot marks where it goes, and
+  letting go moves the screen there (`POST /edit/<id>/screens` `{ action: 'order', order }`). A press without a drag
+  selects the screen. The order moves at once on the board and is posted after; a refusal puts it back.
+- **A menu for each screen** (owner, 2026-11-18: "add a context menu to edit the screen meta data"): a right click, the
+  menu key or a tile's ⋯ button opens a menu: work on it, its title and name (each with Save), move it earlier or later,
+  open the app on it, copy, delete. A tile's bin opens the same menu at its delete question. Deleting asks
+  inside the menu (the panel's Delete too), since a native `confirm()` can be suppressed in an embedded browser. The
+  title is new: the panel had no way to set it (`{ action: 'title', name, title }`).
+  - Both go through `ui_app_configure`'s `screens`, added to stateui-mcp for this: every screen once, `{ name, title? }`,
+    in the new order. The app document is the order of `$.screens`.
+  - The panel's list is keyed by screen name, and a write merges into the records there, where a key keeps its place;
+    the shell clears a list whose ids changed before writing it, so a move or a rename shows in the panel in order.
 - **The panel** shares the library's slot. `P` toggles it. Adding a screen gives it a blank column root through the
   agent's own `ui_screen_create`, and copying passes the screen's root to it.
 - **The fit:** the board fits around the live frame wherever its slot is (`--slot-x`). A route the app moved to
@@ -309,8 +337,10 @@ N6 is the largest: about as much work as N2 to N5 together.
 - **Also fixed:** stateui-mcp's showcase parts were stale after N2's catalog changes (`showcase.test.ts` caught it,
   since N2 did not run stateui-mcp's tests). They are built again.
 - **Tests:**
-  - `screens.spec.ts`: 5 tests, desktop only.
-  - `inspectRoutes.test.ts`: the screens route.
+  - `screens.spec.ts`: 11 tests, desktop only (names only, dragging a name, the menu, selecting and
+    deselecting, the bin).
+  - `inspectRoutes.test.ts`: the screens route, with order and title.
+  - stateui-mcp `partAppTools.test.ts`: `ui_app_configure` `screens`.
   - The suite runs 80 times: 73 pass and 7 are skipped.
   - stateui-mcp: 1069 tests pass.
 
