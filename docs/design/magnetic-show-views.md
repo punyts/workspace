@@ -41,6 +41,11 @@ etc. Also, it should match the actual state paths. Branches should have a + butt
 and leafs". The owner's answers (2026-11-18): the tree shows every part of the owner, with what the app does not use
 dimmed; a + makes the part and puts it to use in the app; one level is drawn below a part, each with its own +.
 Then: "Let's update the diagram to use both left and right sides. Let's distribute the the direct root children".
+Then: "We need to be able to deselect a node in the state or close its open modal", and "The buttons in the diagram
+are terrible."
+Then, asked whether to add the owner tree's `$.personas` root, showing only the person's own (owner, 2026-11-18): "Only
+my own", and: "Persona shouldn't be "bob" that's the user, and is in the `$.user` state. Personas would be like "work"
+or "comptia"", "It could even be comptia_bob".
 
 ## Summary
 - **A view selector** in the top-right corner, before the bug, preferences and Share buttons: **Screens · Statenet ·
@@ -120,7 +125,9 @@ after each change to the app (`data-revision`).
 
 ### The app views
 Each has a sheet (`#view-sheet`) with:
-- a head: the view's name, its tools, and a status line (Saving, Saved, or the refusal);
+- a head: the view's name, its tools, and a status line (Saving, Saved, or the refusal). On the board (Statenet) the
+  name is left out, since the selector shows it, and the head shows only while it holds a tool, a status or the way
+  back;
 - a main area;
 - a side panel at the right, the editor of what was pressed. Below 760px the side panel is a sheet at the bottom.
   Escape closes it.
@@ -140,7 +147,7 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
 **The graph is the owner's tree by state path** (`ownerTreeOf` in `viewInfo.ts`; `drawGraph`, `layOut`,
 `drawEdges` in `views.ts`). Each node's id is its path, which the card carries as `data-node` and shows on hover.
 - **`$`**, then a pill per branch: `$.apps`, `$.themes`, `$.data`, `$.models`, `$.logic`, `$.components`, `$.patterns`
-  (when the owner has any) and `$.connections`.
+  (when the owner has any), `$.connections` and `$.personas`.
 - **Every part of the owner** under its branch. A part the app being edited does not use is dimmed ("Not used by this
   app"). The app being edited has an accent border; the owner's other apps open in their own editor.
 - **One level below a part:**
@@ -150,7 +157,13 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
   - a dataset: its records, the first eight (`TREE_RECORDS`), and how many more;
   - a model: its fields with their types (`$.models.<model>.fields.<field>`);
   - a logic module: its units (`$.logic.<module>.<group>.<unit>`);
-  - a connection: its endpoints, plus endpoints the logic calls that are missing from it.
+  - a connection: its endpoints, plus endpoints the logic calls that are missing from it;
+  - a persona: the apps of the workspace it has state in (`$.personas.<persona>.apps.<owner>.<app id>`), the most
+    recently used first, the app being edited with an accent border. A dashed edge joins an app to its instance.
+- **`$.personas` holds the person's own persona only.** Another person's state is theirs: an org's admins reach it only
+  through the audited support view. A persona is the person's own context of use (`work`, `comptia`, `comptia_bob`),
+  not the person, who is `$.user`; the node is named by the persona. Magnetic gives each person the `default` persona,
+  whose state it keeps at the statenet address `<their id>/<app id>/user` (`personaApps`, from `namespace_head`).
   A part the app does not use is drawn without what it holds; its editor shows that.
 - **A branch shows** every part the app uses and the first six others (`UNUSED_SHOWN`), then a pill "N more" that shows
   the rest, and "Show fewer" after. An owner with many apps and themes would otherwise draw a board too tall to read.
@@ -165,7 +178,9 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
   is chosen, dashed in the accent.
 - The graph's words are written by the page (`views.kind.*`, `views.note.*`); the route sends paths, kinds and names.
 
-**The +** on a branch or a part makes what it holds, through the person's tools, and puts it to use in the app. Its
+**The +** on a branch or a part makes what it holds, through the person's tools, and puts it to use in the app. It is
+a round handle on the card's outer edge, where the lines to what it holds start (on the left side, its left
+edge): the page's colour ringed in the accent, filled with the accent on hover. It shows while the card is hovered, focused or chosen, and always where there is no hover (touch). Its
 form opens in the side panel; after Create the panel closes and the tree shows the new node.
 - `$.apps`: a new app (`POST /new`), which opens in the editor.
 - The app's `screens`: a blank screen (`POST /edit/<id>/screens`, `ui_screen_create`).
@@ -189,7 +204,9 @@ target that path with a value naming a connection and an endpoint.
 
 **Pressing a card** opens its editor in the side panel, and the board moves so the panel does not cover the card
 (`reveal`: left at 760px and wider, where the panel is at the right; up below that, where it is along the bottom).
-The panel scrolls down only; a record table scrolls sideways in its own box.
+The panel scrolls down only; a record table scrolls sideways in its own box. The chosen card is let go, and the panel
+closed, by the panel's × (Close), by pressing the card again, by Escape, and by a press on the empty board; a drag that
+pans the board keeps it.
 - **The app:** its note, its screens as buttons, each showing that screen in the Screens view
   (`magneticScreens.choose`), and how many parts of each kind it uses.
 - **A dataset:** its records as a table with an input per field. You can change a cell, remove a record and add one
@@ -197,7 +214,8 @@ The panel scrolls down only; a record table scrolls sideways in its own box.
   refused.
 - **A model:** its fields with their types. You can change a type, remove a field and add one (`ui_model_write`).
   A field needs a name.
-- **Removing** a record, a field or an endpoint asks first, naming what goes. Each × is a 28px target.
+- **Removing** a record, a field or an endpoint asks first, naming what goes. Each × is a 28px round target. The + and × of the round buttons are drawn as strokes, not
+  typed, so they sit at the centre of the circle in any font.
 - **A per-person binding or a state key:** its running value as JSON, saved with `ui_state_set`, which refuses a
   shared dataset.
 - **A connection or an endpoint:** shows the base URL, the sign-in kind and whether a secret is set ("secret kept",
@@ -215,6 +233,8 @@ The panel scrolls down only; a record table scrolls sideways in its own box.
 - **A screen:** shows that screen in the Screens view.
 - **A binding:** its dataset's editor.
 - **Another app:** Open this app.
+- **A persona:** what it holds. **An app's instance under it:** what it is, when it was last used, and Open this app
+  for another app.
 - **A part the app does not use** (a theme, a dataset, a module) has Use in this app.
 
 Theme and Logic reached from a card show "← Statenet" first in their head, back to the graph. A view picked with the
@@ -318,6 +338,7 @@ person's own tools (`src/server/viewRoutes.ts`):
   too tall to read.
 - The branches of `$` are split between its right and left sides, in order, by height (owner, 2026-11-18): one side
   ran about twice as tall as wide.
+- `$.personas` shows the person's own persona only, named by the persona, never the person (owner, 2026-11-18).
 - A logic module is made working on one of the app's bindings: its units may only use `$.data.<need>` paths, so a
   module with no need could hold no rule.
 - Statenet is drawn on the board, in the world that pans and zooms, not on a sheet of its own (owner, 2026-11-18).
