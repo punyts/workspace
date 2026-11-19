@@ -210,14 +210,14 @@ Built 2026-11-19, steps 1 to 6 of the build order except Statenet on `treeDiagra
 - **Magnetic.** `httpCatalog` (`src/connections/httpEffect.ts`) puts the HTTP effect at `$.functions.host.http`;
   Statenet's `$.functions` branch, library components with their functions under `$.components`, and `run` edges
   (`src/inspector/viewInfo.ts`, `src/http/views.ts`, `src/server/viewRoutes.ts`). Tests: `viewInfo.test.ts`,
-  `e2e/views.spec.ts`.
+  `e2e/views.spec.ts`. Migration `migrations/0013_effect_function_paths.sql` moves stored effects from `run: "http"` to
+  `$.functions.host.http`, in logic modules and in apps' own logic, keeping key order. Test:
+  `src/storage/effectFunctionPaths.test.ts`.
 
 Not yet done:
 - A function named only inside a node's template is not loaded by `mountApp`; one the logic also names is. Code that
   loads at once (the components' catalog, host catalogs) is unaffected.
 - Magnetic's copy and share paths do not pass `functions` to `copyAppParts`, so a missing function shows as the
   validator's warning on the app rather than before the copy.
-- Magnetic apps stored with `run: "http"` warn `SUI-LOGIC-FUNCTION` and their effect does not run until the run is
-  changed to `$.functions.host.http`; there is no migration.
 - Statenet shows the functions of the app being edited, not of all the owner's apps; the others are dimmed under the
   pill that every branch has.
