@@ -68,6 +68,9 @@ Found by reading the code on 2026-11-18.
   - Statenet: the data;
   - Logic: the logic;
   - Screens: the screens plus each layer that is on.
+  - The chat bar shows it (owner, 2026-11-18: "Show the view as a chip in the chat bar"): in the bar's own row, between
+    the chat button and the request, a fixed chip for the view and, in Screens, one for each layer that is on, as tall
+    as the bar's controls. The removable chips of what was chosen stay on the line above the bar, after About.
 - The rail (pointer tools, library, Screens, Connections and Shared data panels, then the layers) and the zoom show only
   in the Screens view. Switching to an app view picks the Use tool and closes the inspector and the canvas panels.
 

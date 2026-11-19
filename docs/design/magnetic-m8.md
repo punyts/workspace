@@ -323,9 +323,22 @@ N6 is the largest: about as much work as N2 to N5 together.
   selects the screen. The order moves at once on the board and is posted after; a refusal puts it back.
 - **A menu for each screen** (owner, 2026-11-18: "add a context menu to edit the screen meta data"): a right click, the
   menu key or a tile's ⋯ button opens a menu: work on it, its title and name (each with Save), move it earlier or later,
-  open the app on it, copy, delete. A tile's bin opens the same menu at its delete question. Deleting asks
-  inside the menu (the panel's Delete too), since a native `confirm()` can be suppressed in an embedded browser. The
-  title is new: the panel had no way to set it (`{ action: 'title', name, title }`).
+  open the app on it, copy, delete. A tile's only tool is that ⋯ (owner, 2026-11-18: "remove the delete icon from the
+  tiles"). Deleting asks inside the menu (the panel's Delete too), since a native `confirm()` can be suppressed in an
+  embedded browser. The title is new: the panel had no way to set it (`{ action: 'title', name, title }`).
+- **Any screen may be deleted** (owner, 2026-11-18: "allow the user to delete ANY screen; showing an add screen tile if
+  none"). Deleting the start screen passes the start to the next screen, else the previous one (stateui-mcp's
+  `appWithoutScreen`); deleting the last leaves an app with no screens and no `start`, which stateui-app now accepts.
+  The live frame then hides and the board holds one tile the frame's size, **Add a screen**, which adds `home` and works
+  on it; the first screen of an app with none becomes its start (`ui_screen_create`). The blank app's hint hides while
+  there are no screens, so the tile is the way on.
+- **Sections while placing** (owner, 2026-11-18: "reveal the layout sections when dragging a component over the
+  screen"): while a component is placed or dragged, the overlay outlines every layout section of the screen worked on,
+  dashed, with its name and layout at its top left (the root, then each node with a layout, from `/views/screen`,
+  measured in the live frame). The drop target still shows solid over them.
+- **A turned frame** (owner, 2026-11-18: "a way to switch back and forth from landscape to portrait"): a button beside
+  the frame size swaps the frame's width and height, for every size. It is kept per app with the view
+  (`magnetic.view.<appId>`'s `turned`).
   - Both go through `ui_app_configure`'s `screens`, added to stateui-mcp for this: every screen once, `{ name, title? }`,
     in the new order. The app document is the order of `$.screens`.
   - The panel's list is keyed by screen name, and a write merges into the records there, where a key keeps its place;
@@ -337,8 +350,8 @@ N6 is the largest: about as much work as N2 to N5 together.
 - **Also fixed:** stateui-mcp's showcase parts were stale after N2's catalog changes (`showcase.test.ts` caught it,
   since N2 did not run stateui-mcp's tests). They are built again.
 - **Tests:**
-  - `screens.spec.ts`: 11 tests, desktop only (names only, dragging a name, the menu, selecting and
-    deselecting, the bin).
+  - `screens.spec.ts`: desktop only (names only, dragging a name, the menu, selecting and deselecting, deleting any
+    screen, Add a screen); `editor.spec.ts`: the turned frame and the sections while placing.
   - `inspectRoutes.test.ts`: the screens route, with order and title.
   - stateui-mcp `partAppTools.test.ts`: `ui_app_configure` `screens`.
   - The suite runs 80 times: 73 pass and 7 are skipped.

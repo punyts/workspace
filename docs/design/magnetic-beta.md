@@ -25,10 +25,12 @@ contact them when we do the next beta test." That is **Signing up** below; it ch
   free agent use, and the refusals and the Agent use page say the same.
 - **Nobody makes an org**: Make an org is gone from Your apps and from Orgs, and making one answers 403 ("Making an org
   is not open yet."). The admin's beta org is the only one.
-- **The editor shows agent use** on a line above the chat bar: "Agent use: $1.20 of $5.00 used, $3.80 left" (from
-  `GET /edit/<app>/budget`, again after every turn). Once the agent may not be asked, the request and Send are off and
-  the line says why; when the $5 is spent: "You have used your $5.00 of agent use. You can carry on building by hand:
-  select anything in your app to change it." Editing by hand has no limit.
+- **The editor shows agent use** as a small ring in the chat bar, used against the whole budget, accent, then warning
+  from 80% and danger once spent, in place of the line above the bar (owner, 2026-11-18). Its tip says
+  "Agent use: $1.20 of $5.00 used, $3.80 left" (from `GET /edit/<app>/budget`, again after every turn). Once the agent
+  may not be asked, the request and Send are off and the tip says why; when the $5 is spent: "You have used your $5.00
+  of agent use. You can carry on building by hand: select anything in your app to change it." Editing by hand has no
+  limit.
 - All of this holds while `--beta-org` is set; without it, sign-in and orgs are as before.
 
 ## How it goes (with the link alone, as first built)
