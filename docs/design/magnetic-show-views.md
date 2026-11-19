@@ -20,14 +20,36 @@ select screen, statenet, or theme. When on the screens view we have the tools fo
 the theme view we have the tools for editing the themes. For the statenet, we have the tools to edit the statenet. For
 the app level logic, we have the tools to edit and create logic and identify if it is ran server or browser side."
 
+Then, on 2026-11-18, with the Statenet sheet in view: "Lets not have the statenet on its own tile. Have it on the
+canvas"
+
+Then, with the graph on the board as one tall column: "Can we get this to lay out a bit better. Maybe find an
+algorithm for natural layout. Maybe group things based on path like a tree"
+
+Then: "Could you run through the statenet in the browser like a user would, and tell me if this satisfies your needs."
+The walkthrough found cards that led nowhere (the app, a component, a module, a theme that jumped away with no way
+back), editors that asked with `prompt()` and removed without asking, and four bugs: a stray "null" in the dataset
+editor, the blank app's hint over the graph, the side panel scrolling sideways, and the panel covering the chosen
+card. The owner's answer: "Bugs and editor first".
+
+Then: "Can you add the logic module?" The showcase had none to try the module card on. It now ships one
+(owner, 2026-11-18): `showcase-tasks` in stateui-mcp's showcase, whose rule unassigns a task moved back to To do on
+the board.
+
+Then: "We need to make the statenet diagram fit the actual state pattern. `$.data` `$.themes.{theme}` `$.apps.{app}`
+etc. Also, it should match the actual state paths. Branches should have a + button so you can add additional branches
+and leafs". The owner's answers (2026-11-18): the tree shows every part of the owner, with what the app does not use
+dimmed; a + makes the part and puts it to use in the app; one level is drawn below a part, each with its own +.
+
 ## Summary
 - **A view selector** in the top-right corner, before the bug, preferences and Share buttons: **Screens · Statenet ·
   Theme · Logic**.
 - **Screens** is the canvas of screens. Its old SHOW toggles are now three layers drawn on every screen tile:
   **Layout** (the named sections), **Data** (the state paths and outside data the screen uses) and **Logic** (its
   handlers, the units that touch its paths, and where it leads).
-- **Statenet**, **Theme** and **Logic** are app-level views. Each replaces the canvas with a sheet that has its own
-  tools in its head and an editor panel at its side.
+- **Statenet**, **Theme** and **Logic** are app-level views. Statenet is drawn on the board in place of the screens, and
+  pans and zooms with it; Theme and Logic replace the board with a sheet. Each has its own tools in a head and an
+  editor panel at its side.
 - **Units can run in the browser.** A logic unit says `runs: "server" | "browser"`. The Logic view moves units between
   the two, and the library refuses what must stay on the server.
 
@@ -96,36 +118,82 @@ The layers are redrawn when the screens change, when the artboard moves or resiz
 after each change to the app (`data-revision`).
 
 ### The app views
-A fixed sheet (`#view-sheet`) covers the board, with:
+Each has a sheet (`#view-sheet`) with:
 - a head: the view's name, its tools, and a status line (Saving, Saved, or the refusal);
 - a main area;
 - a side panel at the right, the editor of what was pressed. Below 760px the side panel is a sheet at the bottom.
   Escape closes it.
 
+For Theme and Logic the sheet covers the board, which hides. For Statenet the sheet is only its head and its side
+panel, floating over the board (`.on-canvas`); the main area is empty.
+
 A change to the app from elsewhere (the agent, another tab) reloads the view, after the field being edited is left.
 
 ### Statenet view
-**The graph** has four columns, left to right, with SVG edges between the cards:
-1. **Outside:**
-   - the workspace's connections, with their endpoints under them, dimmed when the app's effects do not call them;
-   - endpoints the logic calls that are missing from their connection;
-   - shared datasets, with their owner;
-   - other apps the app reads.
+**On the board:** the graph is drawn in the board's world (`#world > .graph`) at its origin, and the screens, the live
+frame and the layers hide while it shows. It pans and zooms like the screens, the zoom shows, and Fit (1) fits the
+graph (`magneticShell.canvas.fitTo`). The board is fitted to the graph each time Statenet is entered, not when a change redraws it.
+While the graph shows the board's place is not kept; leaving Statenet puts the board back where the screens were
+(`canvas.look`, `canvas.lookAt`), so a reload in Statenet and a return to Screens find the screens' place.
 
-   Outside cards are dashed.
-2. **Parts it uses:** themes (the default marked), datasets with their models, per-person bindings with their model,
-   logic modules and composed components. This answers "anything the app uses to start".
-3. **The app,** with how many links share it.
-4. **Its state:** `$.data` keys no binding holds, and `$.server` when a unit uses it ("kept on the server only").
+**The graph is the owner's tree by state path** (`ownerTreeOf` in `viewInfo.ts`; `drawGraph`, `layOut`,
+`drawEdges` in `views.ts`). Each node's id is its path, which the card carries as `data-node` and shows on hover.
+- **`$`**, then a pill per branch: `$.apps`, `$.themes`, `$.data`, `$.models`, `$.logic`, `$.components`, `$.patterns`
+  (when the owner has any) and `$.connections`.
+- **Every part of the owner** under its branch. A part the app being edited does not use is dimmed ("Not used by this
+  app"). The app being edited has an accent border; the owner's other apps open in their own editor.
+- **One level below a part:**
+  - the app: `screens`, `uses.data` (each binding, with the dataset it binds, or a per-person binding with its model),
+    `data` (its own state keys no binding holds) and `uses.external` (shared datasets with their owner, other apps;
+    dashed);
+  - a dataset: its records, the first eight (`TREE_RECORDS`), and how many more;
+  - a model: its fields with their types (`$.models.<model>.fields.<field>`);
+  - a logic module: its units (`$.logic.<module>.<group>.<unit>`);
+  - a connection: its endpoints, plus endpoints the logic calls that are missing from it.
+  A part the app does not use is drawn without what it holds; its editor shows that.
+- **A branch shows** every part the app uses and the first six others (`UNUSED_SHOWN`), then a pill "N more" that shows
+  the rest, and "Show fewer" after. An owner with many apps and themes would otherwise draw a board too tall to read.
+- **The layout:** a tidy tree going right from `$`. The branches and the parts in them stand in columns; what a part
+  holds sits just beside it, its leaves wrapped in one block (`.graph-leaves`, 420px) rather than a row each. Each
+  subtree is stacked down and a parent sits across from the middle of its children.
+- **Edges:** the tree's links always show. The edges the tree does not hold (the app's use of a theme, module or
+  component, a binding's dataset, a dataset's model, an endpoint the app calls) are drawn only while one of their ends
+  is chosen, dashed in the accent.
+- The graph's words are written by the page (`views.kind.*`, `views.note.*`); the route sends paths, kinds and names.
+
+**The +** on a branch or a part makes what it holds, through the person's tools, and puts it to use in the app. Its
+form opens in the side panel; after Create the panel closes and the tree shows the new node.
+- `$.apps`: a new app (`POST /new`), which opens in the editor.
+- The app's `screens`: a blank screen (`POST /edit/<id>/screens`, `ui_screen_create`).
+- The app's `uses.data`: binds a dataset of the owner the app does not bind, under a name made from the dataset's (or
+  one given).
+- `$.themes`: a theme from a preset, added to the app.
+- `$.data`: a dataset of a model, with its first record typed in a field per field, bound in the app. With no model
+  the form says to make one first.
+- `$.models`: a model with its first field and type.
+- `$.logic`: a module working on one of the app's dataset bindings, used by the app. The binding's name is the
+  module's need, with the dataset's model. With no binding the form says to bind a dataset first.
+- A dataset's +: its editor with the new-record row focused. A model's +: its editor with the field name focused.
+- A module's +: a unit (rule, machine or table) with a name and its JSON, which starts from a template on the
+  module's first need and its model's fields (`moduleTemplate`); a refused write shows the tool's message.
+- `$.connections` (for those who manage connections): a link to the Connections page, where a connection is made with
+  its keys. `$.components` and `$.patterns` have no +: the agent makes them from screens.
 
 **What an effect calls** is the request value its logic or handlers write at the effect's `request` path, or the value
 the app starts with there. An effect's own definition holds only the path, so `callsOf` looks for `set` commands that
 target that path with a value naming a connection and an endpoint.
 
-**Pressing a card** opens its editor in the side panel:
+**Pressing a card** opens its editor in the side panel, and the board moves so the panel does not cover the card
+(`reveal`: left at 760px and wider, where the panel is at the right; up below that, where it is along the bottom).
+The panel scrolls down only; a record table scrolls sideways in its own box.
+- **The app:** its note, its screens as buttons, each showing that screen in the Screens view
+  (`magneticScreens.choose`), and how many parts of each kind it uses.
 - **A dataset:** its records as a table with an input per field. You can change a cell, remove a record and add one
-  (`ui_data_write`).
+  (`ui_data_write`). A new record is typed in the table's last row and added with Add or Enter; an empty row is
+  refused.
 - **A model:** its fields with their types. You can change a type, remove a field and add one (`ui_model_write`).
+  A field needs a name.
+- **Removing** a record, a field or an endpoint asks first, naming what goes. Each × is a 28px target.
 - **A per-person binding or a state key:** its running value as JSON, saved with `ui_state_set`, which refuses a
   shared dataset.
 - **A connection or an endpoint:** shows the base URL, the sign-in kind and whether a secret is set ("secret kept",
@@ -135,9 +203,22 @@ target that path with a value naming a connection and an endpoint.
   - try or remove an endpoint, and add one.
 
   Others read it with a note saying who can change it.
-- **A theme** opens the Theme view on that theme. **A logic module** opens the Logic view.
+- **A theme:** whether it is the default, Make it the default, Remove from the app (after a confirm), and Edit in
+  the Theme view.
+- **A component:** the screens that place it, as buttons to them, or that it is not placed yet.
+- **A logic module:** a note and Open in the Logic view.
+- **A unit of a module:** its JSON, with Save and Remove (asks first), written to the module with its revision.
+- **A screen:** shows that screen in the Screens view.
+- **A binding:** its dataset's editor.
+- **Another app:** Open this app.
+- **A part the app does not use** (a theme, a dataset, a module) has Use in this app.
 
-The head's tool is Refresh.
+Theme and Logic reached from a card show "← Statenet" first in their head, back to the graph. A view picked with the
+selector does not. The selector echoes a view set by the page; an emit for the view already shown is ignored.
+
+The graph follows the app: a new revision (`body.dataset.revision`) reloads it while Statenet shows, as it does the
+other views, so the head has no Refresh (owner, 2026-11-18: "normally you wouldn't need to refresh the statenet since
+it emits changes").
 
 ### Theme view
 **Tools in the head:**
@@ -210,8 +291,9 @@ person's own tools (`src/server/viewRoutes.ts`):
 | Route | Does | Through |
 |---|---|---|
 | `GET screen?screen=` | A screen's layout tree, the paths it reads and writes, its handlers, its navigates, and the units touching its paths | the document |
-| `GET graph` | The Statenet view's nodes and edges, and whether the person manages connections | the document, `uses`, parts, connections, grants |
-| `GET part?kind=data\|models\|connections&name=` | One dataset with its records and model's fields, one model, or one connection without secrets | parts, connections |
+| `GET graph` | The owner's tree: nodes by path with their parents, the edges across, the app's name, whether the person manages connections | the document, `uses`, parts, connections, grants |
+| `POST add` | A `dataset`, `model`, `module` (with the binding it works on) or `binding` from a +, or `useModule`, and the app's use of it | `ui_data_write`, `ui_model_write`, `ui_logic_write`, `ui_app_configure` |
+| `GET part?kind=data\|models\|logic\|connections&name=` | One dataset with its records and model's fields, one model, one logic module with its revision, or one connection without secrets | parts, connections |
 | `GET state?path=` | A `$.data` or `$.external` path of the running state | `ui_state_get` |
 | `POST state` | Set or remove a `$.data` path | `ui_state_set` |
 | `POST data` | A dataset's records or a model's fields | `ui_data_write`, `ui_model_write` |
@@ -219,15 +301,22 @@ person's own tools (`src/server/viewRoutes.ts`):
 | `GET theme?theme=` | The app's themes, one theme's modes, tokens and overlays, the apps that share it, the workspace's themes, the presets | parts, `themeTokensOf` |
 | `POST theme` | `write`, `clone`, `create`, `add`, `default`, `remove` | `ui_theme_write`, `ui_theme_create`, `ui_app_configure` |
 | `GET logic` | The units with run order, reads, writes, where they run and whether they are the app's own; the handlers by screen | the document |
-| `POST logic` | Set or remove one unit | `ui_logic_write` |
+| `POST logic` | Set or remove one unit of the app, or of a module (`module`, `revision`) | `ui_logic_write` |
 
 ## Decisions
 - Four views, chosen in the top-right corner beside the preferences (owner, 2026-11-18).
 - Layout, Data and Logic are layers of the screen tiles. Theme, Statenet and Logic are app-level views that replace
   the canvas (owner, 2026-11-18).
-- The app views are a fixed sheet over the board, not drawings in the board's world: a graph, a table and lanes read
-  better at one scale than zoomed. Their tools sit in the sheet's head and their editors in its side panel. The rail
-  and the zoom are the Screens view's.
+- The graph is the owner's tree by state path (`$.apps`, `$.themes`, `$.data`, …), with every part of the owner and
+  what the app does not use dimmed, one level below a part, and a + on each branch that makes the part and puts it to
+  use in the app (owner, 2026-11-18).
+- A branch shows six parts the app does not use, then a pill for the rest: an owner's hundreds of apps drew a board
+  too tall to read.
+- A logic module is made working on one of the app's bindings: its units may only use `$.data.<need>` paths, so a
+  module with no need could hold no rule.
+- Statenet is drawn on the board, in the world that pans and zooms, not on a sheet of its own (owner, 2026-11-18).
+  Theme and Logic stay sheets over the board: a table and lanes read better at one scale. Each view's tools sit in its
+  head and its editors in its side panel. The rail is the Screens view's; the zoom shows wherever the board does.
 - The agent is sent the chosen view and its layers, in place of the context toggles.
 - Layout on a rendered tile uses the frame's real boxes; otherwise a schematic from the document.
 - A screen's logic is its parts' handlers, its navigates, and the app units that touch its paths.
@@ -265,6 +354,9 @@ Asked on 2026-11-18, answered the same day:
 - **Never log a state value, a token value or a secret.** A view change logs "Editor view changed" with the route and
   app.
 - **Texts in all four languages** (`text.ts`, `views.*` and `shell.view*`/`shell.layer*`).
+- **The views are the editor's.** With the editor hidden (`/apps/<id>`) the sheet and the graph do not show and the
+  board is not hidden, whatever view is kept for the app (`body.editing` in `VIEWS_CSS`).
+- **Nothing is removed without a confirm** that names it.
 
 ## As built
 - **Selector and layers in the editor app:** `magnetic/src/editor/EditorApp.ts`:
@@ -276,10 +368,13 @@ Asked on 2026-11-18, answered the same day:
   selector state, the three app views and their editors, and the tile layers, and exposes
   `window.magneticViews = { setView, view, drawLayers }`.
 - **Changes to the other canvas files:**
-  - `shell.ts`: `appView`, `contextOf`, the narrow and wide fields, and loading `views.js`;
-  - `screens.ts`: `artboard.dataset.screen`, `magneticScreens.panelOf`, and redrawing the layers after a mount.
-- **The builders:** `magnetic/src/inspector/viewInfo.ts`: `layoutOf`, `screenInfoOf`, `unitsOf`, `callsOf`, `graphOf`
-  and `themeTokensOf`.
+  - `shell.ts`: `appView`, `contextOf`, the narrow and wide fields, loading `views.js`, `canvas.pan`, and the
+    blank app's hint hidden in the app views (`hintHidden`);
+  - `screens.ts`: `artboard.dataset.screen`, `magneticScreens.panelOf` and `choose`, and redrawing the layers
+    after a mount.
+- **The builders:** `magnetic/src/inspector/viewInfo.ts`: `layoutOf`, `screenInfoOf`, `unitsOf`, `callsOf`,
+  `ownerTreeOf` (`TreeNode`, `TreeEdge`, `TREE_RECORDS`) and `themeTokensOf`. `TreeNode.screens` lists the app's screens on its node and, on a component's, the screens
+  whose tree places it.
 - **The routes:** `magnetic/src/server/viewRoutes.ts`, wired in `startMagnetic.ts` (`/edit/<id>/views/<name>`).
   `connectionRoutes.ts` exposes `change` for the JSON connections route.
 - **The theme-fact fix:** `magnetic/src/agent/AgentTurns.ts` reads `uses.themes` and answers the list and the default
@@ -292,10 +387,14 @@ Asked on 2026-11-18, answered the same day:
 - **Tests:**
   - `magnetic/src/inspector/viewInfo.test.ts`: the builders;
   - `magnetic/src/server/viewRoutes.test.ts`, against Postgres: every route, a shared theme, `SUI-LOGIC-RUNS`, a
-    connection without its secret, signed-out refusal;
+    connection without its secret, signed-out refusal, the owner's tree by path, and each `POST add` with a module's
+    rule, machine and table templates;
   - `magnetic/src/server/editor.browser.test.ts`: the corner and rail sizes with the selector and the layers;
-  - `magnetic/e2e/views.spec.ts` (desktop and phone): switching views and keeping the view on reload, a new theme and
-    a dark-mode token, a rule moved to the browser, the layers on a tile;
+  - `magnetic/e2e/views.spec.ts` (desktop and phone): switching views and keeping the view on reload, the owner's
+    tree by path with nothing covering anything, a branch's + for a screen, a binding, a module and a rule in it, the app's and a theme's cards (a screen button, a dismissed remove, the Theme
+    view and back), a logic module's card to the Logic view and back (the module made by the e2e server's
+    `POST /module` with the agent's tools), the app alone with the editor hidden, a new theme and a dark-mode token, a rule moved to the
+    browser, the layers on a tile;
   - `magnetic/e2e/editor.spec.ts`: the selector in the top bar;
   - stateui-app: `src/core/logic/runs.test.ts`, `logic.test.ts` and `src/dom/mount/logic.browser.test.ts`;
   - stateui-mcp: `AppLogic.test.ts` and `test/logicTools.test.ts`.
