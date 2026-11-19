@@ -40,6 +40,7 @@ Then: "We need to make the statenet diagram fit the actual state pattern. `$.dat
 etc. Also, it should match the actual state paths. Branches should have a + button so you can add additional branches
 and leafs". The owner's answers (2026-11-18): the tree shows every part of the owner, with what the app does not use
 dimmed; a + makes the part and puts it to use in the app; one level is drawn below a part, each with its own +.
+Then: "Let's update the diagram to use both left and right sides. Let's distribute the the direct root children".
 
 ## Summary
 - **A view selector** in the top-right corner, before the bug, preferences and Share buttons: **Screens · Statenet ·
@@ -153,10 +154,13 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
   A part the app does not use is drawn without what it holds; its editor shows that.
 - **A branch shows** every part the app uses and the first six others (`UNUSED_SHOWN`), then a pill "N more" that shows
   the rest, and "Show fewer" after. An owner with many apps and themes would otherwise draw a board too tall to read.
-- **The layout:** a tidy tree going right from `$`. The branches and the parts in them stand in columns; what a part
-  holds sits just beside it, its leaves wrapped in one block (`.graph-leaves`, 420px) rather than a row each. Each
+- **The layout:** a tidy tree going out from `$` on both sides. The branches of `$` are shared between them: the first
+  ones go right and the rest left, split where the two sides' heights come closest, so each side reads down in the
+  branches' order. The left side mirrors the right: its cards stand right-aligned in their columns, their + is on the
+  outer side, and a leaf block wraps from the right (`.left`). The branches and the parts in them stand in columns;
+  what a part holds sits just beside it, further out, its leaves wrapped in one block (`.graph-leaves`, 420px) rather than a row each. Each
   subtree is stacked down and a parent sits across from the middle of its children.
-- **Edges:** the tree's links always show. The edges the tree does not hold (the app's use of a theme, module or
+- **Edges:** the tree's links always show, from a card's outer side to its children's inner side. The edges the tree does not hold (the app's use of a theme, module or
   component, a binding's dataset, a dataset's model, an endpoint the app calls) are drawn only while one of their ends
   is chosen, dashed in the accent.
 - The graph's words are written by the page (`views.kind.*`, `views.note.*`); the route sends paths, kinds and names.
@@ -312,6 +316,8 @@ person's own tools (`src/server/viewRoutes.ts`):
   use in the app (owner, 2026-11-18).
 - A branch shows six parts the app does not use, then a pill for the rest: an owner's hundreds of apps drew a board
   too tall to read.
+- The branches of `$` are split between its right and left sides, in order, by height (owner, 2026-11-18): one side
+  ran about twice as tall as wide.
 - A logic module is made working on one of the app's bindings: its units may only use `$.data.<need>` paths, so a
   module with no need could hold no rule.
 - Statenet is drawn on the board, in the world that pans and zooms, not on a sheet of its own (owner, 2026-11-18).
@@ -391,7 +397,7 @@ Asked on 2026-11-18, answered the same day:
     rule, machine and table templates;
   - `magnetic/src/server/editor.browser.test.ts`: the corner and rail sizes with the selector and the layers;
   - `magnetic/e2e/views.spec.ts` (desktop and phone): switching views and keeping the view on reload, the owner's
-    tree by path with nothing covering anything, a branch's + for a screen, a binding, a module and a rule in it, the app's and a theme's cards (a screen button, a dismissed remove, the Theme
+    tree by path on both sides of `$` with nothing covering anything, a branch's + for a screen, a binding, a module and a rule in it, the app's and a theme's cards (a screen button, a dismissed remove, the Theme
     view and back), a logic module's card to the Logic view and back (the module made by the e2e server's
     `POST /module` with the agent's tools), the app alone with the editor hidden, a new theme and a dark-mode token, a rule moved to the
     browser, the layers on a tile;
