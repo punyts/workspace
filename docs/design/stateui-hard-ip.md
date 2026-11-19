@@ -1,6 +1,6 @@
 # StateUI: hard IP, code that ships with the libraries
 
-Status: designed 2026-11-19, not built.
+Status: built 2026-11-19, except Statenet on `treeDiagram` (its own design) and stateui-functions (when a function needs it).
 
 Asked for on 2026-11-19, after asking whether Statenet's diagram could be a StateUI component with its layout as logic:
 "The idea is that we can create anything with the stateui, including something as complex as magnetic. We need to
@@ -143,8 +143,8 @@ function an app document names rather than code in Magnetic's page.
 - Moving Statenet onto it is its own design.
 
 ### Size
-- Component functions add to the components' runtime bundle, which has no size gate; stateui-3d's chunk has one
-  (`runtime-chunk/build.test.ts`). The first function comes with a gzip gate on the components bundle, and
+- Component functions add to the components' bundle, which has a gzip gate like stateui-3d's chunk
+  (`runtime-chunk/build.test.ts`): `test/bundleSize.test.ts` fails when it is more than 5% over its measure.
   stateui-functions' chunks get one each.
 
 ## Build order
@@ -181,3 +181,43 @@ function an app document names rather than code in Magnetic's page.
 - Expressions call functions through `ExecuteOptions.callable`; the grammar does not change.
 - "Function" is the term; "hard IP" is Statenet's label.
 - No registry until there is a second author.
+
+## As built
+Built 2026-11-19, steps 1 to 6 of the build order except Statenet on `treeDiagram`, which is its own design.
+
+- **stateui-app.** `src/core/functions/` (`types.ts`, `table.ts`: `FunctionCatalog`, `FunctionEntry`, `FunctionTable`,
+  `hostCatalog`, `catalogOf`, `functionPaths`, `isFunctionPath`); the logic engine runs `run` paths and passes
+  `callable` (`core/logic/`); `MountOptions.functions` (`dom/mount/mountApp.ts`, `logic.ts`) loads the browser's
+  functions before the logic starts, effects included, at prepare time; `RuntimeOptions.functions`
+  (`runtime/startRuntime.ts`), and the runtime bundle installs `COMPONENT_FUNCTIONS`; the document validator
+  `functions` (`core/validate/functions.ts`) and the codes `SUI-LOGIC-FUNCTION` and `SUI-LOGIC-FUNCTION-FIT`. Tests:
+  `core/functions/table.test.ts`, `core/logic/logic.test.ts`, `core/logic/effects.test.ts`, `core/logic/runs.test.ts`,
+  `core/validate/validate.test.ts`, `dom/mount/logic.browser.test.ts`, `runtime-bundle/build.test.ts`.
+- **expression and stateui.** `ExecuteOptions.callable` (`expression/src/Types.ts`, `Executor.ts`); `Scope`'s
+  `callable`, inherited by child scopes and given by a mount's context (`stateui/src/scope/Scope.ts`,
+  `component/context.ts`). Tests: `Executor.test.ts`, `Scope.test.ts`, `context.browser.test.ts`.
+- **stateui-mcp.** The option is `functions`: `InstanceCatalog` (a catalog with `loadFor(id, instance)`) and
+  `catalogFor` (`infrastructure/sync/AppAuthorities.ts`); `createServices` installs `COMPONENT_FUNCTIONS` before the
+  operator's catalogs; the validator's checks and `appFunctions` (`StateUiAppValidator.ts`), `ui_validate`'s
+  `functions`, the guide topic `functions` (`mcp/guide.ts`), and `copyAppParts`' `missingFunctions`. Tests:
+  `StateUiAppValidator.test.ts`, `guide.test.ts`, `copyAppParts.test.ts`, `AppLogic.test.ts`, `AppEffects.test.ts`,
+  `test/logicTools.test.ts`.
+- **stateui-components.** `layoutTree` (`src/shared/diagram/layoutTree.ts`), `COMPONENT_FUNCTIONS` (`src/functions.ts`,
+  export `./functions`, GUID `816de370-aafe-42db-868d-bb94a9b146f1`), the component `treeDiagram`
+  (`components/composites/tree-diagram/`), and the size gate (`test/bundleSize.test.ts`, 223,110 bytes gzipped, 5%
+  allowed). The example places `treeDiagram` in its Catalog section and stateui-mcp's showcase in its graphics screen.
+  Tests: `layoutTree.test.ts`, `functions.test.ts`, `tree-diagram.browser.test.ts`.
+- **Magnetic.** `httpCatalog` (`src/connections/httpEffect.ts`) puts the HTTP effect at `$.functions.host.http`;
+  Statenet's `$.functions` branch, library components with their functions under `$.components`, and `run` edges
+  (`src/inspector/viewInfo.ts`, `src/http/views.ts`, `src/server/viewRoutes.ts`). Tests: `viewInfo.test.ts`,
+  `e2e/views.spec.ts`.
+
+Not yet done:
+- A function named only inside a node's template is not loaded by `mountApp`; one the logic also names is. Code that
+  loads at once (the components' catalog, host catalogs) is unaffected.
+- Magnetic's copy and share paths do not pass `functions` to `copyAppParts`, so a missing function shows as the
+  validator's warning on the app rather than before the copy.
+- Magnetic apps stored with `run: "http"` warn `SUI-LOGIC-FUNCTION` and their effect does not run until the run is
+  changed to `$.functions.host.http`; there is no migration.
+- Statenet shows the functions of the app being edited, not of all the owner's apps; the others are dimmed under the
+  pill that every branch has.
