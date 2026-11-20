@@ -122,8 +122,9 @@ the editor's frame and the side panel lie above it.
 
 ### The screens board
 
-The screens view keeps `shell.ts`'s pan and zoom: its tiles are frames of the app being edited, mounted by code, and
-moving them under a `viewport` needs a component that holds app frames, which is its own design.
+The screens view keeps `shell.ts`'s pan and zoom: its tiles are frames of the app being edited, mounted by code.
+Moving them under a `viewport` needs apps in the page rather than in frames, designed in
+[magnetic-screens-board.md](magnetic-screens-board.md).
 
 ## Decisions
 
