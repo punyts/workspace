@@ -1,6 +1,6 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: proposed 2026-11-19. Nothing here is built.
+Status: S7 built 2026-11-19 (see "As built"). S8 to S12 are proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -49,7 +49,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 | Who writes state | The owner node (`PgStateStore`), fenced by epoch | Only an aggregate |
 | Aggregate | A role name in certificates and `statenet_node`; no code | A process: `startAggregateNode`, `statenet-aggregate` |
 | Node to node (forwarded writes, `claim`, `handoff`, tunnelled views) | Direct peer links between every pair of owner nodes (`OwnerMesh`) | Direct inside a group; through relays between groups |
-| Role check on a link | The certificate is checked; any certified role may link to any server | Each end refuses a role it does not serve |
+| Role check on a link | Before S7 any certified role could link to any server | Each end refuses a role it does not serve (built, S7) |
 | The plain `statenet` (stateui-mcp's local one) | Loopback only, no authentication (`Statenet.ts`) | Unchanged on loopback; off loopback stateui-mcp connects to a node with a credential |
 | Browsers | Magnetic: a socket to the server. stateui-mcp: straight to the statenet on port 4200, no sign-in | Magnetic: unchanged, and reachable from another computer. stateui-mcp: unchanged |
 
@@ -93,12 +93,13 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 - New: **the node id must be in the directory** with that role and public key, when the server end has a directory
   (an aggregate always does). A certificate alone is no longer enough, so taking a node out of the directory cuts
   it off before its certificate expires.
-- New: **certificates are short** (days, not long-lived) and a node asks for its next one over its link before the
-  old one ends. Today `magnetic relay-certificate` writes one to a file by hand.
-- **Off loopback, a link is encrypted** (owner, 2026-11-19: seal frames in the handshake). The handshake also
-  agrees a key (X25519, each end's share signed with its node key), and every frame after `link-proof` is sealed
-  with it (AES-256-GCM, a counter per direction, so a frame replayed, dropped or reordered closes the link). It
-  needs only `node:crypto`, and holds with or without the operator's `tls` underneath.
+- New: **certificates are short** (seven days) and a node asks for its next one over its link before the old one
+  ends. `magnetic relay-certificate` still writes a relay's first one to a file.
+- **Every link is encrypted** (owner, 2026-11-19: seal frames in the handshake), on loopback too, so there is no
+  plain mode to forget to turn off. The handshake also agrees a key (X25519, each end's share signed with its node
+  key), and every message after `link-proof` is sealed with it (AES-256-GCM, a counter per direction, so a message
+  changed, replayed, dropped or reordered closes the link). It needs only `node:crypto`, and holds with or without
+  the operator's `tls` underneath.
 
 ### Aggregates write to the database
 - A node's save becomes: send the batch up its link, keep it until `persisted { address, revision }` comes back.
@@ -160,7 +161,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 ## Stages
 | Stage | Delivers | Depends on |
 |---|---|---|
-| S7 | Role rules and the directory check in the handshake, both ends; a server refuses to bind off loopback without encryption; certificate renewal over the link | S6 |
+| S7 | Role rules and the directory check in the handshake; every link sealed; certificate renewal over the link (built) | S6 |
 | S8 | The aggregate: `startAggregateNode`, the storage port (Postgres, files), batches, `persisted`, `fenced`, loads; in process first, so a node's save already goes through it | S7 |
 | S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays | S8 |
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
@@ -171,7 +172,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 ## Checks
 - **S7:** a certified node of the wrong role is refused at each kind of link; a frame changed or replayed on the
   wire closes the link; a node taken out of the directory is
-  cut off within one heartbeat; a server asked to bind `0.0.0.0` without encryption does not start.
+  cut off within one heartbeat; a node whose certificate ends soon gets its next one over its link.
 - **S8:** a batch resent after a dropped link writes nothing twice; a batch under an old epoch writes nothing and
   the node stops ordering; Saved appears only after `persisted`.
 - **S9:** a link dropped and reopened loses nothing, at node to relay and at relay to aggregate; a namespace moves
@@ -185,6 +186,45 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 
 - **S12:** a person signs in through a test SAML provider into their org; an unsigned, expired, replayed or
   wrong-audience assertion is refused; `requireSso` holds for an org with SAML only.
+
+## As built
+
+### S7: link rules, sealed links and certificate renewal (19 November 2026)
+- **statenet** `src/mesh/`, mesh protocol 2 (a node of protocol 1 is refused, so servers and relays are upgraded
+  together):
+  - `mayLink(dialler, server)` (`certificates.ts`) is the table of who links to whom. The server end refuses a
+    hello whose certificate's role may not link to its own, or names another role than the hello; the dialling end
+    refuses a parent of a role it does not link to.
+  - `sealing.ts`: `newShare`, `transcript` and `sealOf`. `link-hello` and `link-welcome` carry each end's share;
+    each proof signs the other end's challenge with both shares and both node ids. After `link-proof` every message
+    (frames, pings) is a sealed binary message; one in the clear, or one that does not open, closes the link (4400).
+    The directory left `link-welcome`: it is the first message of the server's first sealed frame, and the dialler
+    counts itself linked when it has it.
+  - `MeshServerOptions.requireListed` names the roles that must be in the directory with the role and key their
+    certificate shows (`DirectoryView.nodes[].publicKey`); `reread` reads the directory once more for a node that
+    is not listed yet; `directoryChanged` closes the link of a node that is no longer listed (4403).
+  - `certify` / `certified` messages: a node asks its parent for its certificate's next one when less than
+    `renewWithinMs` (a day) is left, takes it only if it names the same node, role and key and ends later, and
+    hands it to `onCertificate`. `renewNodeCertificate` is the authority's part. A node may ask only for itself;
+    a relay passes on the ask of a node below it (`startRelayNode` signs nothing). `statenet-relay` writes the
+    next certificate over its file.
+  - `certificate` may be a function on the server, the upstream and the owner mesh, for a node that signs its own.
+  - Tests: `src/mesh/network.test.ts` (16), over real sockets but for the seal's own.
+- **Magnetic** `src/statenet/StatenetNode.ts`: a server links another only while the directory lists it with the key
+  it shows (`requireListed: ['owner']`, with `reread`); certificates last seven days; a server signs its own again at
+  half of that; `StatenetAuthority.renew` answers `certify`, for a server only while it is listed. Checked by
+  `src/server/statenet.test.ts`, unchanged.
+- Deviations:
+  - **A server may bind any address:** every link is sealed, so the rule "no binding off loopback without
+    encryption" has nothing left to refuse.
+  - **Relays are let in by their certificate alone.** Nothing registers a relay in the directory (it has no
+    database, and its parent does not write it), so `requireListed` covers servers only. A relay is cut off by not
+    renewing: there is no list of relays to take it out of yet. That comes when relays link to aggregates (S9).
+  - **A relay may still dial a node** (`mayLink('relay', 'owner')`): that is today's topology, until S9.
+  - **An open link outlives its certificate.** The certificate is checked when the link opens; a link that stays
+    open past its end is not closed for it.
+  - **A relay stopped for more than seven days** needs `magnetic relay-certificate` again.
+  - Not run: the compose stack of two servers and a relay as separate processes (`docker/statenet.compose.yml`).
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and

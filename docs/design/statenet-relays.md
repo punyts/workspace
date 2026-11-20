@@ -204,8 +204,9 @@ Nodes speak to each other over the **mesh protocol**, separate from the client p
 - **Links.** One WebSocket per pair of nodes, over TLS, with both ends authenticated by their node keys (mutual TLS,
   with certificates issued by Magnetic's own CA and listed in the directory). A link carries every namespace the two
   nodes share, so a relay holds a few links upstream, not one per namespace.
-- **Opening a link:** `link-hello { nodeId, role, protocol, region }`, answered by `link-welcome` with the parent's view
-  of the directory that the new node needs, then `directory` updates as they happen.
+- **Opening a link:** `link-hello { nodeId, role, protocol, region }`, answered by `link-welcome`; the parent's view
+  of the directory that the new node needs comes first on the open link, then `directory` updates as they happen.
+  [statenet-network.md](statenet-network.md) adds who may link to whom and the key that seals the link.
 - **Frames** carry the messages above (`subscribe`, `renew`, `unsubscribe`, `changes`, `durable`, `persisted`,
   `owner`, `claim`, `handoff`, `revoked`) with the `address` in each, batched: one frame holds the changes of many
   namespaces from one moment.
@@ -438,8 +439,8 @@ Every stage, S1 to S6, is built, and Magnetic runs behind the mesh on any number
 
 ### S6: the mesh protocol and separate relays (15 November 2026)
 - statenet `src/mesh/`: node certificates (`issueNodeCertificate`, `verifyNodeCertificate`) and a proof of each node's
-  key in the handshake; `startMeshServer` (links below: `link-hello`, `link-welcome` with the directory, `link-proof`,
-  then batched frames; credits per link, folding while a node has none, and `resync` past `maxHeld`);
+  key in the handshake; `startMeshServer` (links below: `link-hello`, `link-welcome`, `link-proof`,
+  then batched frames, sealed since statenet-network.md's S7, the first starting with the directory; credits per link, folding while a node has none, and `resync` past `maxHeld`);
   `createMeshUpstream` (the link up: the directory from the parent, pings, reconnects to the next parent or one the
   directory names, every subscription made again from its revision, writes sent again and applied once by id);
   `startClientServer` (browsers speak state-sync protocol 2 to a relay, their changes going up the mesh);
