@@ -1,6 +1,6 @@
 # Magnetic: SCIM provisioning per org
 
-Status: proposed, 2026-11-20. Follows `magnetic-postgres.md` ("SCIM fits the shapes here and comes after") and S12 of
+Status: built, 2026-11-20. Follows `magnetic-postgres.md` ("SCIM fits the shapes here and comes after") and S12 of
 `statenet-network.md` (SAML).
 
 Asked for on 2026-11-20: "Design SCIM".
@@ -71,7 +71,7 @@ groups.
 - A held person who never signs in costs a row and nothing else.
 
 ## A Group
-- An `org_group` with `scim_id` and `external_id` set. Its members are kept as `scim_user` ids
+- An `org_group` with `scim` true (and the provider's `external_id` when it sends one); its SCIM id is its own id. Its members are kept as `scim_user` ids
   (`scim_group_member`), so a group can hold people not yet linked; `org_group_member` holds the linked ones, which is
   what app access reads, unchanged.
 - `displayName` is the group's name. A name already used by a hand-made group of the org is 409 `uniqueness`; the
@@ -108,7 +108,7 @@ groups.
 | `org_scim` | `org_id` PK, `token_hash` unique, `created_by`, `created_at`, `last_used_at` | A row is SCIM on |
 | `scim_user` | `id` PK, `org_id`, `external_id`, `user_name`, `email`, `display_name`, `given_name`, `family_name`, `active`, `user_id` null, `created_at`, `updated_at` | Unique (`org_id`, lower(`user_name`)), (`org_id`, lower(`email`)), (`org_id`, `user_id`) |
 | `scim_group_member` | `group_id`, `scim_user_id` | Both cascade |
-| `org_group` | gains `scim_id` null, `external_id` null | Unique (`org_id`, `scim_id`) |
+| `org_group` | gains `scim` (default false), `external_id` null, `updated_at` | The group's id is its SCIM id; names stay unique per org, case-sensitively, as before |
 
 `last_used_at` is written at most once a minute, so a busy sync does not write it on every request.
 
@@ -119,14 +119,15 @@ SCIM id as the target); `member.provisioned` (a link that made a membership) and
 SCIM). Details name what changed (`active`, `members` added and removed by count), never names or emails.
 
 ## Code
-- `src/orgs/Scim.ts`: `OrgScim` (`enable`, `replaceToken`, `disable`, `orgOfToken`), and the user and group
-  operations over the tables in one transaction each.
+- `src/orgs/Scim.ts`: `OrgScim` (`status`, `isOn`, `enable`, `replaceToken`, `disable`, `accepts`) for the owner's
+  settings and the bearer check, and `ScimDirectory` for the user and group operations over the tables, one
+  transaction each, and the link at sign-in (`signedIn`).
 - `src/scim/` for the protocol: `schemas.ts` (the resource shapes and the three discovery documents), `filter.ts` (the
   filters above, parsed, never evaluated as SQL text), `patch.ts` (PATCH operations applied to a resource, Entra's
   forms included).
 - `src/server/scimRoutes.ts`: `scimRoutes(context)` in the route chain, with its own bearer check and error bodies.
-- `SignInRules.signedIn` links held people and gives way to SCIM for `autoJoin`; `Orgs.remove` and
-  `Orgs.setGroupMember` refuse what SCIM holds unless SCIM calls them.
+- `SignInRules.signedIn` links held people and gives way to SCIM for `autoJoin`; `Orgs.remove`, `Orgs.setGroupMember`
+  and `Orgs.invite` refuse what SCIM holds (409); SCIM removes through `Orgs.dropMember`.
 
 ## Checks
 - `scim.test.ts` against a test database, with request bodies shaped as Okta and Entra send them:
@@ -145,6 +146,24 @@ SCIM). Details name what changed (`active`, `members` added and removed by count
 - `filter.test.ts`, `patch.test.ts`: the supported forms, and refusals of the rest.
 - e2e (`e2e/orgs.spec.ts`): the owner turns SCIM on, sees the token once, and makes a new one.
 - By hand, the owner's: an Okta and an Entra ID test tenant pointed at a hosted Magnetic.
+
+## As built
+- `magnetic/migrations/0022_scim.sql`: `org_scim`, `scim_user`, `scim_group_member`; `org_group` gains `scim`,
+  `external_id`, `updated_at`.
+- `magnetic/src/scim/filter.ts`, `schemas.ts`, `patch.ts`; `magnetic/src/orgs/Scim.ts`; `magnetic/src/orgs/Orgs.ts`
+  (`SCIM_MEMBER`, `SCIM_GROUP`, `scimHolds`, `dropMember`); `magnetic/src/orgs/SignInRules.ts`.
+- `magnetic/src/server/scimRoutes.ts`, wired before the org routes in `startMagnetic.ts`; the owner's actions
+  `scimOn`, `scimToken`, `scimOff` in `orgSettingsRoutes.ts`; the section and labels in `http/orgSettings.ts`, texts
+  in `http/orgText.ts` (en, de, fr, es).
+- Tests: `src/scim/filter.test.ts`, `src/scim/patch.test.ts`; `src/server/scim.test.ts` (owner-only, the token once and
+  for one org, discovery, 401s; held until sign-in then a member with pushed groups; linked at once, not removable by an
+  admin, cannot leave; refusals of an outside email, a duplicate, a missing email, a filter and a body type; PATCH in
+  Entra's and Okta's forms, PUT and DELETE remove and rejoin; the last owner; groups pushed, renamed, members by both
+  PATCH forms, a name clash, an admin edit refused, deletion dropping access; `autoJoin` while on; turning off; the
+  audit log holds no email); `e2e/orgs.spec.ts` ("an owner turns on SCIM, sees the token once, and makes a new one",
+  with the control route `POST /domain` in `e2e/server.mjs`).
+- Not covered by a test: views closing on removal (the same `closeOrgViews` and `closeLostViews` the org routes use),
+  and an invite while SCIM is on.
 
 ## Not in this design
 - Roles from the provider (by group or attribute).
