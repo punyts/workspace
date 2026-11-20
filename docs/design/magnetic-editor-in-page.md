@@ -1,6 +1,6 @@
 # The editor as StateUI apps in one document
 
-Status: B4a built (2026-11-19); B4b, B4c and B4d proposed. B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
+Status: B4a built (2026-11-19), B4b built (2026-11-20); B4c and B4d proposed. B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
 
 Asked for on 2026-11-19: "Start B4 of the screens board". B4 there reads: the editor's panels and Statenet leave their
 frames the same way as the board, until the editor is StateUI apps in one document. The ask behind the whole board work
@@ -54,18 +54,32 @@ on Magnetic's origin. The runtime port stays for it.
 ### 2. The views as pages
 
 The hand-written views become `PageSpec`s, as Statenet is, each with de/fr/es locales and a contract of emits:
-- `magnetic-theme`: the themes, the specimen per mode and the token table, edited in place. Its data is
-  `$.data.theme` (`themes`, `chosen`, `modes`, `tokens`, `usedBy`, `presets`); it emits `choose`, `token` with
-  `{ name, mode, value }`, `clone`, `preset` and `create`.
-- `magnetic-logic`: the two lanes, Server and Browser, of unit cards, and the screens' handlers below. Its data is
-  `$.data.logic` (`units`, `handlers`); it emits `open`, `move`, `delete` and `create`. A unit is edited as JSON with
-  `codeBlock` in the side panel.
+- `magnetic-theme` (`src/theme/ThemePage.ts`): a head of the theme chooser, Make it the default, Clone for this app,
+  Remove, Add a theme…, a preset and New theme; a specimen per mode (light, dark, high contrast), a `drawing` in the
+  theme's own colours; and a `table` of tokens whose value for all modes and in each mode is an `input` in its cell,
+  the value the theme sets or empty with the value shown as its placeholder. Its data is `$.data.theme`: `themes`,
+  `chosen`, `others` (options), `specimens` (per mode `surface`, `border`, `text`, `accent`, `accentOn`), `tokens` (one
+  record per token: `id` its path, `group`, `name`, `all` and each mode with `<column>Shown` and `<column>Label`, and
+  `locked`), `sharedText`, the flags that hide its parts, `status`, `refusal` and `noBack`. It emits `choose` and `add`
+  (a field's change, `{ value }`), `token` with the token's record once a cell changes (`views.ts` finds the column
+  changed against the record it wrote), `editAll`, `clone`, `default`, `remove`, `create` with the preset, and `back`.
+  A shared theme's cells are disabled (`locked`) until Edit for all or Clone for this app.
+- `magnetic-logic` (`src/logic/LogicPage.ts`): a head of the kind of a new unit and New; the two lanes, Server and
+  Browser, as a `board` (`columnField: 'runs'`) of unit cards, each with its name as its title, its kind, what it does
+  and its paths, and buttons to move it to the other lane and to delete it; and the screens' handlers in a `list`
+  below. Its data is `$.data.logic`: `units` (`id`, `runs`, `order`, `kind`, `title`, `does`, `paths`, `chosen`,
+  `fixed`, `noServer`, `noBrowser`), `handlers`, `group`, `hasUnits`, `noHandlers`, `status`, `refusal` and `noBack`. It
+  emits `open` with a unit's id, `move` with a unit's id (its button) or the board's `{ key, from, to, index }` (a
+  drag), `delete` with a unit's id, `create` with the group, and `back`. A unit is edited as JSON in the side panel.
 - `magnetic-side`: the side panel, one screen per kind of part (`dataset`, `model`, `path`, `unit`, `connection`,
   `add`), its data `$.data.side` written by `views.ts` from the `/graph` answer and the part's own read. It emits
   `save`, `delete`, `close` and the form's `submit`.
 
 `views.ts` keeps what it does with the server (the reads, `POST /edit/<id>/views/<what>`, the refusals) and writes
-these pages' data instead of DOM. Its `element(...)` builders, the token table, the lanes and `VIEWS_CSS` go.
+these pages' data instead of DOM. It mounts Theme and Logic in the page on an element of the board (`#view-page`),
+placed in the area the editor's panels leave free, and its sheet keeps only the side panel and Statenet's status. Of
+its reads only the last one started draws, so a read begun before a write cannot show the old value over the new.
+Its `element(...)` builders and `VIEWS_CSS` go with the side panel (B4c).
 
 ### 3. One document
 
@@ -117,6 +131,15 @@ included, and a copy of a view page changes that view.
   node, so a copy of the editor keeps it too.
 - Your apps moves with the sign-in and link pages: it is the person's own copy of a page of Magnetic's.
 - The views become pages before the editor holds them (B4b and B4c before B4d), so each move is tested on its own.
+- The Theme page has a column and a specimen for each of the three modes every theme has (light, dark, contrast),
+  fixed in its definition: a table's columns are not data.
+- The specimens draw their text in the page's font, not the theme's: a `drawText`'s font must be a token of the page's
+  own theme.
+- The status, the refusals and the way back to Statenet are in the Theme and Logic pages, not in a head of the
+  page script's, so a copy of a page places them.
+- A unit card's buttons sit in the card's row itself: a `panel` is an inline-size container, so one that does not grow
+  in a row has no width of its own.
+- The side panel stays DOM in B4b: Logic's New and a card's press open it as before; it moves in B4c.
 
 ## Rules and Constraints
 
@@ -147,3 +170,14 @@ B4a (2026-11-19):
   `src/server/publicOrigins.test.ts`, and the e2e page objects in `e2e/fixtures.ts` with `orgs.spec.ts`,
   `share.spec.ts` and `views.spec.ts`, which find these apps in the page; `e2e/editor.spec.ts` ("a tip that reaches past
   its panel is shown whole, above the canvas").
+
+B4b (2026-11-20):
+- Magnetic: `src/theme/ThemePage.ts` (`THEME`, `THEME_MODES`, `THEME_PRESETS`), `src/logic/LogicPage.ts` (`LOGIC`,
+  `UNIT_GROUPS`, `LOGIC_GROUPS`, `LANES`), served at `/assets/theme.json` and `/assets/logic.json` through
+  `EDITOR_PAGES` in `src/server/startMagnetic.ts`; `src/server/viewRoutes.ts` takes the groups and presets from them;
+  `src/http/views.ts` (`enterPage`, `leavePage`, `pageWrite`, `themeEmit`, `tokenChanged`, `logicEmit`, `readTurn`).
+- Tests: `src/theme/ThemePage.test.ts` and `src/logic/LogicPage.test.ts` (served to the signed-in, localized, the
+  contract kept, the columns, specimens, board and card as written); `e2e/views.spec.ts` ("the Theme view makes a theme
+  and edits a token's value in one mode", "the Theme view clones a theme another app uses into one of the app's own",
+  "the Logic view makes a rule on the server, moves it to the browser and deletes it", and the Statenet tests that lead
+  to Theme and Logic and back).
