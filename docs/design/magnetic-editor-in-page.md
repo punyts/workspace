@@ -1,6 +1,6 @@
 # The editor as StateUI apps in one document
 
-Status: B4a built (2026-11-19), B4b built (2026-11-20); B4c and B4d proposed. B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
+Status: B4a built (2026-11-19), B4b and B4c built (2026-11-20); B4d proposed. B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
 
 Asked for on 2026-11-19: "Start B4 of the screens board". B4 there reads: the editor's panels and Statenet leave their
 frames the same way as the board, until the editor is StateUI apps in one document. The ask behind the whole board work
@@ -71,15 +71,25 @@ The hand-written views become `PageSpec`s, as Statenet is, each with de/fr/es lo
   `fixed`, `noServer`, `noBrowser`), `handlers`, `group`, `hasUnits`, `noHandlers`, `status`, `refusal` and `noBack`. It
   emits `open` with a unit's id, `move` with a unit's id (its button) or the board's `{ key, from, to, index }` (a
   drag), `delete` with a unit's id, `create` with the group, and `back`. A unit is edited as JSON in the side panel.
-- `magnetic-side`: the side panel, one screen per kind of part (`dataset`, `model`, `path`, `unit`, `connection`,
-  `add`), its data `$.data.side` written by `views.ts` from the `/graph` answer and the part's own read. It emits
-  `save`, `delete`, `close` and the form's `submit`.
+- `magnetic-side` (`src/side/SidePage.ts`): the side panel, one panel of sections, each hidden by a flag of its own:
+  a head of the part's name and Close; notes; the buttons a part may have (open another app, open the Logic view, edit
+  in the Theme view, make a theme the default, remove it, use a part in this app, open Connections); a list of links
+  (an app's screens, a component's, a library's functions); a code editor with Save and Delete (a path of the state, a
+  module's unit, a unit of the Logic view); a function's input and output schemas; a dataset's records as a `table`,
+  one row per field of a record with its value an `input`; a model's fields, each a type to choose and a Remove; a
+  connection's base URL, secret, Connect and endpoints with Try and Remove; and a form of a name, a choice, a second
+  line and a new record's fields, sent with its button, last. Its data is `$.data.side`: `views.ts` writes the blank
+  (`SIDE_BLANK`, every section hidden) and then the part's own fields, and keeps what each emit does for the part
+  shown. It emits `close`, `link`, the buttons' names, `submit` with the form, `choose` with the form's choice,
+  `code` as the code changes, `save` with the code, `delete`, `cell` and `fieldType` with the changed row,
+  `removeRecord`, `removeField`, `baseUrl`, `secret`, `connect`, `try` and `removeEndpoint`.
 
 `views.ts` keeps what it does with the server (the reads, `POST /edit/<id>/views/<what>`, the refusals) and writes
 these pages' data instead of DOM. It mounts Theme and Logic in the page on an element of the board (`#view-page`),
 placed in the area the editor's panels leave free, and its sheet keeps only the side panel and Statenet's status. Of
 its reads only the last one started draws, so a read begun before a write cannot show the old value over the new.
-Its `element(...)` builders and `VIEWS_CSS` go with the side panel (B4c).
+The side panel is mounted in the sheet's side once and kept; the sheet holds only it and Statenet's status, and
+`VIEWS_CSS` only places them and draws the screens' layers.
 
 ### 3. One document
 
@@ -139,7 +149,14 @@ included, and a copy of a view page changes that view.
   page script's, so a copy of a page places them.
 - A unit card's buttons sit in the card's row itself: a `panel` is an inline-size container, so one that does not grow
   in a row has no width of its own.
-- The side panel stays DOM in B4b: Logic's New and a card's press open it as before; it moves in B4c.
+- The side panel is one screen of sections shown by flags, not a screen per kind of part: most parts share sections
+  (notes, links, code, the form), and one screen keeps one mount and one contract.
+- Every repeat in the library is virtual with rows of one height, so the side panel's records are a row per field of a
+  record (the record's key on its first), not a row per record with a column per field: a dataset's fields are data,
+  and a table's columns are not.
+- No component repeats buttons from data in a row, so the side panel's actions are fixed buttons, each hidden by its
+  own flag.
+- The side panel's form comes last: what a part holds is read before what adds to it.
 
 ## Rules and Constraints
 
@@ -181,3 +198,12 @@ B4b (2026-11-20):
   and edits a token's value in one mode", "the Theme view clones a theme another app uses into one of the app's own",
   "the Logic view makes a rule on the server, moves it to the browser and deletes it", and the Statenet tests that lead
   to Theme and Logic and back).
+
+B4c (2026-11-20):
+- Magnetic: `src/side/SidePage.ts` (`SIDE`, `SIDE_BLANK`, `FIELD_TYPES`, `METHODS`), served at `/assets/side.json`
+  through `EDITOR_PAGES` in `src/server/startMagnetic.ts`; `src/http/views.ts` (`mountSide`, `sideShow`,
+  `sideWrite`, `sideActs`, `formOf`, and each part's editor writing the page's data), the views' DOM builders and
+  their CSS removed; `src/http/text.ts` (`views.value`).
+- Tests: `src/side/SidePage.test.ts` ("should serve a signed-in person the panel of every kind of part, in every
+  language, with every emit of its contract"); `e2e/views.spec.ts` ("a dataset is made from Statenet's + with its
+  first record, and a record's value is edited in the side panel", and the Statenet tests that open the side panel).
