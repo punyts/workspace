@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1, B2 and B3a built (2026-11-19); B3b, B3c and B4 proposed.
+Status: B1, B2, B3a and B3b built (2026-11-19); B3c and B4 proposed.
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -105,22 +105,31 @@ What the frames did for the page, and what replaces it:
 ### 4. The board as a page
 
 `magnetic-screens` is a `PageSpec`, as Statenet's is. Its screen is a `viewport` keyed `canvas` (`grid`, the window's
-height) around a `board` of cards in rows of `columns`, one per screen, each holding an `embeddedApp` node: the live one for
-the screen worked on, previews for the rest. Its data is `$.data.screens`:
-- `tiles`: one record per screen (`id` the screen name, `title`, `live`, `active`, `width`, `height`).
-- `columns`, as Screens in a row sets it.
+height) around a bare `board` of cards, one column per place in a row of Screens in a row, one card per screen, each
+holding an `embeddedApp` node: the live one for the screen worked on, previews for the rest. Its data is
+`$.data.screens`:
+- `tiles`: one record per screen (`id` the screen name, `title`, `column`, `row`, `live`, `active`, `width`, `height`,
+  and the flags that hide a card's head buttons).
+- `lanes`: the board's columns, one per place in a row.
 - `view`: `{ x, y, zoom }`, linked to the viewport, kept per person and app on the server as Statenet's is
   (`editor_view` with `view = 'screens'`).
 - `names`: true while zoomed below `NAMES_BELOW_ZOOM` or with more than `MOST_IN_VIEW` tiles in view; the cards show
-  their names and no app is active.
+  their names and only a selected screen's app is live. It is also the board's `movable`: cards are dragged only in names.
+- `inset`: the room the editor's panels take, so the viewport's fit leaves it free.
 
-The page script (`screens.ts`) writes these and sets `active` for the tiles in view from the view and the tile places,
-so only those are mounted. It acts on the emits: `press` makes the screen the one worked on, `menu` opens the tile
-menu, `board`'s reorder event posts the new order, `navigated` follows the live app to its screen, and `view` keeps
-the view. With no screens the board holds one card, Add a screen, which emits `add`.
+The card and column sizes are theme writes on the board node (`board.column`, `board.card`, `board.height`), and in
+names the title's size (`text.title.size`), so a name stays 20px on the screen at any zoom.
 
-The zoom control drives the canvas through `command` on the node keyed `canvas`, as for Statenet. `shell.ts`'s board
-pan and zoom, `#world`, and the board's DOM in `screens.ts` are removed.
+The page script (`screens.ts`) writes these and sets `active` for the tiles in view from the view and the places it
+measures in the board's columns, so only those are mounted. It acts on the emits: `press` makes the screen the one
+worked on (or in names selects it), `menu` opens the tile menu at the pointer, `deselect` ends a selection, `canvas`
+(a press on the empty canvas) does too, `board`'s `move` posts the new order, `navigated` follows the live app to its
+screen, `view` keeps the view and updates the zoom control, and `add` adds the first screen. With no screens the board
+holds one card, Add a screen.
+
+The zoom control drives the canvas through `command` on the node keyed `canvas`, as for Statenet. With none kept, the
+view fits the live card into the room the panels leave. Without the editor the live app is attached in `#alone`, a
+plain element outside the board.
 
 ### 5. B3 in steps
 
@@ -143,9 +152,10 @@ Steps:
   the page's `AppHost`: the live app is attached in an `embeddedApp`'s element (`AttachedApp`), and a preview
   follows its store. `inspect` and `watch` run on the app's own element and answer in its pixels, divided by the zoom
   around it.
-- **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, mounted with `mountApp` and that app
-  host; `screens.ts` keeps its board logic (names, menu, order, add) and writes `$.data.screens` instead of DOM;
-  `shell.ts`'s pan and zoom and `#world` go to the `viewport`.
+- **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, mounted in the page by
+  `stateuiHost.mount` with `inPage`, whose runtime is given that app host; `screens.ts` keeps its board logic (names,
+  menu, order, add) and writes `$.data.screens` instead of DOM; `shell.ts`'s pan and zoom and `#world` go to the
+  `viewport`. Until B3c the inspector and the views' layers find no app on the board.
 - **B3c: the inspector, the views' layers and the e2e.** `inspect.ts` and `views.ts` reach the live app and previews
   through their `embeddedApp` elements; `e2e/fixtures.ts`, `screens.spec.ts` and `editor.spec.ts` find the apps in the
   page instead of with `frameLocator`. `views.ts` is changed after the statenet work in it is committed.
@@ -185,10 +195,10 @@ Steps:
   frame and the page then share one tested implementation of loads, writes, commands, files and inspect, and the frame
   stays available while B3b and B3c move Magnetic over.
 - An app in the page runs on the page's origin. Its expressions need `'unsafe-eval'` (`@punyts/expression` evaluates
-  literals with `Function`), which the page's policy now allows (`APP_PAGE_CSP`), and the app can reach what the page
-  can: cookies, storage and the server. The frame isolated this with its own origin and `connect-src 'none'`. This is
-  safe for the editor, where every app is the signed-in owner's own; an app from another owner must not be mounted in a
-  page. To confirm with the owner before B3b ships it.
+  literals with `Function`), which the page's policy allows (`APP_PAGE_CSP`, and Magnetic's `shellPageCsp` for the
+  page of an app the person may edit), and the app can reach what the page can: cookies, storage and the server. The
+  frame isolated this with its own origin and `connect-src 'none'`. This is safe for the editor, where every app is the
+  signed-in owner's own; an app from another owner must not be mounted in a page (owner, 2026-11-19).
 - The component asks for its app with a request event the page's `mountApp` answers, as `scene3d` asks for its chunk;
   it imports nothing of `stateui-app`, and an app inside an app answers its own requests.
 
@@ -241,3 +251,22 @@ B3a:
   `APP_PAGE_CSP`. Tests: `stateui-mcp/test/browser.integration.test.ts`, "the live app in the page, B3a of the
   screens board" (no frame and the policy, a tool write shown, typing synced, inspect under a zoom, attached to an
   element of the page, a preview and a refused app).
+
+B3b:
+- `stateui-components`: `board`'s `movable` and `bare`; `viewport` leaves a press inside `data-own-gestures` content
+  alone (and the wheel with `all`), which a movable board's column bodies and a live `embeddedApp`'s frame are marked.
+  Tests: `test/composites/board-drag.browser.test.ts`, `board.browser.test.ts`, `viewport.browser.test.ts`,
+  `embedded-app.browser.test.ts`.
+- `stateui-app/src/runtime/createRuntime.ts` and `page.ts`: `RuntimeCoreOptions.apps`, passed to the loaded app as
+  `MountOptions.apps`. Test: `src/runtime/createRuntime.browser.test.ts` ("should answer an app asked for inside the
+  loaded app through the app host it was given").
+- `stateui-mcp/src/browser/host.ts`: `mount`'s `inPage` (the panel's runtime on `div.stateui-panel`); a preview waits
+  for the live app's mount, and each mount raises `stateui:ready`. Tests: `test/browser.integration.test.ts` ("should
+  mount a panel in the page, with no frame, whose embeddedApp shows the live app synced", "should give a preview asked
+  for while the live app moves once it is mounted again, after stateui:ready").
+- `magnetic/src/screens/ScreensPage.ts`: the page (`SCREENS_APP`, `SCREENS_KEYS`), served at `/assets/screens.json`;
+  `src/editor/EditorViews.ts` keeps the `screens` view. `src/http/screens.ts` drives it; `src/http/shell.ts` loads the
+  page bundle under `shellPageCsp` and keeps the zoom control, the frame size and the panels' free area;
+  `src/http/text.ts` `screens.board` and `screens.canvas`. `src/server/startMagnetic.ts` refuses to start without a page
+  bundle. Tests: `src/screens/ScreensPage.test.ts` ("should serve a signed-in person the canvas around the board of
+  screens, in every language, with the emits the page script acts on").
