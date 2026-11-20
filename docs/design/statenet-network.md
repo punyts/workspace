@@ -1,11 +1,11 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, and S10 and S10b, 2026-11-20
+Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, and S10, S10b and S12, 2026-11-20
 (see "As built"): Magnetic's servers save people's state through a relay to a separate aggregate, as a role that only
 reads the state tables, a Magnetic is reached from other computers on its local network over HTTPS, and a standalone
-stateui-mcp signs in there as the person and runs its tools in their workspace. S11 is not deployed yet: the stack
+stateui-mcp signs in there as the person and runs its tools in their workspace, and an org signs in
+with SAML. S11 is not deployed yet: the stack
 update (a new secret) and the deploy are the owner's. The checks of S10 and S10b from another computer are the owner's.
-S12 is proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -132,7 +132,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 - **The node is Magnetic's server.** Magnetic uses stateui-mcp as a library (`createStateUiTools`, `Services`,
   `PreviewBrowser`), so a person signs in to Magnetic and their page's socket goes to that server. Signing in is
   Magnetic's: LinkedIn now. An org's own sign-in over OpenID Connect is built (Postgres P4) and switched off in
-  the beta until S10, which turned it on again (owner, 2026-11-20). SAML is not built.
+  the beta until S10, which turned it on again (owner, 2026-11-20). An org may use SAML instead (S12).
 - Magnetic already works this way. The relay's `startClientServer` (browsers straight to a relay) is not used by
   this design; it stays for relays whose clients only read, until nothing needs it.
 - A page served over plain HTTP sends its session in the clear, so a node off loopback serves its pages over
@@ -161,8 +161,13 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 - An org may set a SAML 2.0 identity provider beside or instead of its OpenID Connect one: the metadata URL or XML,
   the entity id, and which attribute is the email. `requireSso`, verified domains and the audit log treat both
   kinds alike (magnetic-postgres.md, "SSO per org").
-- Service-provider-initiated sign-in with the HTTP-POST binding, signed assertions required, the audience, the
-  recipient, the times and `InResponseTo` checked, and each assertion id accepted once.
+- Service-provider-initiated sign-in: the request by the HTTP-Redirect binding, the answer by the HTTP-POST binding,
+  signed assertions required, the audience, the recipient, the times and `InResponseTo` checked, and each assertion
+  id accepted once.
+- **One kind per org** (owner, 2026-11-20: "One kind per org"). An org signs in with OpenID Connect or SAML; switching
+  one on switches the other off and keeps its settings.
+- **The metadata URL is read on save and daily** (owner, 2026-11-20: "On save, and daily"). A failed read keeps the
+  last good copy, and the settings page shows the failure.
 - Checking XML signatures safely is not something to write by hand: this takes a dependency
   (`@node-saml/node-saml`), Magnetic's first for sign-in beside `openid-client`.
 - SCIM (provisioning) is not part of this.
@@ -317,7 +322,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 | S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
 | S11b | Owner-rooted addresses: owner numbers; a place as an owner and a path under `$`; owners by number in addresses, grants and keys (all built) | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
-| S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
+| S12 | SAML sign-in per org, with its settings page and tests against a test identity provider (built) | Postgres P4 |
 
 ## Checks
 - **S7:** a certified node of the wrong role is refused at each kind of link; a frame changed or replayed on the
@@ -685,6 +690,46 @@ person's own workspace and an org's workspace go by the person's and the org's n
   - **On the network listener a person not signed in signs in with a device link first,** then opens the agent's page
     again: that listener offers no other sign-in (S10).
   - **The open view following is checked through the workspace,** which the views read, not through a live socket.
+
+### S12: SAML sign-in per org (20 November 2026)
+- **Magnetic**:
+  - Dependencies `@node-saml/node-saml` 5.2, `@xmldom/xmldom` 0.8 (reading metadata) and `xml-crypto` (the test
+    provider's signatures).
+  - Migration `0021_org_saml.sql`: `org_saml` (the metadata URL and XML, the provider's entity id, sign-in URL and
+    certificates, the email attribute, `enabled`, `fetched_at`, `fetch_error`), `saml_request` (one sign-in: the
+    browser's key hash, `next`, ten minutes, then the subject and profile once answered) and `saml_assertion` (hashes
+    of assertions taken, until they expire).
+  - `src/auth/samlMetadata.ts`: `parseIdpMetadata` (an `EntityDescriptor` or the first identity provider of an
+    `EntitiesDescriptor`; the HTTP-Redirect sign-in URL; signing certificates; a document type declaration refused),
+    `fetchIdpMetadata` (https, or http on loopback; ten seconds; 1 MB, counted as it streams).
+  - `src/auth/SamlSignIn.ts`: `start`, `answer`, `finish`, and the cache node-saml keeps requests and assertions in,
+    over those tables. `samlProfileOf` reads the email from the named attribute, the usual ones, or an email NameID.
+  - `src/orgs/Saml.ts`: `OrgSaml` (`get` for admins, `set` for owners, `provider`, `refreshDue`);
+    `samlIdentityProvider`. `src/orgs/Sso.ts` switches SAML off when OpenID Connect is switched on.
+  - Routes: `GET|POST /orgs/<id>/saml`, the settings page's SAML section (action `saml`), `POST /auth/saml/<orgId>`
+    and `GET /auth/saml/<orgId>/finish`; `/signin/sso` tries the org's SAML provider first. `completeSignIn` is the
+    rules, the account, the beta, the audit and the session, shared with OpenID Connect. Metadata a day old is read
+    again by an hourly sweep. Texts `orgs.saml*`, `metadata*`, `emailAttribute` in four languages.
+  - `src/testing/mockSamlProvider.ts`: a provider on loopback with metadata, a sign-in URL that reads the request,
+    and answers signed with an RSA key whose certificate `issueSigningCertificate` (`localTls.ts`) makes; it can
+    answer unsigned, expired, for another audience, signed with another key or from another issuer.
+- **stateui-mcp**: `startHttpServer`'s `crossOriginPost(path)`, so the provider's post from its own site reaches the
+  route.
+- Checked: `samlMetadata.test.ts` and `saml.test.ts` (owner-only settings and refused metadata; a person signs in and
+  joins the org with identity `org:<id>:saml`; unsigned, expired, wrong-audience, wrongly signed and other-issuer
+  answers refused; a replayed answer refused; a finish without the cookie, from another browser or a second time
+  refused; a transient NameID refused; `requireSso` holds with SAML only; one kind at a time; a rotated certificate
+  taken by the daily read, and a failed read keeps the last good copy and is shown), stateui-mcp's `http.test.ts`.
+- Deviations:
+  - **No service provider metadata endpoint.** node-saml's generator wants signing material Magnetic does not have;
+    the settings page shows the one URL a provider needs.
+  - **The answer is finished in a second step.** The provider's post comes from its site, so the browser's `Lax`
+    sign-in cookie is not sent with it: the answer is checked and kept on the request, and the browser is sent to
+    `/finish`, where its cookie must match the one that started the sign-in.
+  - **Identities are `org:<id>:saml`**, apart from OpenID Connect's `org:<id>`: the two kinds name people
+    differently. Switching kinds makes new identities, so people get new accounts: an org picks its kind before people
+    sign in through it.
+  - **A failed daily read moves `fetched_at` on,** so a provider that is down is tried again the next day, not hourly.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
