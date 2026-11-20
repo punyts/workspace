@@ -119,8 +119,8 @@ These pieces are new:
 - A **member** is an employee in the org, with one org role. A person can be in more than one org (a contractor),
   and switches between them on the home page.
 - A **group** is a set of members (a department or a team: Finance, Field Ops). Groups are what app access is usually
-  given to, so access follows people as they move between teams. Admins manage groups by hand; SCIM can manage them
-  later.
+  given to, so access follows people as they move between teams. Admins manage groups by hand, or the
+  org's identity provider pushes them by SCIM (magnetic-scim.md).
 - People join an org by:
   - **Invite:** an admin invites an email with a role and groups. The link's random token is kept only as its
     SHA-256, as sessions are. Accepting needs a signed-in user whose verified email matches. Invites expire after 7 days.
@@ -319,7 +319,7 @@ Magnetic tables:
 
 ## Not in this design
 - More than one Magnetic server. The storage allows it; sessions, live views and authorities still assume one process.
-- SCIM. It fits the shapes here (`identity.org_id`, `org_group`) and comes after. SAML came in statenet-network.md, S12.
+- SCIM (magnetic-scim.md). SAML came in statenet-network.md, S12.
 - Object storage for file bytes.
 - Sharing between orgs, and an org app reaching another org's data.
 - Field-level permissions inside an app's data. An app restricts writes through its logic and screens; the server
@@ -501,7 +501,7 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
     every embedding.
 
 ### Not built yet
-- SCIM (outside this design). SAML is built (statenet-network.md, S12).
+- SCIM (magnetic-scim.md). SAML is built (statenet-network.md, S12).
 
 ### Since
 - The statenet stages S1 to S6 are built, and Magnetic's instances run on owner nodes behind the mesh, any number of
