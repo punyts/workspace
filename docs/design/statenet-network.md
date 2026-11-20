@@ -28,6 +28,10 @@ Then: "the mcp authenticates using the open id system so it accesses the statene
 
 On SAML: "Yes, SAML please"
 
+On how Magnetic's instances reach the aggregate (S8's first deviation): "Store as namespaces"
+
+Then: "Now don't forget that the `$` in the state is the owner. The owner is a number that is distinct universally"
+
 This builds on [statenet-relays.md](statenet-relays.md) (S1 to S6, built). It changes where each role sits and who
 writes to the database; addresses, one writer per namespace, epochs, grants and the client protocol stay as they are.
 
@@ -154,6 +158,50 @@ browser ──session──▶ node ══link══▶ relay ══link══�
   (`@node-saml/node-saml`), Magnetic's first for sign-in beside `openid-client`.
 - SCIM (provisioning) is not part of this.
 
+### `$` is the owner (owner, 2026-11-19)
+- The `$` at the root of a state path is an owner, and an owner is a number that is distinct universally. An owner's
+  state is one tree: its apps, its data, its personas and their state in apps, its functions, as the Statenet view
+  already draws it (`$.apps`, `$.data`, `$.personas`, `$.functions`; magnetic-show-views.md).
+- So a place in the statenet is an owner and a path under its `$`. Today's address `<owner>/<appId>/user`, with a
+  `$` of its own per app, is the older shape: a person's state in an app is the subtree
+  `$.personas.<persona>.apps.<appOwner>.<appId>` of that person's tree.
+- Proposed, not settled (open questions 1 and 2): what has one writer is a subtree, not the whole owner, so a busy
+  owner's apps are not all ordered by one node; and how the owner number is issued.
+
+### An instance is a stored namespace (owner, 2026-11-19: store as namespaces)
+What is there now (stateui-mcp `InstanceNamespaceStorage`, stateui-pg `PgUiInstanceRepository`): an instance's
+authority saves through `UiInstanceRepository`, which writes the diff over the definition (`app`, `screens`,
+`theme`, a moved `route`), its own unbound data as `localData`, and each persona binding's records under
+`data.<binding>`, a row per record, with the binding's model kept beside its row. It keeps no revision of the
+authority's, no log and no applied change ids (a load starts at `Date.now()`), and queues the records' embeddings in
+the transaction of the write.
+
+- **The node keeps the shaping, the aggregate the writing.** What an instance stores stays what it is: the node
+  still drops `$.server`, the copies of shared datasets and the definition's defaults, since only it knows the
+  definition. `InstanceNamespaceStorage` then hands the result to an `EpochStorage` as one stored namespace
+  (`createAggregateStorage`), not to `UiInstanceRepository`.
+- **The stored state** is `{ app, screens, theme, route?, localData, data: { <binding>: { <key>: record } },
+  models: { <binding>: <model> } }`. The model moves from beside the binding's row into the state (`models`), so
+  the namespace is whole without the storage knowing about bindings. Records stay a row each (`splitUserState`),
+  which the support view, export and search rely on.
+- **Revision, log and applied ids are kept**, as for any namespace. A write sent again across a handoff is then
+  applied once (statenet-relays.md lists that as a gap today), and catch-up comes from the log.
+- **Embeddings are queued at the aggregate**, in the transaction of the save: Magnetic's aggregate storage compares
+  each binding's records before and after and queues what changed (`queuePersonaRecordChanges`, as now).
+- **Which workspace a namespace is in** (row-level security) the aggregate reads from `statenet_namespace`, which
+  the node writes when it places the namespace, as now.
+- **Nothing writes an instance but its node.** `WritePersonaData`, a reset, deleting an app and the file import
+  write the repository directly today. They become writes to the namespace at the node that orders it, and
+  removing a namespace becomes a message to the aggregate (`remove`, new).
+- **Readers keep reading rows** (the support view, export, retention, the Statenet view's list, the embedding
+  queries): Magnetic's servers keep `SELECT` on the state tables and lose the rest. The embedding queries read
+  the model from `models` instead of the binding's row.
+- **The standalone stateui-mcp** saves the same stored namespace with `createFileEpochStorage`;
+  `stateui-mcp convert` moves a data directory's `personas/` files over.
+- **Migration** (one SQL migration in stateui-pg): for each `.../user` address, add `models` from the binding rows'
+  values, leave the rest as it is, and set `namespace_head.applied` to empty. `localData`, the record rows and the
+  addresses do not move, so it can be run again and an older server reads what it wrote.
+
 ### Locally (owner, 2026-11-19: a local authority key)
 - With no `MAGNETIC_SECRET_KEY` holding the statenet's authority, a local stack makes an authority key in its data
   directory on first run and signs its own nodes', relay's and aggregate's certificates. Nothing to set up.
@@ -167,7 +215,9 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 | S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays (built in statenet) | S8 |
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
-| S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through the aggregate (see S8's first deviation), servers stop writing state, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
+| S11a | Instances as stored namespaces: `InstanceNamespaceStorage` over an `EpochStorage`, `models` in the state, embeddings at the save, the direct writers through the node, the migration; the aggregate in process, on today's addresses | S8 |
+| S11b | Owner-rooted addresses: owner numbers, a place as an owner and a path under `$`, in the directory, the grants, the storage and the embedding ids, with their migration | S11a, open questions 1 and 2 |
+| S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
 
 ## Checks
@@ -183,10 +233,24 @@ browser ──session──▶ node ══link══▶ relay ══link══�
   makes one of its own; the same page with no session gets nothing.
 - **S10b:** a standalone stateui-mcp on the laptop signs in once in the browser, changes an app of that person's on
   this machine and its open view follows; it cannot change another person's app; signed out, it changes nothing.
-- **S11:** Magnetic's e2e suite and `statenet.test.ts` pass with the servers holding no rights on the state tables.
+- **S11a:** every test that pins what an instance stores passes over the aggregate (`instanceStates.test.ts`,
+  `placement.test.ts`, stateui-pg's `state.test.ts` and `records.test.ts`, Magnetic's `statenet.test.ts`); a
+  database migrated from today's rows loads each instance as it was; a write sent again across a handoff is
+  applied once.
+- **S11:** Magnetic's e2e suite and `statenet.test.ts` pass with the servers holding only `SELECT` on the state
+  tables.
 
 - **S12:** a person signs in through a test SAML provider into their org; an unsigned, expired, replayed or
   wrong-audience assertion is refused; `requireSso` holds for an org with SAML only.
+
+## Open questions
+1. **What has one writer.** Proposed: a subtree of an owner's tree (a persona's state in one app, as today), not
+   the owner whole. One writer per owner is simpler, and puts everything an owner has on one node at a time.
+2. **The owner number.** Owners are UUIDs today (users, orgs, workspaces). Proposed: keep the value and treat it
+   as the number it is (128 bits), so nothing is issued anew and no id changes; the alternative is a number issued
+   by the statenet's authority, with a table from the old ids.
+3. **The order.** Proposed: S11a first (how an instance is saved), then S11b (where it lives), so the live
+   database changes one thing at a time.
 
 ## As built
 
