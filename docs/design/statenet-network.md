@@ -1,6 +1,7 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7 and S8 built 2026-11-19 (see "As built"). S9 to S12 are proposed.
+Status: S7, S8 and S9 built in statenet 2026-11-19 (see "As built"); Magnetic does not use S8 or S9 yet. S10 to S12
+are proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -163,10 +164,10 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 |---|---|---|
 | S7 | Role rules and the directory check in the handshake; every link sealed; certificate renewal over the link (built) | S6 |
 | S8 | The aggregate: `startAggregateNode`, the storage port (Postgres, files), batches, `persisted`, `fenced`, loads; in process and over the mesh (built) | S7 |
-| S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays | S8 |
+| S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays (built in statenet) | S8 |
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
-| S11 | Magnetic hosted: instances save through the aggregate (see S8's first deviation), servers stop writing state, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
+| S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through the aggregate (see S8's first deviation), servers stop writing state, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
 
 ## Checks
@@ -265,6 +266,43 @@ browser ──session──▶ node ══link══▶ relay ══link══�
   - **A restarted aggregate forgets what landed**, so a save sent again after its restart is written once more with
     the same content. The storage's fence still holds.
   - **A node with no link holds its saves without limit**: the limit past which it refuses writes is not built.
+
+### S9: nodes link up, groups, and routing through relays (19 November 2026)
+- **statenet** `src/mesh/`:
+  - **A link carries asks both ways.** What one end does with the other's asks is `createServing` (`serving.ts`,
+    taken out of the mesh server): subscriptions, writes, tunnelled sessions, claims, saves and certificate asks.
+    The server end serves the node that dialled, as before. The end that did not open the link asks through a
+    `LinkClient` (`linkClient.ts`), its messages and their answers wrapped as `rev`, and a node that dialled a
+    relay serves them with `MeshUpstreamOptions.serve`. `MeshServer.peer(nodeId)` is the link down to a node.
+  - **Groups.** A node's certificate names its `group` (`NodeCertificateClaims.group`, kept by a renewal), and
+    `DirectoryView.nodes[]` has `group` and `parent` (the relay a node is linked to). A node refuses a node of
+    another group at both ends of a link: the server in the hello, the dialler in the welcome.
+  - **Routing.** `subscribe`, `write`, `open`, `claim` and `take` may name the node they are for (`to`), and
+    `write` and `claim` the node they came from (`from`, set by relays, so the owner counts and hands off to the
+    right node). A relay (`startRelayNode`) sends such an ask down the node's link when it is linked there, and
+    otherwise to the relay the directory says the node is under, over a relay-to-relay link it opens on first use
+    (`reachThrough`). An ask another relay passed on is delivered below or not at all, so two relays with
+    different directories cannot pass it back and forth. An ask with no way is answered so (`cannot be reached`).
+  - **The owner mesh** (`startOwnerMesh`) takes `group` and `relays`: it links up to its relay (`uplink`), serves
+    it what it serves its peers, links directly only to nodes of its group, and reaches the others through the
+    relay (`PeerLinks.link` now answers a `RouteTarget`). `createAggregateStorage(mesh.uplink)` saves through the
+    same link.
+  - Tests: `src/mesh/groups.test.ts` (8), an aggregate, a relay per group and nodes on real sockets: a node of
+    another group refused directly; nodes of one group linked directly; between groups a forwarded write applied
+    once, a tunnelled view with its writes, a subscription, and a claim; a write for a node with no way rejected;
+    and a namespace saved through relay and aggregate, then loaded by the node that takes it over.
+- Deviations:
+  - **Magnetic is unchanged.** Its servers have no group and no relay above them, so they link as before (one
+    empty group, direct links). Giving them `--group`, writing `group` and `parent` to `statenet_node` (a
+    migration: the table has `parent` and no `group`) and putting relays above them is S11.
+  - **A relay may still dial a node** (`mayLink('relay', 'owner')`), for the relays that hang below Magnetic's
+    servers today. It goes when Magnetic moves (S11).
+  - **Relays are still not in the directory by themselves**: the tests list them by hand. An aggregate with the
+    database is the one to register the relays linked to it; not built.
+  - **Only one relay between a node and the aggregate is routed.** A relay under another relay does not pass an
+    ask it has no way for up to its parent.
+  - **What a relay asks of a node ends with the link**: a subscription the relay made down a node's link is
+    closed when the link drops, and whoever asked subscribes again; the owner mesh's placed upstream does.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
