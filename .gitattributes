@@ -1,0 +1,4 @@
+# Files that run or are read on Linux (the AWS host, the Magnetic image) keep LF on every checkout, Windows included:
+# bash on the host refuses a script with CRLF ("set: pipefail\r: invalid option name").
+*.sh        text eol=lf
+docker/**   text eol=lf
