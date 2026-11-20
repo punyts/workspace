@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1, B2, B3a and B3b built (2026-11-19); B3c and B4 proposed.
+Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4 proposed.
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -155,7 +155,7 @@ Steps:
 - **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, mounted in the page by
   `stateuiHost.mount` with `inPage`, whose runtime is given that app host; `screens.ts` keeps its board logic (names,
   menu, order, add) and writes `$.data.screens` instead of DOM; `shell.ts`'s pan and zoom and `#world` go to the
-  `viewport`. Until B3c the inspector and the views' layers find no app on the board.
+  `viewport`.
 - **B3c: the inspector, the views' layers and the e2e.** `inspect.ts` and `views.ts` reach the live app and previews
   through their `embeddedApp` elements; `e2e/fixtures.ts`, `screens.spec.ts` and `editor.spec.ts` find the apps in the
   page instead of with `frameLocator`. `views.ts` is changed after the statenet work in it is committed.
@@ -270,3 +270,22 @@ B3b:
   `src/http/text.ts` `screens.board` and `screens.canvas`. `src/server/startMagnetic.ts` refuses to start without a page
   bundle. Tests: `src/screens/ScreensPage.test.ts` ("should serve a signed-in person the canvas around the board of
   screens, in every language, with the emits the page script acts on").
+
+B3c:
+- `stateui-app/src/runtime/inspect.ts`: `nodesAt` and `deepElementAt` take `within`, the app's element, and look
+  through `elementsFromPoint` at only the elements on the way to it or inside it; `createRuntime.ts` passes its host
+  with `inPage`; `nodesOf` walks the app's element, not the document, so an app before it in the page with the same
+  paths does not hide its nodes. Tests: `src/runtime/createRuntime.browser.test.ts` ("should find the node at a point
+  under an element of the page laid over the app, as an editor lays its layer", "should find its own nodes by path when
+  an app before it in the page has the same paths").
+- `stateui-components`: `board` sets its column lists' cap (`--sui-list-max`, `recordList`'s `100dvh` by default) to
+  `none`, so a board taller than the window draws every card. Test: `test/composites/board.browser.test.ts` ("should
+  fill a column taller than the window with its list, so no card below the window is cut off").
+- `magnetic/migrations/0015_editor_view_screens.sql`: `editor_view` keeps the `screens` view. Test:
+  `src/editor/EditorViews.test.ts` ("should keep the screens board's view apart from Statenet's").
+- `magnetic/src/http/screens.ts`: `magneticScreens.liveApp`, `cards` and `panBy`. `src/http/inspect.ts`: the
+  overlay and shield in `.inspect-layer` in `#board`, following the live app's element; the Move tool pans the board
+  through `panBy`. `src/http/views.ts`: the layers in `.views-layer` in `#board`, one per card, and the leads between
+  the cards' boxes. `src/http/shell.ts`: the layer's CSS. Tests: `src/server/editor.browser.test.ts`,
+  `e2e/fixtures.ts` (`EditorPage.app` is `ui-embedded-app[live]`), `e2e/screens.spec.ts`, `e2e/editor.spec.ts`,
+  `e2e/views.spec.ts`, `e2e/share.spec.ts`.
