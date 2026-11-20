@@ -32,6 +32,11 @@ On how Magnetic's instances reach the aggregate (S8's first deviation): "Store a
 
 Then: "Now don't forget that the `$` in the state is the owner. The owner is a number that is distinct universally"
 
+Then, on what is whose: "`$.apps.app1.form.open`, for the application default, the owner is the application owner.
+`$.apps.app1.form.open`, for the user's current state, the owner is the user. `$.data.users.1.name`, for the user's
+current state is the data owner. `$.personas`, is the user's state. `$.functions`, is the apps state. So the browser
+loads the app state for the default, then lay the user's state on top and then render"
+
 This builds on [statenet-relays.md](statenet-relays.md) (S1 to S6, built). It changes where each role sits and who
 writes to the database; addresses, one writer per namespace, epochs, grants and the client protocol stay as they are.
 
@@ -162,11 +167,30 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 - The `$` at the root of a state path is an owner, and an owner is a number that is distinct universally. An owner's
   state is one tree: its apps, its data, its personas and their state in apps, its functions, as the Statenet view
   already draws it (`$.apps`, `$.data`, `$.personas`, `$.functions`; magnetic-show-views.md).
-- So a place in the statenet is an owner and a path under its `$`. Today's address `<owner>/<appId>/user`, with a
-  `$` of its own per app, is the older shape: a person's state in an app is the subtree
-  `$.personas.<persona>.apps.<appOwner>.<appId>` of that person's tree.
-- Proposed, not settled (open questions 1 and 2): what has one writer is a subtree, not the whole owner, so a busy
-  owner's apps are not all ordered by one node; and how the owner number is issued.
+- So a place in the statenet is an owner and a path under its `$`, and **the same path means something else under
+  another owner** (owner, 2026-11-19):
+
+| Path | Under whose `$` | What it is |
+|---|---|---|
+| `$.apps.app1.form.open` | The app's owner | The application's default: what the app starts as |
+| `$.apps.app1.form.open` | The user | The user's current state of that app: only what differs from the default |
+| `$.data.users.1.name` | The data's owner | The data itself; a user's view of it reads the data owner's tree |
+| `$.personas` | The user | The user's own state |
+| `$.functions` | The app's owner | The app's state: the functions it runs |
+
+- **A view is two trees laid one on the other.** The browser loads the app's state under the app owner's `$` (the
+  default), lays the user's state for the same paths on top, and renders. A user's state of an app is therefore at
+  the app's own path, `$.apps.<app>`, in the user's tree, not in a place of its own. Today's address
+  `<user>/<appId>/user`, with a `$` per app, is the older shape of exactly this: what it stores is already the
+  difference from the definition.
+- What follows, to settle in S11b:
+  - An app's definition (its parts, in the `part` table today) is the app owner's `$.apps.<app>`, and a shared
+    dataset (a part of kind `data` today) is its owner's `$.data.<dataset>`. Neither is statenet state yet.
+  - A node that runs an app's server logic for a user lays the two trees as the browser does, and writes the
+    difference to the user's tree.
+- Proposed, not settled (open questions 1 and 2): what has one writer is a subtree of an owner's tree (a user's
+  `$.apps.<app>`, an owner's `$.data.<dataset>`), not the whole owner, so a busy owner's apps are not all ordered
+  by one node; and how the owner number is issued.
 
 ### An instance is a stored namespace (owner, 2026-11-19: store as namespaces)
 What is there now (stateui-mcp `InstanceNamespaceStorage`, stateui-pg `PgUiInstanceRepository`): an instance's
@@ -244,8 +268,8 @@ the transaction of the write.
   wrong-audience assertion is refused; `requireSso` holds for an org with SAML only.
 
 ## Open questions
-1. **What has one writer.** Proposed: a subtree of an owner's tree (a persona's state in one app, as today), not
-   the owner whole. One writer per owner is simpler, and puts everything an owner has on one node at a time.
+1. **What has one writer.** Proposed: a subtree of an owner's tree (a user's `$.apps.<app>`, as an instance is
+   today; an owner's `$.data.<dataset>`), not the owner whole. One writer per owner is simpler, and puts everything an owner has on one node at a time.
 2. **The owner number.** Owners are UUIDs today (users, orgs, workspaces). Proposed: keep the value and treat it
    as the number it is (128 bits), so nothing is issued anew and no id changes; the alternative is a number issued
    by the statenet's authority, with a table from the old ids.
