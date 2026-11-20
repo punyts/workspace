@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: proposed 2026-11-19. Nothing here is built.
+Status: B1 built (2026-11-19); B2 to B4 proposed.
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -8,7 +8,7 @@ Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `vi
 Asked on 2026-11-19, on how an app gets into the page: "I don't want to use iframes, they present CORS issues. A
 browser should be able to hold multiple stateui apps, right? We are changing this to use the stateui so we can edit the
 editor and prove that this is powerful enough to make anything." Then: "Yes, rewrite it", for a design around an app
-component in the page, with no frames.
+component in the page, with no frames. Then: "Start building B1".
 
 ## The problem
 
@@ -31,17 +31,19 @@ StateUI does not need the frames:
   `javascript:` URLs, and expressions only through `@punyts/expression`. Running several apps in one page needs no
   origin wall around each.
 
-One thing stands in the way: `setNodeResolver` and `setNodeOptions` in `stateui` are module-wide, and the latest
-`mountApp` owns them.
+One thing stood in the way, and B1 removed it: the node resolver and node options in `stateui` were module-wide, and the
+latest `mountApp` owned them.
 
 ## The design
 
 ### 1. Per-app node resolver and options (`stateui`)
 
-The resolver and the node options belong to an app root, not to the module. `mount(host, store, options)` takes
-`{ resolver, nodeOptions }`, and a `<sui-node>` asks the nearest app root above it (the host it was mounted under) for
-them. `setNodeResolver` and `setNodeOptions` are removed. Two apps on different libraries, or with different theme
-mappers, then render side by side, and disposing one leaves the other's untouched.
+The resolver and the node options belong to an app root, not to the module. `mount(host, store, path, options)` takes
+`resolver` and `nodeOptions` beside `callable`, and a `<sui-node>` reads those of the nearest mounted root above it
+when it attaches (`findNodeSettings`). They are kept beside the root's mount context, not in it, so a scope sees only
+its store, base path and callable. `mountApp` passes its library's resolver and its options to its own root. Two apps
+on different libraries, or with different theme mappers, render side by side, and disposing one leaves the other's
+untouched.
 
 ### 2. The `app` component: an app inside a node (`stateui-components`, `stateui-app`)
 
@@ -142,5 +144,16 @@ pan and zoom, `#world`, and the board's DOM in `screens.ts` are removed.
   refuses what they may not open.
 - A child app's state is its own: the parent never links into it, and it never writes the parent's.
 - The page talks to Magnetic only through `$.data` and emits; the canvas found by its key is the one exception.
-- No backwards compatibility: `setNodeResolver` and `setNodeOptions` are removed, and the board's code in `shell.ts`
-  and `screens.ts` goes when the page replaces it.
+- No backwards compatibility: the module-wide resolver and options are gone, and the board's code in `shell.ts` and
+  `screens.ts` goes when the page replaces it.
+
+## As built
+
+B1:
+- `stateui/src/component/context.ts`: `mount`'s `resolver` and `nodeOptions`, `findNodeSettings`.
+  `stateui/src/node/options.ts`: the types, with `NodeSettings`; `stateui/src/node/SuiNode.ts` reads them when it
+  attaches. Tests: `stateui/src/node/SuiNode.browser.test.ts` ("should render each root with its own resolver and
+  options, and keep one working when the other is unmounted").
+- `stateui-app/src/dom/mount/mountApp.ts` passes them to `mount`. Tests:
+  `stateui-app/src/dom/mount/mountApp.browser.test.ts` ("should render two apps on different libraries side by side, and
+  keep one working when the other is disposed").
