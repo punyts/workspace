@@ -1,6 +1,6 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7 built 2026-11-19 (see "As built"). S8 to S12 are proposed.
+Status: S7 and S8 built 2026-11-19 (see "As built"). S9 to S12 are proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -47,7 +47,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 |---|---|---|
 | Where relays sit | Below the owner nodes, toward browsers | Above the nodes, toward the database |
 | Who writes state | The owner node (`PgStateStore`), fenced by epoch | Only an aggregate |
-| Aggregate | A role name in certificates and `statenet_node`; no code | A process: `startAggregateNode`, `statenet-aggregate` |
+| Aggregate | Before S8 a role name in certificates and `statenet_node`; no code | A process: `startAggregateNode` (built, S8) |
 | Node to node (forwarded writes, `claim`, `handoff`, tunnelled views) | Direct peer links between every pair of owner nodes (`OwnerMesh`) | Direct inside a group; through relays between groups |
 | Role check on a link | Before S7 any certified role could link to any server | Each end refuses a role it does not serve (built, S7) |
 | The plain `statenet` (stateui-mcp's local one) | Loopback only, no authentication (`Statenet.ts`) | Unchanged on loopback; off loopback stateui-mcp connects to a node with a credential |
@@ -162,11 +162,11 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 | Stage | Delivers | Depends on |
 |---|---|---|
 | S7 | Role rules and the directory check in the handshake; every link sealed; certificate renewal over the link (built) | S6 |
-| S8 | The aggregate: `startAggregateNode`, the storage port (Postgres, files), batches, `persisted`, `fenced`, loads; in process first, so a node's save already goes through it | S7 |
+| S8 | The aggregate: `startAggregateNode`, the storage port (Postgres, files), batches, `persisted`, `fenced`, loads; in process and over the mesh (built) | S7 |
 | S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays | S8 |
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
-| S11 | Magnetic hosted: servers stop writing state, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
+| S11 | Magnetic hosted: instances save through the aggregate (see S8's first deviation), servers stop writing state, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
 
 ## Checks
@@ -225,6 +225,46 @@ browser ──session──▶ node ══link══▶ relay ══link══�
     open past its end is not closed for it.
   - **A relay stopped for more than seven days** needs `magnetic relay-certificate` again.
   - Not run: the compose stack of two servers and a relay as separate processes (`docker/statenet.compose.yml`).
+
+### S8: the aggregate (19 November 2026)
+- **statenet** `src/mesh/Aggregate.ts`:
+  - `createAggregate(storage)` is the writer. Its storage port is state-sync's `EpochStorage`, so Postgres is
+    stateui-pg's `PgEpochStorage` as it is, and files are the new `createFileEpochStorage`
+    (`src/FileEpochStorage.ts`: a namespace's file and, beside it, the newest epoch it was saved under).
+  - The saves of a namespace run one at a time. Those that arrive while one runs are folded into the newest, and
+    every node waiting on an earlier revision is answered when it lands. A save at or below what landed under its
+    epoch writes nothing (a resend). A save under an older epoch is answered `fenced`, by the aggregate's own count
+    or by the storage's fence, and a waiting save of the old owner is fenced when the new owner's takes its place.
+    `mayPersist` lets an aggregate with the directory refuse a node that does not order the address.
+  - `createAggregateStorage(link)` is a node's storage: a save is done when the aggregate answers `saved`, which is
+    when the authority calls the change durable; `fenced` throws `FencedError`, so the node stops ordering. The
+    link is an aggregate in the same process, or a node's link up the mesh.
+  - Mesh messages `persist` / `persisted` and `load` / `loaded`. `MeshUpstream.persist` and `load` keep what is not
+    answered across links and send it again; a relay passes both up (`startRelayNode`), naming the node it passes
+    them on for; `startAggregateNode` is the mesh server of role `aggregate`, which only relays can link to.
+  - Tests: `src/mesh/aggregate.test.ts` (12): the folding, the resend, both fences, a change durable only after the
+    aggregate saved it, a save and a load over node, relay and aggregate on real sockets, a save sent again over
+    another relay and written once, and the files.
+- **state-sync**: `FencedError` carries `address`, `epoch` and `current`, so a fence can cross the mesh and be
+  thrown again at the node.
+- Deviations:
+  - **Magnetic's instances do not save through it yet.** An instance is not saved as an authority's namespace: its
+    server writes it through `UiInstanceRepository` (stateui-pg's `PgUiInstanceRepository`) as a diff over the
+    app's definition, a row per key, with each persona binding's records written apart and their embeddings queued
+    in the same transaction, under the workspace's row-level security. The aggregate's port takes a whole stored
+    namespace, so putting it under Magnetic today would save nothing through it. S11 has to settle how an
+    instance's writes reach the aggregate: the repository's writes sent up as they are, or instances kept as
+    namespaces with the diff and the embeddings made at the aggregate.
+  - **A save carries the whole namespace**, as an authority's save does, not only the changes since the last one.
+    The batch is the newest of the saves that were waiting. Sending changes alone needs a storage port that applies
+    them.
+  - **An aggregate serves no subscriptions and no catch-up from the database**: a relay that subscribes at one is
+    told so. Relays still get state from the nodes, until S9.
+  - **No `statenet-aggregate` command**: statenet has no database driver, so a process with Postgres is Magnetic's
+    to start (S11); with files it comes with the local stack (S10).
+  - **A restarted aggregate forgets what landed**, so a save sent again after its restart is written once more with
+    the same content. The storage's fence still holds.
+  - **A node with no link holds its saves without limit**: the limit past which it refuses writes is not built.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
