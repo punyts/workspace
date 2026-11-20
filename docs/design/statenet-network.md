@@ -1,7 +1,7 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet, and S11a in Magnetic, 2026-11-19 (see "As built"): Magnetic saves every
-instance through an aggregate in its own process, and does not use relays or groups yet. S10, S11b, S11 and S12 are
+Status: S7, S8 and S9 built in statenet, and S11a and S11b in Magnetic, 2026-11-19 (see "As built"): Magnetic saves every
+instance through an aggregate in its own process, and does not use relays or groups yet. S10, S11 and S12 are
 proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
@@ -248,7 +248,7 @@ the transaction of the write.
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
 | S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
-| S11b | Owner-rooted addresses: owner numbers (built); a place as an owner and a path under `$` (built, the owner still by id); then owners by number in addresses, grants and keys | S11a |
+| S11b | Owner-rooted addresses: owner numbers; a place as an owner and a path under `$`; owners by number in addresses, grants and keys (all built) | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
 
@@ -441,9 +441,9 @@ the transaction of the write.
 ### Owner numbers, the first part of S11b (19 November 2026)
 - **Magnetic** `migrations/0015_owner_numbers.sql`: the sequence `statenet_owner_number`; `owner_number` on
   `app_user` and `org`, unique, the next of the sequence when a row is made; those already there numbered in the
-  order they came, people and orgs in one line; and the view `statenet_owner` (`number`, `kind`, `id`,
+  order they came, people and orgs in one line, after numbers 1 and 2, kept for Magnetic's own two workspaces (its
+  pages and the admins' drafts of them, `statenet_system_owner`); and the view `statenet_owner` (`number`, `kind`, `id`,
   `workspace_id`): every owner with the workspace that is its tree. Test: `src/storage/ownerNumbers.test.ts`.
-- Nothing addresses state by a number yet (below).
 
 ### Owner-rooted addresses, the second part of S11b (19 November 2026)
 An address is an owner and a path under its `$`: `<owner>/apps/<appId>` is `$.apps.<appId>` of that owner's tree (a
@@ -466,12 +466,28 @@ person's state of the app), `<owner>/data/<dataset>` is `$.data.<dataset>`. The 
   tables' owner is held by it too, so 0006 as first written would have added no `models` on the hosted database.
   Both are tested run as a plain role that owns the tables (`state/state.test.ts`), twice over.
 - Checked: stateui-mcp 1086, stateui-pg 57, Magnetic 283 unit tests.
+### Owners by number everywhere, the third part of S11b (19 November 2026)
+The owner in an address, a grant's issuer and subject, and the owner beside a signing key are owner numbers. A
+person's own workspace and an org's workspace go by the person's and the org's number; an org as a subject is
+`org:<number>`. Magnetic's own tables and pages keep ids; the server turns one into the other where they meet.
+- **Magnetic** `src/statenet/OwnerNumbers.ts`: the stateui-mcp `OwnerNames` over `statenet_owner`. `load` reads
+  every owner at start; `ensure` (ids) and `learn` (a number) read what is missing, and the server calls them where
+  an owner first comes up: a session's person, a workspace opened, a namespace taken over by its address. `of` and
+  `idOf` answer from what is known: an id never looked up is an error, never passed off as its own name, so nothing
+  is addressed half by id and half by number; an id looked up that is no owner's goes by itself. `nameOf`,
+  `idOfName`, `address` and `addressById` convert grants' names and addresses either way.
+- **Magnetic** `StateGrants` issues, checks, lists and revokes by numbers and gives its callers ids back; key
+  rotation, the grant routes, the support list (`src/orgs/Instances.ts`), retention (`src/orgs/Policies.ts`), an
+  org's read revoked when a member leaves (`src/orgs/Orgs.ts`), the persona apps list and the statenet node use the
+  numbers. `startMagnetic` hands one `OwnerNumbers` to all of them, to stateui-mcp's `createServices` and to
+  stateui-pg's storage, and `RunningMagnetic.owners` exposes it.
+- **Magnetic** `migrations/0017_owner_numbers_everywhere.sql`: rewrites the owner in the addresses of
+  `state_node`, `state_change`, `namespace_head`, `namespace_owner`, persona-record embedding ids,
+  `statenet_namespace` and `state_grant`, a grant's issuer and subject (`org:<id>` included), and
+  `owner_key.owner_id`; ids that are no owner's and names that are not ids (`statenet`) stay. It lifts forced
+  row-level security for its transaction. Test: `src/storage/ownerNumbersEverywhere.test.ts` (run twice over).
+- Checked: stateui-mcp 1086, stateui-pg 57, statenet 65, Magnetic 284 unit tests.
 - Not yet done:
-  - **The owner in an address is still its id, not its number.** A grant is checked by comparing ids with the
-    owner in the address: the owner needs no grant for its own address, a grant's root is signed by the key of
-    the address's owner (`owner_key.owner_id`), and subjects and issuers are ids. Putting numbers in addresses
-    means those go by numbers too, or the check translates. That is the next part, with its own migration
-    (the same tables again, and `owner_key`).
   - **When a person uses their own app, their state and the app's default are the same path of the same tree**
     (`$.apps.<app>` under their own `$`). Today they are kept apart because the default is a part, not statenet
     state. Where each lives once definitions are statenet state is not settled.
