@@ -122,6 +122,31 @@ the view. With no screens the board holds one card, Add a screen, which emits `a
 The zoom control drives the canvas through `command` on the node keyed `canvas`, as for Statenet. `shell.ts`'s board
 pan and zoom, `#world`, and the board's DOM in `screens.ts` are removed.
 
+### 5. B3 in steps
+
+What the frames carry today, and so what B3 moves into the page:
+- The editor page loads no component library: `/assets/host.js` (`stateui-mcp/src/browser/host.ts`) puts each app in an
+  iframe served from the runtime origin (`MAGNETIC_RUNTIME_PORT`), which runs the runtime bundle (`startRuntime`).
+- The live app (`LiveView`) syncs through `createSyncClient` over `/apps/<id>/sync` and passes loads and writes into its
+  frame by `postMessage`; the view messages (app, command, locale, theme, deleted, rejected) go the same way. A preview
+  (`PageView`, `stateuiHost.mount`) is standalone and fed `$.data` from `stateui:change`.
+- The inspector (`inspect.ts`) and the views' layers (`views.ts`) ask the frames with `stateuiHost.inspect` and
+  `panelOf(name).inspect`; the answer is `stateui-app/src/runtime/inspect.ts`'s, in the frame's own pixels.
+- The editor panels and Statenet are frames too; they move in B4.
+
+Steps:
+- **B3a: the page bundle and the in-page live app.** A browser bundle of `stateui-app`'s DOM entry, the component
+  library (`registerAll`) and the state-sync client, served by Magnetic on its own origin with the runtime bundle's
+  CSS and 3D chunk. `stateui-mcp/src/browser/` gains the in-page live app: what `LiveView` does, with the sync client
+  writing the mounted store directly and the view messages applied through `MountedApp`, given to an `AppHost`. The
+  inspector's answers come from `inspect.ts` run on the app's own element, divided by the zoom around it.
+- **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, mounted with `mountApp` and that app
+  host; `screens.ts` keeps its board logic (names, menu, order, add) and writes `$.data.screens` instead of DOM;
+  `shell.ts`'s pan and zoom and `#world` go to the `viewport`.
+- **B3c: the inspector, the views' layers and the e2e.** `inspect.ts` and `views.ts` reach the live app and previews
+  through their `embeddedApp` elements; `e2e/fixtures.ts`, `screens.spec.ts` and `editor.spec.ts` find the apps in the
+  page instead of with `frameLocator`. `views.ts` is changed after the statenet work in it is committed.
+
 ## Stages
 
 | Stage | Delivers |
