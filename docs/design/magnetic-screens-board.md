@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1 and B2 built (2026-11-19); B3 and B4 proposed.
+Status: B1, B2 and B3a built (2026-11-19); B3b, B3c and B4 proposed.
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -135,11 +135,14 @@ What the frames carry today, and so what B3 moves into the page:
 - The editor panels and Statenet are frames too; they move in B4.
 
 Steps:
-- **B3a: the page bundle and the in-page live app.** A browser bundle of `stateui-app`'s DOM entry, the component
-  library (`registerAll`) and the state-sync client, served by Magnetic on its own origin with the runtime bundle's
-  CSS and 3D chunk. `stateui-mcp/src/browser/` gains the in-page live app: what `LiveView` does, with the sync client
-  writing the mounted store directly and the view messages applied through `MountedApp`, given to an `AppHost`. The
-  inspector's answers come from `inspect.ts` run on the app's own element, divided by the zoom around it.
+- **B3a: the page bundle and the in-page live app.** A page bundle beside the runtime bundle: `stateui-app`'s
+  `mountApp`, the component library and the runtime core (`createRuntime`), set on `window.stateuiPage`, served by
+  the app server (and so by Magnetic, which embeds it) on its own origin with the 3D chunk beside it. `LiveView` runs
+  the runtime core in the page on an element instead of a frame, with the same protocol messages handed over by call,
+  so the sync client, the view messages, the reports and the files work as they do for a frame. `stateuiHost.apps` is
+  the page's `AppHost`: the live app is attached in an `embeddedApp`'s element (`AttachedApp`), and a preview
+  follows its store. `inspect` and `watch` run on the app's own element and answer in its pixels, divided by the zoom
+  around it.
 - **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, mounted with `mountApp` and that app
   host; `screens.ts` keeps its board logic (names, menu, order, add) and writes `$.data.screens` instead of DOM;
   `shell.ts`'s pan and zoom and `#world` go to the `viewport`.
@@ -178,6 +181,14 @@ Steps:
 - The component is `embeddedApp`, not `app`: `app` is the root component of every app document. Its screen is
   `appScreen`, not `screen`: the route validator reads a string `screen` property (as on `link` and `menuItem`) as a
   screen of the page's own app.
+- The in-page live app reuses the runtime core and its messages rather than a second path into `MountedApp`: the
+  frame and the page then share one tested implementation of loads, writes, commands, files and inspect, and the frame
+  stays available while B3b and B3c move Magnetic over.
+- An app in the page runs on the page's origin. Its expressions need `'unsafe-eval'` (`@punyts/expression` evaluates
+  literals with `Function`), which the page's policy now allows (`APP_PAGE_CSP`), and the app can reach what the page
+  can: cookies, storage and the server. The frame isolated this with its own origin and `connect-src 'none'`. This is
+  safe for the editor, where every app is the signed-in owner's own; an app from another owner must not be mounted in a
+  page. To confirm with the owner before B3b ships it.
 - The component asks for its app with a request event the page's `mountApp` answers, as `scene3d` asks for its chunk;
   it imports nothing of `stateui-app`, and an app inside an app answers its own requests.
 
@@ -216,3 +227,17 @@ B2:
   host or when refused, `active`, `emit` and `navigated` without running the page node, a preview that is inert,
   follows the live data and raises `press` and `menu`).
 - `example/src/document/main.json` places an `embeddedApp`; `stateui-mcp/showcase/examples/layout.json` shows one.
+
+B3a:
+- `stateui-app/src/runtime/createRuntime.ts`: the runtime core (`RuntimeCore`, `inPage`, `chunkBase`);
+  `startRuntime.ts` is its frame shell; `page.ts`: `StateuiPage`, `PAGE_GLOBAL`; `load3d.ts` takes a base.
+  `runtime-bundle/page-entry.ts` and `build.ts` build the page bundle (manifest `page`).
+  `src/dom/embed/types.ts` and `answer.ts`: `AttachedApp`. Tests: `src/runtime/createRuntime.browser.test.ts`,
+  `src/dom/embed/answer.browser.test.ts`, `runtime-bundle/build.test.ts` ("should write the page bundle beside the
+  runtime, name it in the manifest and replace it on the next build").
+- `stateui-mcp/src/browser/host.ts`: `LiveView.surface`, `attach`, `liveStore`, `onRuntimeData`; `stateuiHost.apps`.
+  `src/infrastructure/http/`: `runtimeBundle.ts` reads the page bundle, `HttpServer.ts` serves
+  `/assets/page/<hash>.js` and `/apps/:appId?surface=page`, `pages.ts` the page variant, `security.ts`
+  `APP_PAGE_CSP`. Tests: `stateui-mcp/test/browser.integration.test.ts`, "the live app in the page, B3a of the
+  screens board" (no frame and the policy, a tool write shown, typing synced, inspect under a zoom, attached to an
+  element of the page, a preview and a refused app).
