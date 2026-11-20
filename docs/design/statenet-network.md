@@ -189,9 +189,14 @@ browser ──session──▶ node ══link══▶ relay ══link══�
     dataset (a part of kind `data` today) is its owner's `$.data.<dataset>`. Neither is statenet state yet.
   - A node that runs an app's server logic for a user lays the two trees as the browser does, and writes the
     difference to the user's tree.
-- Proposed, not settled (open questions 1 and 2): what has one writer is a subtree of an owner's tree (a user's
-  `$.apps.<app>`, an owner's `$.data.<dataset>`), not the whole owner, so a busy owner's apps are not all ordered
-  by one node; and how the owner number is issued.
+- **What has one writer is a subtree of an owner's tree** (owner, 2026-11-19): a user's `$.apps.<app>`, an owner's
+  `$.data.<dataset>`, as an instance is today, not the whole owner. A busy owner's apps are then not all ordered
+  by one node.
+- **Owner numbers are issued, from one sequence** (owner, 2026-11-19: "Issue new numbers", "One global
+  sequence"): 1, 2, 3 and on, one line for everyone. Users and orgs are the owners; a workspace is its user's or
+  its org's tree and has no number of its own. Today's ids (UUIDs) stay what the tables refer to; the number is
+  what a state path's `$` stands for. Another statenet provider would take its numbers from the same sequence,
+  which is ours to run.
 
 ### An instance is a stored namespace (owner, 2026-11-19: store as namespaces)
 What is there now (stateui-mcp `InstanceNamespaceStorage`, stateui-pg `PgUiInstanceRepository`): an instance's
@@ -243,7 +248,7 @@ the transaction of the write.
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
 | S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
-| S11b | Owner-rooted addresses: owner numbers, a place as an owner and a path under `$`, in the directory, the grants, the storage and the embedding ids, with their migration | S11a, open questions 1 and 2 |
+| S11b | Owner-rooted addresses: owner numbers (built), then a place as an owner number and a path under `$`, in the directory, the grants, the storage and the embedding ids, with their migration | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
 
@@ -269,15 +274,6 @@ the transaction of the write.
 
 - **S12:** a person signs in through a test SAML provider into their org; an unsigned, expired, replayed or
   wrong-audience assertion is refused; `requireSso` holds for an org with SAML only.
-
-## Open questions
-1. **What has one writer.** Proposed: a subtree of an owner's tree (a user's `$.apps.<app>`, as an instance is
-   today; an owner's `$.data.<dataset>`), not the owner whole. One writer per owner is simpler, and puts everything an owner has on one node at a time.
-2. **The owner number.** Owners are UUIDs today (users, orgs, workspaces). Proposed: keep the value and treat it
-   as the number it is (128 bits), so nothing is issued anew and no id changes; the alternative is a number issued
-   by the statenet's authority, with a table from the old ids.
-3. **The order.** Proposed: S11a first (how an instance is saved), then S11b (where it lives), so the live
-   database changes one thing at a time.
 
 ## As built
 
@@ -441,6 +437,13 @@ the transaction of the write.
     own log is not kept either (above).
   - **Servers from before and after must not run together on one database**: an older one writes a binding's model
     beside its row and not into `models`. A deploy restarts them together.
+
+### Owner numbers, the first part of S11b (19 November 2026)
+- **Magnetic** `migrations/0015_owner_numbers.sql`: the sequence `statenet_owner_number`; `owner_number` on
+  `app_user` and `org`, unique, the next of the sequence when a row is made; those already there numbered in the
+  order they came, people and orgs in one line; and the view `statenet_owner` (`number`, `kind`, `id`,
+  `workspace_id`): every owner with the workspace that is its tree. Test: `src/storage/ownerNumbers.test.ts`.
+- Nothing addresses state by a number yet: the addresses are still `<uuid>/<appId>/user`.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
