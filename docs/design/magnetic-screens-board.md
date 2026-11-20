@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1 built (2026-11-19); B2 to B4 proposed.
+Status: B1 and B2 built (2026-11-19); B3 and B4 proposed.
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -45,32 +45,47 @@ its store, base path and callable. `mountApp` passes its library's resolver and 
 on different libraries, or with different theme mappers, render side by side, and disposing one leaves the other's
 untouched.
 
-### 2. The `app` component: an app inside a node (`stateui-components`, `stateui-app`)
+### 2. `embeddedApp`: an app inside a node (`stateui-components`, `stateui-app`)
 
-A component that mounts another StateUI app inside itself.
+A component that mounts another StateUI app inside itself, in the same page.
 
 | Property | Type | What |
 |---|---|---|
 | `app` | string | The app's name, as the page's host knows it. Never a URL. |
-| `screen` | string | The screen it opens on, and moves to when this changes. |
-| `width`, `height` | number | The app's own size in pixels, before any zoom around it. |
-| `live` | boolean | The app itself: synced, takes input. False is a preview: it shows, takes no input, and keeps nothing. |
-| `active` | boolean | Whether it is mounted now. False shows `_label` instead, and a mounted app is disposed. |
+| `appScreen` | string | The screen it opens on, and moves to when this changes. |
+| `width`, `height` | number | The app's own size in pixels, before any zoom around it (800 by 600). |
+| `live` | boolean | The app itself: synced, takes input. False is a preview: it shows, is `inert`, and keeps nothing. |
+| `active` | boolean | Whether it is mounted now (true). False shows `_label` instead, and a mounted app is disposed. |
 | `_label` | string | The app's or screen's name, shown while not mounted and read by screen readers. |
 
-Events: `press` on a preview (pressed, or Enter on it) and `menu` (right click, the context-menu key), both with
-`{ app, screen }`; `navigated` with `{ screen }` when a live app moves to another screen itself; `emit` with
-`{ name, payload }` for each emit of the app inside.
+Events: `press` on a preview (pressed, Enter or Space on it) and `menu` (a right press, the context-menu key,
+Shift+F10), both with `{ app, screen }`; `navigated` with `{ screen }` when a live app moves to another screen itself;
+`emit` with `{ name, payload }` for each emit of the app inside.
 
-The component reaches apps through an **app host**, an adapter the page passes to `mountApp` (`options.apps`), as the
-function catalogs are passed: `apps.open({ app, screen, live })` resolves to what to mount (the document, its library,
-the mode, the persona's instance, and for a live app its sync connection) or to a refusal. Without an app host the
-component shows `_label`. The controller calls `mountApp` on its own element with what the host gave, and disposes it
-when `active` turns false or the node goes. The child app has its own store; nothing of it is in the parent's state,
-and the parent reaches it only through the component's properties and events.
+The component asks for the app with an event, as `scene3d` asks for its chunk: it raises the bubbling, composed
+`ui-app-open` (`APP_OPEN_EVENT`) on its element with an `AppOpenRequest`, what it asks (`AppAsk`: `app`, `screen?`,
+`live`), the element to mount in, `onEmit`, `onNavigate`, and `respond`, which takes the promise of an
+`EmbeddedApp` (`navigate(screen)`, `dispose()`). The `mountApp` of the page answers it when it was given an **app
+host** (`MountOptions.apps`, an `AppHost`), as the function catalogs are passed: `answerAppRequests`
+(`stateui-app/src/dom/embed/`) stops the event and calls `apps.open(ask)`, which resolves to an `OpenedApp` (the
+document, its library, `mode`, `instance`, `functions` and `apps` options, its hooks) or rejects. The answer mounts it
+with `mountApp` in the request's element with `route: false` and `embedded: true`, moves it to the asked screen, and
+watches `$.route` to call `onNavigate`. Without an app host, or when it refuses, the component shows `_label`; a
+refusal is a warning naming the app. The component disposes the app when `active` turns false, `app` or `live`
+changes, or the node goes; a change of `appScreen` only navigates it.
 
-Previews take the live app's data: the app host gives a preview a read-only view of the live app's `$.data`, kept in
-step in the same page, with no messages.
+The child app has its own store, resolver and root; nothing of it is in the parent's state, and the parent reaches it
+only through the component's properties and events. The dispatcher of each app runs a node's `on` only for events
+raised inside its own store (the first library element on the event's path), so a press inside the child never runs
+the parent node around it. The file and 3D requests (`transferFile`, `readFile`, `releaseFile`, `load3d`) are answered
+only by the app they are raised in, so an app never lends its hooks to the app inside it; an app without the hook lets
+the request go on to the page.
+`embedded: true` sets `$.runtime.embedded`, and the `app` root then leaves the document title alone.
+
+Previews take the live app's data: the host gives a preview's `OpenedApp` `follows`, the live app's store. Its
+`$.data` is copied into the preview's document at mount, and each change after is written to the preview's store, in
+the same page, with no messages. `mounted(app)` and `disposed(app)` tell the host when an app comes and goes, so it
+can hand the live store to previews.
 
 ### 3. Magnetic's app host
 
@@ -81,16 +96,16 @@ by the editor.
 
 What the frames did for the page, and what replaces it:
 - **The inspector** asks the live app about its nodes through `stateuiHost.inspect` and messages. In the page it reads
-  the mounted app's elements directly, and its overlay sits inside the `app` node, so it pans and zooms with it.
+  the mounted app's elements directly, and its overlay sits inside the `embeddedApp` node, so it pans and zooms with it.
 - **Host keys** (`data-host-keys`) were chords the frame gave back to the page. In the page a key goes to whatever has
   focus, and the editor's chords are handled where they are pressed.
-- **`stateui:emit` and `stateui:change`** were raised on the window by the frame host. The `app` component raises
+- **`stateui:emit` and `stateui:change`** were raised on the window by the frame host. The `embeddedApp` component raises
   `emit`, and the app host gives the page the live store's changes.
 
 ### 4. The board as a page
 
 `magnetic-screens` is a `PageSpec`, as Statenet's is. Its screen is a `viewport` keyed `canvas` (`grid`, the window's
-height) around a `board` of cards in rows of `columns`, one per screen, each holding an `app` node: the live one for
+height) around a `board` of cards in rows of `columns`, one per screen, each holding an `embeddedApp` node: the live one for
 the screen worked on, previews for the rest. Its data is `$.data.screens`:
 - `tiles`: one record per screen (`id` the screen name, `title`, `live`, `active`, `width`, `height`).
 - `columns`, as Screens in a row sets it.
@@ -112,7 +127,7 @@ pan and zoom, `#world`, and the board's DOM in `screens.ts` are removed.
 | Stage | Delivers |
 |---|---|
 | B1 | Per-app resolver and node options in `stateui`; two apps on different libraries in one page. |
-| B2 | The `app` component and `mountApp`'s `apps` adapter; a live app and previews of it in one page. |
+| B2 | The `embeddedApp` component and `mountApp`'s app host; a live app and previews of it in one page. |
 | B3 | Magnetic's app host and the board as the `magnetic-screens` page; the live app and previews leave their frames. |
 | B4 | The editor's panels and Statenet leave their frames the same way, until the editor is StateUI apps in one document. Its own design. |
 
@@ -120,7 +135,7 @@ pan and zoom, `#world`, and the board's DOM in `screens.ts` are removed.
 
 - **B1:** two apps on different libraries and themes in one page each render their own components and tokens, and
   disposing one leaves the other working (`stateui`, browser test).
-- **B2:** an `app` node mounts the app its host gives, follows `screen`, disposes it when `active` is false, shows
+- **B2:** an `embeddedApp` node mounts the app its host gives, follows `appScreen`, disposes it when `active` is false, shows
   `_label` without a host, and a preview follows the live app's data and takes no input (`stateui-components`).
 - **B3:** Magnetic's e2e passes with no iframe on the board: select and edit a node of the live app, drag a component
   onto it, reorder screens, zoom out to names and back, and the board opens where it was left in a new browser.
@@ -135,10 +150,15 @@ pan and zoom, `#world`, and the board's DOM in `screens.ts` are removed.
 - The name tiles are a mode of the page: the script writes `names` in `$.data.screens` from the zoom and the tiles in
   view, and no app is active while it holds (owner, 2026-11-19).
 - The board's view is kept as Statenet's is, per person and app on the server.
+- The component is `embeddedApp`, not `app`: `app` is the root component of every app document. Its screen is
+  `appScreen`, not `screen`: the route validator reads a string `screen` property (as on `link` and `menuItem`) as a
+  screen of the page's own app.
+- The component asks for its app with a request event the page's `mountApp` answers, as `scene3d` asks for its chunk;
+  it imports nothing of `stateui-app`, and an app inside an app answers its own requests.
 
 ## Rules and Constraints
 
-- `stateui` writes the DOM synchronously and never reads layout. The `app` controller does not measure; the page script
+- `stateui` writes the DOM synchronously and never reads layout. The `embeddedApp` controller does not measure; the page script
   decides which tiles are active from state.
 - A document names an app and a screen, never a URL. The app host resolves the name for the signed-in person and
   refuses what they may not open.
@@ -157,3 +177,17 @@ B1:
 - `stateui-app/src/dom/mount/mountApp.ts` passes them to `mount`. Tests:
   `stateui-app/src/dom/mount/mountApp.browser.test.ts` ("should render two apps on different libraries side by side, and
   keep one working when the other is disposed").
+
+B2:
+- `stateui-app/src/dom/embed/`: `types.ts` (`APP_OPEN_EVENT`, `AppAsk`, `AppOpenRequest`, `EmbeddedApp`, `OpenedApp`,
+  `AppHost`), `answer.ts` (`answerAppRequests`). `stateui-app/src/dom/mount/types.ts`: `MountOptions.apps` and
+  `embedded`, `$.runtime.embedded`; `mountApp.ts` answers requests while mounted. `stateui-app/src/dom/on/dispatcher.ts`:
+  events and requests raised in another store are ignored. Tests:
+  `stateui-app/src/dom/on/dispatcher.browser.test.ts` ("should not answer a request raised in another app’s store, and
+  let it go on").
+- `stateui-components/components/composites/embedded-app/`: the component. `components/composites/app/app.controller.ts`
+  leaves the title alone when embedded. `test/harness/createMountComponent.ts` passes `apps`. Tests:
+  `stateui-components/test/composites/embedded-app.browser.test.ts` (mounts and follows `appScreen`, the label without a
+  host or when refused, `active`, `emit` and `navigated` without running the page node, a preview that is inert,
+  follows the live data and raises `press` and `menu`).
+- `example/src/document/main.json` places an `embeddedApp`; `stateui-mcp/showcase/examples/layout.json` shows one.
