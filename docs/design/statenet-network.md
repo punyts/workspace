@@ -248,7 +248,7 @@ the transaction of the write.
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
 | S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
-| S11b | Owner-rooted addresses: owner numbers (built), then a place as an owner number and a path under `$`, in the directory, the grants, the storage and the embedding ids, with their migration | S11a |
+| S11b | Owner-rooted addresses: owner numbers (built); a place as an owner and a path under `$` (built, the owner still by id); then owners by number in addresses, grants and keys | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
 
@@ -443,7 +443,38 @@ the transaction of the write.
   `app_user` and `org`, unique, the next of the sequence when a row is made; those already there numbered in the
   order they came, people and orgs in one line; and the view `statenet_owner` (`number`, `kind`, `id`,
   `workspace_id`): every owner with the workspace that is its tree. Test: `src/storage/ownerNumbers.test.ts`.
-- Nothing addresses state by a number yet: the addresses are still `<uuid>/<appId>/user`.
+- Nothing addresses state by a number yet (below).
+
+### Owner-rooted addresses, the second part of S11b (19 November 2026)
+An address is an owner and a path under its `$`: `<owner>/apps/<appId>` is `$.apps.<appId>` of that owner's tree (a
+person's state of the app), `<owner>/data/<dataset>` is `$.data.<dataset>`. The older `<owner>/<appId>/user` and
+`<owner>/<dataset>/data` are gone, and `<owner>/<appId>/app`, which nothing used, with them.
+- **stateui-mcp** `src/domain/StateAddress.ts`: `StateAddress` is `{ owner, branch, key }` (`StateBranch`: `apps`,
+  `data`); `userStateAddress` and the new `instanceOfAddress` take an `OwnerNames` (`of(id)`, `idOf(owner)`), the
+  names owners go by in addresses, `OWNER_IDS` (their ids) by default; `createServices` takes `owners` and hands it
+  to the instance states, the in-process relay and `uses.external`. `appStateAddress` and `StateScope` are removed.
+  Tests: `domain/StateAddress.test.ts`.
+- **stateui-pg**: `pgWorkspaceStorage`, `txInstances` and `RecordSimilarity` take `owners`; a persona record's
+  embedding id is `<owner>/apps/<appId>/<binding>/<key>`. `migrations/0007_owner_tree_addresses.sql` moves the
+  addresses in `state_node`, `state_change`, `namespace_head`, `namespace_owner` and the embedding ids.
+- **Magnetic**: `datasetAddress`, `datasetOf` and the new `appOf` (`src/grants/StateGrants.ts`); a grant's address is
+  checked as `<owner>/apps/<app or *>` or `<owner>/data/<dataset>`; an org's read of all a member's apps is
+  `<user>/apps/*`; the queries that take an address apart (retention, the support list, moving an app into an org,
+  the Statenet view's list, Shared by me). `migrations/0016_owner_tree_addresses.sql` moves `statenet_namespace` and
+  `state_grant`. Test: `src/storage/ownerTreeAddresses.test.ts`.
+- **Migrations 0006 and 0007 lift forced row-level security for their transaction**, as Magnetic's 0013 does: the
+  tables' owner is held by it too, so 0006 as first written would have added no `models` on the hosted database.
+  Both are tested run as a plain role that owns the tables (`state/state.test.ts`), twice over.
+- Checked: stateui-mcp 1086, stateui-pg 57, Magnetic 283 unit tests.
+- Not yet done:
+  - **The owner in an address is still its id, not its number.** A grant is checked by comparing ids with the
+    owner in the address: the owner needs no grant for its own address, a grant's root is signed by the key of
+    the address's owner (`owner_key.owner_id`), and subjects and issuers are ids. Putting numbers in addresses
+    means those go by numbers too, or the check translates. That is the next part, with its own migration
+    (the same tables again, and `owner_key`).
+  - **When a person uses their own app, their state and the app's default are the same path of the same tree**
+    (`$.apps.<app>` under their own `$`). Today they are kept apart because the default is a part, not statenet
+    state. Where each lives once definitions are statenet state is not settled.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
