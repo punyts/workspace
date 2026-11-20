@@ -68,12 +68,13 @@ A layout component that holds one child (`content`) and moves it with one transf
 | `zoom` | number | 1 | The scale, between `minZoom` and `maxZoom`. |
 | `minZoom`, `maxZoom` | number | 0.1, 4 | |
 | `inset` | object | all 0 | `{ top, right, bottom, left }` in pixels: the area panels cover, which the commands leave out. |
-| `grid` | boolean | false | The dot grid, which moves and scales with the content. |
+| `grid` | boolean | false | The dot grid, drawn in CSS: it moves and scales with the content, its dots grow and shrink with the zoom within limits, and it keeps every fourth dot each way while they would stand closer than half a step (below zoom 0.5, and again below 0.125). |
 | `pannable` | boolean | true | Whether the gestures pan and zoom. |
 
 The component writes `x`, `y` and `zoom` on a drag, the wheel (pans), Ctrl and the wheel or a pinch (zooms around the
 pointer) and the keyboard, at most once a frame while a gesture runs. A document links them to where it keeps them, and
-any writer of those paths moves the view.
+any writer of those paths moves the view. A drag pans wherever it starts, on the empty area or on the content: it
+selects no text and starts no native drag.
 
 Commands: `zoomIn` and `zoomOut` (a step of 1.25 around the middle of the free area), `zoomReset`, `fit` (the content into
 the free area, zoom at most 1) and `lookAt` (a box, the value or the `box` of the event's payload, into view, moving as
@@ -87,9 +88,9 @@ The controllers of `viewport` and `treeDiagram` read layout. The renderer in `st
 ### 4. Statenet, the page
 
 `magnetic-statenet` is a `PageSpec` (`magnetic/src/statenet/StatenetPage.ts`) with de/fr/es locales, served to a signed-in
-person at `/assets/statenet.json`, as the editor's page is. Its one screen is a `viewport` keyed `canvas` (`grid`,
-the window's height) holding a `treeDiagram` with `twoSided: true`, `columns: 2`, `leafBlock: 420` and a `card`: a `card`
-component whose `corners`, `elevation` and `selected` come from the record, with the kind (an accent caption), the label
+person at `/assets/statenet.json`, as the editor's page is. Its one screen is a panel around a `viewport` keyed `canvas` (`grid`,
+the window's height less the panel's border, so the frame does not scroll) holding a `treeDiagram` with `twoSided: true`, `columns: 2`, `leafBlock: 420` and a `card`: a `card`
+component whose `padding` (md for a part, sm for a pill or a leaf), `corners`, `elevation` and `selected` come from the record, with the kind (an accent caption), the label
 (muted when unused) and the note, and a small round + (`plus`, named by `addLabel`, hidden by `noAdd`) that emits `add`
 with the record's id.
 
@@ -107,9 +108,16 @@ The page's emits, and what the script does:
   an empty id closes it. `open` does the same.
 - `add` with the record's id: the + form in the side panel.
 - `press`: the side panel closes. Escape also closes it.
-- `view` with `{ x, y, zoom }` after a pan or a zoom: kept per app in `localStorage` (`magnetic.statenet.<appId>`) and
-  shown in the editor's zoom control.
+- `view` with `{ x, y, zoom }` after a pan or a zoom: shown in the editor's zoom control, and kept per person and app on
+  the server half a second after the last one (`POST /edit/<id>/views/kept`). Mounting the page reads it
+  (`GET …/kept?view=statenet`), so Statenet opens where the person left it, in any browser.
 - `layout`: the first one fits the tree, unless a view was kept.
+
+The script fetches `/graph` once per revision: a load already running is reused, and the revision the editor writes again
+at startup does not fetch it again. The server reads the graph's parts together, not one after another.
+
+`treeDiagram` writes all its cards in one write, then links each card's record and marks it ready, so drawing grows
+with the number of cards rather than its square (about 1.3 s for 300 of Statenet's cards).
 
 The editor's zoom control drives the canvas while Statenet shows: `shell.ts`'s `magneticShell.canvas.drive(driver)` makes
 its emits and keys (`=`, `-`, `0`, `1`) call the driver, which runs the viewport's commands through the host panel
@@ -121,8 +129,9 @@ the editor's frame and the side panel lie above it.
 
 ### The screens board
 
-The screens view keeps `shell.ts`'s pan and zoom: its tiles are frames of the app being edited, mounted by code, and
-moving them under a `viewport` needs a component that holds app frames, which is its own design.
+The screens view keeps `shell.ts`'s pan and zoom: its tiles are frames of the app being edited, mounted by code.
+Moving them under a `viewport` needs apps in the page rather than in frames, designed in
+[magnetic-screens-board.md](magnetic-screens-board.md).
 
 ## Decisions
 
@@ -135,9 +144,11 @@ moving them under a `viewport` needs a component that holds app frames, which is
 - A leaf block has one edge, to its first card.
 - "N more" is a record the consumer draws, not a diagram feature.
 - One link look; per-kind link colours are not designed.
+- Where the person left the view is theirs on the server, per app, not per browser (owner, 2026-11-19: "Let's do it
+  all", on keeping it in the person's state). It is a row of `editor_view`, keyed by person, app and view, not part of
+  the page's `$.data`: the host panel's frames are local and do not sync.
 - The editor's zoom reaches the canvas as a host-panel command on the node keyed `canvas`, not as app events.
-- Defaults built for the questions left open (2026-11-19): the screens board keeps its own pan and zoom; the view stays
-  per browser in `localStorage`; nothing loads lazily, since both components fit the bundle gate
+- Defaults built for the questions left open (2026-11-19): the screens board keeps its own pan and zoom; nothing loads lazily, since both components fit the bundle gate
   (`stateui-components/test/bundleSize.test.ts`).
 
 ## Rules and Constraints
@@ -160,10 +171,12 @@ stateui-components:
 - `src/shared/diagram/layoutTree.ts`: `leafBlock`. Tests: `layoutTree.test.ts`.
 - `components/composites/tree-diagram/`: `card`, `wrapField`, `linksShown`, `box` in `select` and `open`, `layout`, the
   press between the cards, the measuring and the `cards` alias. Tests: `test/composites/tree-diagram.browser.test.ts`,
-  `test/catalog.browser.test.ts`.
+  `test/catalog.browser.test.ts`, and the time to draw 300 cards in `test/composites/tree-diagram.perf.browser.test.ts`
+  ("should draw and lay out 300 of Statenet's cards within 3,000 ms", run with `vitest.perf.config.ts`).
 - `components/composites/viewport/`: the component. Tests: `test/composites/viewport.browser.test.ts` (with a
   `treeDiagram` whose `select` runs `lookAt` through `$parent`, and "should raise press for a press on the empty area
-  that does not pan, and not for one on the content"), `test/catalog.test.ts`.
+  that does not pan, and not for one on the content", "should scale the grid’s dots with the zoom, and thin them out when
+  zoomed far out", "should select no text and start no native drag while a drag pans"), `test/catalog.test.ts`.
 
 example: `src/document/main.json`, the category map as a `viewport` around the diagram.
 
@@ -173,7 +186,11 @@ magnetic:
 - `src/statenet/StatenetPage.ts`, the page; `src/statenet/StatenetPage.test.ts` ("should serve a signed-in person the
   canvas around the tree, in every language, with the emits the page script acts on").
 - `src/server/startMagnetic.ts`: `GET /assets/statenet.json`, and the page in `SitePages`.
-- `src/http/views.ts`: the Statenet section (mount, records, emits, the kept view, the inset); the DOM graph is gone.
+- `src/http/views.ts`: the Statenet section (mount, records with their padding, emits, the kept view, the inset, one
+  `/graph` load per revision); the DOM graph is gone.
+- `src/server/viewRoutes.ts`: `graph()` reads its parts in parallel.
+- `migrations/0014_editor_views.sql`, `src/editor/EditorViews.ts` and the `kept` routes in `src/server/viewRoutes.ts`:
+  where the person left the view. Tests: `src/editor/EditorViews.test.ts`, `src/server/viewRoutes.test.ts`.
 - `src/http/shell.ts`: `canvas.drive`, `showZoom` and `freeArea`.
 - `src/http/text.ts`: `statenet.canvas`.
 - `e2e/views.spec.ts`: the Statenet tests read the cards in the frame (`#statenet iframe`, `treeitem`s by `data-id`), at
