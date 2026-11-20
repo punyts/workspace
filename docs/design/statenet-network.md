@@ -1,10 +1,11 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, and S10, 2026-11-20 (see "As
-built"): Magnetic's servers save people's state through a relay to a separate aggregate, as a role that only reads the
-state tables, and a Magnetic is reached from other computers on its local network over HTTPS. S11 is not deployed yet:
-the stack update (a new secret) and the deploy are the owner's. S10's check from another computer is the owner's. S10b
-and S12 are proposed.
+Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, and S10 and S10b, 2026-11-20
+(see "As built"): Magnetic's servers save people's state through a relay to a separate aggregate, as a role that only
+reads the state tables, a Magnetic is reached from other computers on its local network over HTTPS, and a standalone
+stateui-mcp signs in there as the person and runs its tools in their workspace. S11 is not deployed yet: the stack
+update (a new secret) and the deploy are the owner's. The checks of S10 and S10b from another computer are the owner's.
+S12 is proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -261,6 +262,17 @@ the transaction of the write.
   back while `--beta-org` is set; making an org stays closed there.
 - A server behind a proxy (`--public-origin`) is not also given `--network-host`.
 
+### stateui-mcp signed in to a node (S10b; owner, 2026-11-20)
+- **The tools run at the node** (owner, 2026-11-20: "At the node"). A standalone stateui-mcp with `--statenet` naming a
+  node keeps no apps: it lists the node's tools and instructions and forwards each call, and the node runs stateui-mcp's
+  tools in the person's own workspace, as its own agent does. The preview tools stay with Magnetic's own agent.
+- **An hour and a 30-day refresh** (owner, 2026-11-20: "1 h + 30-day refresh"). The code is traded, with the PKCE
+  verifier, for an access token of an hour and a refresh token of 30 days that is replaced at each use. Both belong to
+  the browser session that allowed the agent and end with it, so signing out ends the agent. Only their hashes are kept.
+- **The person allows it.** `/agent/authorize` takes only a loopback redirect (`http` to `127.0.0.1` or `[::1]` with a
+  port) and the S256 challenge; the sign-in page asks "Allow, as <name>", and allowing it is a page navigation (the
+  pages' fetch cannot follow a redirect to another origin) to an id made for that page and session, once.
+
 ### Magnetic's servers save through a separate aggregate (S11; owner, 2026-11-19: a `magnetic_aggregate` role)
 ```
 browser ──▶ magnetic-1 ─┐                                  (group "magnetic")
@@ -301,7 +313,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 | S8 | The aggregate: `startAggregateNode`, the storage port (Postgres, files), batches, `persisted`, `fenced`, loads; in process and over the mesh (built) | S7 |
 | S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays (built in statenet) | S8 |
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again (built) | S9 |
-| S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
+| S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node (built) | S10 |
 | S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
 | S11b | Owner-rooted addresses: owner numbers; a place as an owner and a path under `$`; owners by number in addresses, grants and keys (all built) | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
@@ -636,6 +648,43 @@ person's own workspace and an org's workspace go by the person's and the org's n
   - **Links the server makes elsewhere** (shares, the beta link) still name the loopback origin on a local server.
   - **No file-backed aggregate command.** A local Magnetic needs Postgres anyway and keeps the aggregate in its
     process; a statenet with files and no Magnetic has no aggregate process yet.
+
+### S10b: stateui-mcp signed in to a node (20 November 2026)
+- **Magnetic**:
+  - Migration `0020_agent_token.sql`: `agent_code` (an ask, then its code, ten minutes) and `agent_token` (access and
+    refresh hashes), both referencing the person and the approving `session` row, deleted with it.
+  - `src/accounts/AgentTokens.ts`: `ask`, `allow` (once, from the same session), `exchange` (the code taken once, the
+    redirect and the challenge checked), `refresh` (taken once, a new pair), `find`; `isLoopbackRedirect`, `isAgentAsk`.
+  - `src/agent/agentRoutes.ts`: `GET /agent/authorize`, `GET /agent/allow/<id>`, `POST /agent/token`,
+    `GET /agent/tools` and `POST /agent/call` (Bearer; 401 with `WWW-Authenticate` when refused). The calls run in the
+    person's workspace (`workspaces.get(userId)`, refused where the personal workspace is), with `toolsOf(services)`
+    less `WITHHELD_TOOLS` and `buildServerInstructions`. Each call is reported with the person, the tool and whether it
+    succeeded, nothing of its arguments.
+  - `startMagnetic`: the sign-in page takes one button (`SignInButton`, a post or a navigation), used by the device link
+    and the agent's ask. Texts `signin.agentAs`, `signin.agentText`, `signin.agentUsed` in four languages.
+- **stateui-mcp**:
+  - `src/infrastructure/statenet/NodeClient.ts`: the browser sign-in (a server on `127.0.0.1:0` for the one answer,
+    the `state` checked, the address on stderr, the system's browser opened without a shell), the tokens kept in
+    `<data dir>/node-sign-in.json` by origin (mode 0600, written whole and renamed), renewal 30 seconds before the end
+    or on a 401, and `signed-out` with a new sign-in when the node refuses.
+  - `src/config/startNodeServer.ts` and `createNodeMcpServer`: MCP on stdio with the node's tools and instructions.
+  - `--statenet` takes `https://` (and `http://` on loopback only), `--statenet-ca`; the `sign-in` command.
+- Checked: `agentTokens.test.ts` (allow then exchange with the verifier; another session cannot allow; rotation and the
+  hour; the session's end ends the agent; the redirect rules), `agent.test.ts` (an unsigned person is sent to sign in,
+  a non-loopback redirect and a plain challenge are refused; allow works once and from the same session; the tools run
+  in the person's workspace without the preview tools; another person's apps are out of reach; after sign-out the call
+  is refused and the refresh too; a real `NodeClient` signs in through a simulated browser and writes a screen),
+  `NodeClient.test.ts` (one browser sign-in kept across starts, renewal, `signed-out` then a new sign-in) and
+  `options.test.ts`; stateui-mcp 1090 and Magnetic 310 unit tests, and Magnetic's e2e suite.
+- Not yet checked: S10b's check from the laptop (sign in once, change an app of the person's here and see its open view
+  follow). It needs what S10's check needs, and stateui-mcp on the laptop.
+- Deviations:
+  - **HTTP requests per call, not a socket.** The node runs the tools, so the agent needs no state socket; a call is a
+    request with the access token. Data writes go through the tools (`ui_state_set`) like the rest.
+  - **The personal workspace only.** An org's workspace is not offered to the agent yet.
+  - **On the network listener a person not signed in signs in with a device link first,** then opens the agent's page
+    again: that listener offers no other sign-in (S10).
+  - **The open view following is checked through the workspace,** which the views read, not through a live socket.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
