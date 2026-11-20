@@ -1,8 +1,8 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet, and S11a and S11b in Magnetic, 2026-11-19 (see "As built"): Magnetic saves every
-instance through an aggregate in its own process, and does not use relays or groups yet. S10, S11 and S12 are
-proposed.
+Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19 (see "As built"): Magnetic's
+servers save people's state through a relay to a separate aggregate, as a role that only reads the state tables. S11
+is not deployed yet: the stack update (a new secret) and the deploy are the owner's. S10 and S12 are proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -238,6 +238,39 @@ the transaction of the write.
 - With no `MAGNETIC_SECRET_KEY` holding the statenet's authority, a local stack makes an authority key in its data
   directory on first run and signs its own nodes', relay's and aggregate's certificates. Nothing to set up.
 - A local Magnetic (`npm run magnetic`) can run the three roles in one process, linked in memory.
+
+### Magnetic's servers save through a separate aggregate (S11; owner, 2026-11-19: a `magnetic_aggregate` role)
+```
+browser ──▶ magnetic-1 ─┐                                  (group "magnetic")
+browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ──▶ Postgres, as magnetic_aggregate
+              (SELECT only on the state tables)
+```
+- **`magnetic aggregate`** is the aggregate process: statenet's `startAggregateNode` over stateui-pg's
+  `PgEpochStorage`, connected as `magnetic_aggregate`, a login role with no superuser or `BYPASSRLS` that may write
+  `state_node`, `state_change` and `namespace_head` and queue `embedding_job`, and only read the rest it needs
+  (`statenet_namespace`, `statenet_node`, `owner_key`). It signs its own certificate with the statenet's authority,
+  as a server does, renews the certificates of the relays linked to it, and gives them the directory (the nodes and
+  the grant keys) read from the database.
+- **The servers link up to a relay** (`--relays`, `MAGNETIC_RELAYS`) under a group (`--group`, `MAGNETIC_GROUP`,
+  default the host's name; the stack sets one name for both servers). The group is in each server's certificate and
+  its `statenet_node` row (`group_name`). Every load, save and removal of a person's state goes up the server's link, through the
+  relay, to the aggregate. A server with no relays keeps the aggregate in its own process, as in S11a: one server
+  locally, the tests.
+- **The aggregate finds an address's workspace in `statenet_namespace`**, read at each load, save and removal, never
+  kept. A server records the workspace there before it sends anything for an address. A migration fills it from
+  `namespace_head` for state saved before.
+- **The servers hold only `SELECT` on the state tables.** `magnetic migrate --app-role magnetic_app
+  --aggregate-role magnetic_aggregate` grants the servers' role every table and then takes back `INSERT`, `UPDATE`
+  and `DELETE` on the three, and grants the aggregate's role its own. The other writers go through the aggregate:
+  - retention and deleting an org remove each namespace through it, at the epoch its head holds;
+  - moving an app into an org loads each person's state of it through the aggregate, removes it, records the org's
+    workspace, and saves it there at the same epoch. It runs after the transaction that moves the parts.
+  - `magnetic import` writes the state tables itself, so it runs as the owner or the aggregate's role.
+- **In the hosted stack no relay dials a server.** `mayLink('relay', 'owner')` stays: a relay that serves browsers
+  on its client port gets live state by subscribing at the node that owns it, and an aggregate serves no
+  subscriptions. It goes once a relay routes a browser's subscription down to the owning node.
+- The hosted stack gains `aggregate-1`; `relay-1` dials it; the servers dial `relay-1`. The role's password is a new
+  secret in the stack (`infra/aws/magnetic.yml`), and `host-deploy.sh` makes the role as it makes `magnetic_app`.
 
 ## Stages
 | Stage | Delivers | Depends on |
@@ -491,6 +524,60 @@ person's own workspace and an org's workspace go by the person's and the org's n
   - **When a person uses their own app, their state and the app's default are the same path of the same tree**
     (`$.apps.<app>` under their own `$`). Today they are kept apart because the default is a part, not statenet
     state. Where each lives once definitions are statenet state is not settled.
+
+### S11: Magnetic's servers save through a separate aggregate (19 November 2026)
+- **stateui-pg**:
+  - `migrations/0008_node_group.sql`: `statenet_node.group_name` (`''` for none); `PgDirectory` registers and lists
+    a node's `group`. Test: `state/directory.test.ts` ("should keep a node's group…").
+  - `PgEpochStorage`'s and `pgInstanceNamespaces`'s `workspaceOf` may answer a promise, so the aggregate reads the
+    workspace at each call.
+  - `grantAppRole(db, role, { readOnlyState })` takes back `INSERT`, `UPDATE`, `DELETE` and `TRUNCATE` on
+    `STATE_TABLES` (`state_node`, `state_change`, `namespace_head`); `grantAggregateRole(db, role, reads)` grants
+    those three, `SELECT` and `INSERT` on `embedding_job` (and its sequence), and `SELECT` on `part`,
+    `statenet_node` and `reads`. Test: `db/roles.test.ts`.
+- **Magnetic**:
+  - `src/statenet/StateNamespaces.ts`: `NamespaceWorkspaces` records an address's workspace in
+    `statenet_namespace` when it has none (`record`) and moves it (`place`); `aggregateStorage` is the aggregate's
+    storage, reading the workspace there at each load, save and removal and refusing an address with none;
+    `StateWriter` is how a server changes state: `forWorkspace` (an instance's loads, saves and removals, recorded
+    first), `remove` (at the head's epoch) and `move` (load, remove, place in the new workspace, save at the same
+    epoch).
+  - `src/statenet/MagneticAggregate.ts`: `startMagneticAggregate` signs its own `aggregate` certificate with
+    `StatenetAuthority` (again after three and a half days), runs `startAggregateNode` over `aggregateStorage`,
+    renews relays' certificates, and gives the relays the directory (`readDirectoryView`,
+    `src/statenet/directoryView.ts`), read again every 2 seconds. `magnetic aggregate` runs it (`src/cli.ts`).
+  - `startStatenetNode` takes the `NamespaceWorkspaces`, a `group` (default the host's name) and `relays`, puts the
+    group in its certificate and its directory row, and links up through `startOwnerMesh`'s `uplink`.
+    `startMagnetic` saves through that uplink when the server has relays, otherwise through `createAggregate` in
+    its process; one `StateWriter` serves the workspaces, retention (`OrgPolicies`), `deleteOrg` and
+    `moveAppToOrg` (through the org routes' `state`).
+  - Options: `--group` / `MAGNETIC_GROUP`, `--relays` / `MAGNETIC_RELAYS`, `--aggregate-role` /
+    `MAGNETIC_AGGREGATE_ROLE` (with `--app-role`: the app role keeps only `SELECT` on the state tables, and the
+    aggregate role reads `statenet_namespace` and `owner_key` besides), the `aggregate` command. Test:
+    `server/options.test.ts`.
+  - `migrations/0018_namespace_workspaces.sql` records the workspace of every namespace head, and sets a recorded
+    one to its head's. Test: `src/storage/namespaceWorkspaces.test.ts`.
+  - `roleDatabases` (`src/testing/testDb.ts`) connects to a test schema as the two roles (`-c role=…`).
+    `statenet.test.ts` runs two servers of one group linked up to `relay-1`, which links up to the aggregate, with
+    the servers as the read-only role and the aggregate as its own; "should save people's state through the relay to
+    the aggregate, and refuse a server that writes it itself". `e2e/server.mjs` runs the same way.
+- **Workspace**: `docker/magnetic.compose.yml` and `docker/statenet.compose.yml` gain `aggregate-1` (`command:
+  aggregate`, as `magnetic_aggregate`); `relay-1` dials it, and the servers dial `relay-1` with
+  `MAGNETIC_GROUP=magnetic`; `migrate` grants both roles. `docker/initdb-local/roles.sql` makes
+  `magnetic_aggregate`. `infra/aws/magnetic.yml` adds the secret `magnetic/aggregate-db-password` (output
+  `AggregateDbPasswordArn`, readable by the host); `host-deploy.sh` takes it as its fifth argument, makes or updates
+  the role and writes `MAGNETIC_AGGREGATE_DATABASE_URL`; `deploy.mjs` passes it.
+- Checked: stateui-pg 60 and Magnetic 287 unit tests, `statenet.test.ts` (7) and the e2e suite (159 passed, 17 skipped)
+  with the servers holding only `SELECT` on the state tables; the three compose stacks pass `docker compose config`.
+- Deviations:
+  - **The aggregate is not listed in the directory.** Its role may not write `statenet_node`; the relays reach it by
+    the URL they are given.
+  - **The aggregate needs the statenet's authority already made**: its role may not write `owner_key`. In the stacks
+    it starts after `relay-certificate`, which makes it, and restarts until it is there.
+  - **Only a move changes an address's workspace.** A server records one for an address that has none; a move puts
+    it in the new workspace whatever it was in. The last save of an instance still open where the app was, as the
+    person's workspace closes after the move, lands in the org's workspace with the rest.
+  - **`magnetic import`** still writes the state tables itself: run it as the owner.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and

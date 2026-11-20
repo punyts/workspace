@@ -60,7 +60,7 @@ const commands = [
     'set -eu',
     'mkdir -p /opt/magnetic/docker',
     ...Object.entries(files).map(([name, path]) => `echo ${readFileSync(new URL(`../../${path}`, import.meta.url)).toString('base64')} | base64 -d > /opt/magnetic/docker/${name}`),
-    `bash /opt/magnetic/docker/host-deploy.sh ${[image, outputs.DatabaseEndpoint, outputs.DatabaseMasterSecretArn, outputs.AppDbPasswordArn, outputs.SecretKeyArn, OPERATOR, CONTACT].map(quote).join(' ')}`
+    `bash /opt/magnetic/docker/host-deploy.sh ${[image, outputs.DatabaseEndpoint, outputs.DatabaseMasterSecretArn, outputs.AppDbPasswordArn, outputs.AggregateDbPasswordArn, outputs.SecretKeyArn, OPERATOR, CONTACT].map(quote).join(' ')}`
 ];
 const sent = aws('ssm', 'send-command', '--instance-ids', outputs.InstanceId, '--document-name', 'AWS-RunShellScript', '--comment', `deploy ${tag}`, '--timeout-seconds', '600', '--parameters', JSON.stringify({ commands, executionTimeout: ['1800'] }));
 const commandId = sent.Command.CommandId;

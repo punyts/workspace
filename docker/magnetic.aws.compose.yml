@@ -30,6 +30,9 @@ services:
     volumes:
       - relay-certs:/certs
       - ./rds-ca.pem:/etc/magnetic/rds-ca.pem:ro
+  aggregate-1:
+    logging: *logging
+    volumes: *database-ca
   relay-1:
     logging: *logging
   caddy:

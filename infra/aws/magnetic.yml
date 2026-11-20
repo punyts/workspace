@@ -70,6 +70,15 @@ Resources:
         PasswordLength: 32
         ExcludePunctuation: true
 
+  AggregateDbPassword:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: magnetic/aggregate-db-password
+      Description: The password of magnetic_aggregate, the role the statenet's aggregate connects as (it alone writes people's state)
+      GenerateSecretString:
+        PasswordLength: 32
+        ExcludePunctuation: true
+
   # --- Network ---------------------------------------------------------------------------------------------------
   HostSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -158,6 +167,7 @@ Resources:
                 Resource:
                   - !Ref SecretKey
                   - !Ref AppDbPassword
+                  - !Ref AggregateDbPassword
                   - !GetAtt Database.MasterUserSecret.SecretArn
               - Effect: Allow
                 Action: [ssm:GetParameter, ssm:GetParameters, ssm:GetParametersByPath]
@@ -299,3 +309,5 @@ Outputs:
     Value: !Ref SecretKey
   AppDbPasswordArn:
     Value: !Ref AppDbPassword
+  AggregateDbPasswordArn:
+    Value: !Ref AggregateDbPassword
