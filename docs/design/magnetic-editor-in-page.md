@@ -1,6 +1,6 @@
 # The editor as StateUI apps in one document
 
-Status: proposed (2026-11-19). B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
+Status: B4a built (2026-11-19); B4b, B4c and B4d proposed. B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
 
 Asked for on 2026-11-19: "Start B4 of the screens board". B4 there reads: the editor's panels and Statenet leave their
 frames the same way as the board, until the editor is StateUI apps in one document. The ask behind the whole board work
@@ -15,7 +15,7 @@ After B3 the board and the apps on it run in the page. Everything else in the ed
   frame to them, so a click elsewhere reaches the canvas. The editor's chords (`mod+shift+e`, the tool keys) come back
   from the frame as `stateui:key`.
 - Statenet (`magnetic-statenet`) is mounted by `views.ts` in a frame of its own (`#statenet`) over the board.
-- Magnetic's sign-in and link pages (`appPage.ts`) fill the window in a frame.
+- Magnetic's sign-in and link pages (`appPage.ts`) and Your apps (`home.ts`) fill the window in a frame.
 - The Theme and Logic views, and the side panel Statenet opens on a card (a dataset's records, a model's fields, a path,
   a unit, a connection, the + forms), are hand-written DOM in `views.ts` (`view-sheet`). A person's copy of the editor
   cannot change them.
@@ -27,17 +27,25 @@ After B3 the board and the apps on it run in the page. Everything else in the ed
 
 `stateuiHost.mount(element, { document, icons, keys, inPage: true })` (B3a) runs a standalone app on an element of the
 page with the runtime core, takes the same writes and commands and raises the same `stateui:emit` and `stateui:ready`
-on `element`. The editor, Statenet and the app pages use it. The editor page, the sign-in page and the link page are
-served with `data-surface="page"`, the page bundle and `APP_PAGE_CSP`.
+on `element`. The editor, Statenet, the app pages and Your apps use it. The editor page, the sign-in and link pages and
+Your apps are served with `data-surface="page"`, the page bundle and `APP_PAGE_CSP`, which allows no frames.
 
 What the frame did that the page now does:
 - **Click-through.** The editor's `stage` lies over the canvas. In a frame the page clipped the frame to the stage's
-  children. In the page the stage takes no pointer events and its children do: `panel` gains `passThrough` (boolean),
-  "the panel's own area lets presses through to what lies under it; its children take them". The clipping code in
-  `shell.ts` and the box reports go.
-- **Keys.** A chord is a `keydown` on the page. `shell.ts` handles the editor's chords on `document`, and leaves a key
-  alone while focus is in a field of any app (`input`, `textarea`, `select`, `[contenteditable]`, in light or shadow
-  DOM). `keys` and `stateui:key` are not passed for in-page mounts.
+  children. In the page the stage takes no pointer events and its children do: `panel` has `passThrough` (boolean,
+  reflected): the panel's own area draws no surface (no background, border or shadow) and lets presses through to what
+  lies under it; its children take theirs. The editor's screen root and its `stage` are `passThrough`. The `app`
+  component has `seeThrough` (boolean, reflected), which leaves out the app's own surface; the editor's app node sets it
+  (`app: { seeThrough: true }` in its definition). The element the editor is mounted on (`#editor`) takes no pointer
+  events either. The clipping code in `shell.ts`, the box reports and the page's layer of panel shadows go; the panels
+  cast their own shadows. `shell.ts` still reads where the stage's children are (`panel.watch`), so the canvas fits the
+  app between them.
+- **Keys.** A chord is a `keydown` on the page. `shell.ts` handles the editor's chords on the window, and leaves a key
+  alone while the person types in a field of any app (`input`, `textarea`, `select`, `[contenteditable]`): it reads
+  the key's own target from `composedPath()[0]`, since the event's target is retargeted out of shadow DOM. The editor and
+  Statenet are mounted without `keys`. An in-page mount that names keys still raises `stateui:key` for them: the board
+  names Escape, and the live app the editor's chord (`data-host-keys`), so `shell.ts` keeps its `stateui:key`
+  listener.
 - **The look.** The page's language and mode reach the app as they reach a frame (`data-locale`, `data-mode`, `view`).
 
 The share page keeps its frame: it shows another owner's app to a viewer, and an app from another owner must not run
@@ -83,15 +91,15 @@ included, and a copy of a view page changes that view.
 
 | Stage | Delivers |
 |---|---|
-| B4a | The editor, Statenet and the sign-in and link pages run in the page; `panel`'s `passThrough`; keys on the page. |
+| B4a | The editor, Statenet, the sign-in and link pages and Your apps run in the page; `panel`'s `passThrough`, `app`'s `seeThrough`; keys on the page. |
 | B4b | `magnetic-theme` and `magnetic-logic` replace the Theme and Logic views' DOM. |
 | B4c | `magnetic-side` replaces the side panel's DOM. |
 | B4d | One document: the editor places the canvas and the side panel as `embeddedApp`s; the app host opens Magnetic's pages; the scripts take their apps from the host. |
 
 ## Checks
 
-- **B4a:** Magnetic's e2e passes with no `frameLocator` but the share page's: the editor, Statenet, sign-in and link
-  are found in the page; a press on the empty canvas reaches the board through the stage; the tool keys work and do
+- **B4a:** Magnetic's e2e passes with no `frameLocator` but the share page's: the editor, Statenet, sign-in, link and
+  Your apps are found in the page; a press on the empty canvas reaches the board through the stage; the tool keys work and do
   nothing while typing in the chat.
 - **B4b, B4c:** the views' e2e (`views.spec.ts`) passes on the pages: edit a token, clone a theme, move and delete a
   unit, add a dataset from Statenet's +, edit a record in the side panel.
@@ -103,7 +111,11 @@ included, and a copy of a view page changes that view.
 - The share page keeps its frame and the runtime port stays: it runs another owner's app.
 - The sign-in and link pages move into the page with the editor. They run documents Magnetic's admins publish, who are
   Magnetic's own; a published page that does not load still gives way to the code's (`fallback`).
-- Click-through is a property of `panel` (`passThrough`), not a page rule in CSS, so a copy of the editor keeps it.
+- Click-through is a property of `panel` (`passThrough`), not a page rule in CSS, so a copy of the editor keeps it. A
+  panel that lets presses through also draws no surface: a surface that cannot be pressed would hide what takes the press.
+- The editor's root draws nothing through the `app` component's own property (`seeThrough`), set on the editor's app
+  node, so a copy of the editor keeps it too.
+- Your apps moves with the sign-in and link pages: it is the person's own copy of a page of Magnetic's.
 - The views become pages before the editor holds them (B4b and B4c before B4d), so each move is tested on its own.
 
 ## Rules and Constraints
@@ -115,4 +127,23 @@ included, and a copy of a view page changes that view.
 - Every write to the owner's parts goes through the person's tools on the server, as before.
 - Texts are in four languages; the server's answers hold data, never words.
 - `stateui` writes the DOM synchronously and never reads layout; `passThrough` is CSS (`pointer-events`), not measuring.
-- No backwards compatibility: the frame clipping, `stateui:key` for in-page mounts, the views' DOM and `VIEWS_CSS` go.
+- No backwards compatibility: the frame clipping, the page's panel shadows, the frames' policies (`shellPageCsp`,
+  `hostPageCsp`), the views' DOM and `VIEWS_CSS` go.
+
+## As built
+
+B4a (2026-11-19):
+- stateui-components: `components/composites/panel/` (`passThrough`), `components/composites/app/` (`seeThrough`);
+  tests `test/composites/panel-toolbar.browser.test.ts` ("should let a press on its own area through with passThrough,
+  draw no surface there, and give its children theirs"), `test/composites/app.browser.test.ts` ("should draw its
+  surface, and none with seeThrough").
+- Magnetic: `src/http/shell.ts` (the in-page editor, `placePanels`, `typing` by `composedPath`), `src/http/inspect.ts`,
+  `src/http/views.ts` (Statenet in the page), `src/http/appPage.ts` and `src/http/home.ts` (`pageBundle`,
+  `data-surface="page"`), `src/editor/EditorApp.ts` (`passThrough` on the screen root and `stage`, `seeThrough` on the
+  app node), `src/server/startMagnetic.ts` (`APP_PAGE_CSP` for the shell, the app pages and Your apps; `sendHomePage`).
+- Tests: `src/server/editor.browser.test.ts` ("should let clicks beside the panels through to the canvas, and draw no
+  surface of its own there", "should take the tool keys from inside the editor, but not while the person types there"),
+  the policy checks in `src/server/startMagnetic.test.ts`, `src/server/agentRoutes.test.ts` and
+  `src/server/publicOrigins.test.ts`, and the e2e page objects in `e2e/fixtures.ts` with `orgs.spec.ts`,
+  `share.spec.ts` and `views.spec.ts`, which find these apps in the page; `e2e/editor.spec.ts` ("a tip that reaches past
+  its panel is shown whole, above the canvas").

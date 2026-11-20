@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4 proposed.
+Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4a of B4 built, its other stages proposed.
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -141,7 +141,7 @@ What the frames carry today, and so what B3 moves into the page:
   (`PageView`, `stateuiHost.mount`) is standalone and fed `$.data` from `stateui:change`.
 - The inspector (`inspect.ts`) and the views' layers (`views.ts`) ask the frames with `stateuiHost.inspect` and
   `panelOf(name).inspect`; the answer is `stateui-app/src/runtime/inspect.ts`'s, in the frame's own pixels.
-- The editor panels and Statenet are frames too; they move in B4.
+- The editor panels and Statenet ran in frames too; they moved into the page in B4a.
 
 Steps:
 - **B3a: the page bundle and the in-page live app.** A page bundle beside the runtime bundle: `stateui-app`'s
