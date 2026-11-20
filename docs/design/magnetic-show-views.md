@@ -53,8 +53,8 @@ or "comptia"", "It could even be comptia_bob".
 - **Screens** is the canvas of screens. Its old SHOW toggles are now three layers drawn on every screen tile:
   **Layout** (the named sections), **Data** (the state paths and outside data the screen uses) and **Logic** (its
   handlers, the units that touch its paths, and where it leads).
-- **Statenet**, **Theme** and **Logic** are app-level views. Statenet is drawn on the board in place of the screens, and
-  pans and zooms with it; Theme and Logic replace the board with a sheet. Each has its own tools in a head and an
+- **Statenet**, **Theme** and **Logic** are app-level views. Statenet is a page of Magnetic's shown over the board in place
+  of the screens, a canvas that pans and zooms (`magnetic-statenet-diagram.md`); Theme and Logic replace the board with a sheet. Each has its own tools in a head and an
   editor panel at its side.
 - **Units can run in the browser.** A logic unit says `runs: "server" | "browser"`. The Logic view moves units between
   the two, and the library refuses what must stay on the server.
@@ -138,18 +138,19 @@ panel, floating over the board (`.on-canvas`); the main area is empty.
 A change to the app from elsewhere (the agent, another tab) reloads the view, after the field being edited is left.
 
 ### Statenet view
-**On the board:** the graph is drawn in the board's world (`#world > .graph`) at its origin, and the screens, the live
-frame and the layers hide while it shows. It pans and zooms like the screens, the zoom shows, and Fit (1) fits the
-graph (`magneticShell.canvas.fitTo`). The board is fitted to the graph each time Statenet is entered, not when a change redraws it.
-While the graph shows the board's place is not kept; leaving Statenet puts the board back where the screens were
-(`canvas.look`, `canvas.lookAt`), so a reload in Statenet and a return to Screens find the screens' place.
+**On the board:** the graph is the page `magnetic-statenet` (`magnetic-statenet-diagram.md`): a `viewport` around a
+`treeDiagram`, in its own frame (`#statenet`) over the board, while the screens, the live frame and the layers hide.
+The editor's zoom and Fit (1) drive its canvas (`magneticShell.canvas.drive`); its view is kept per app in this
+browser (`magnetic.statenet.<appId>`), and the tree is fitted once when no view was kept. The board keeps its own place,
+so a return to Screens finds the screens where they were.
 
-**The graph is the owner's tree by state path** (`ownerTreeOf` in `viewInfo.ts`; `drawGraph`, `layOut`,
-`drawEdges` in `views.ts`). Each node's id is its path, which the card carries as `data-node` and shows on hover.
+**The graph is the owner's tree by state path** (`ownerTreeOf` in `viewInfo.ts`; `cardOf` and `drawGraph` in `views.ts` write
+its records to `$.data.statenet.nodes`, and `layoutTree` places them). Each node's id is its path, which the card
+carries as `data-id`.
 - **`$`**, then a pill per branch: `$.apps`, `$.themes`, `$.data`, `$.models`, `$.logic`, `$.components`, `$.patterns`
   (when the owner has any), `$.connections` and `$.personas`.
-- **Every part of the owner** under its branch. A part the app being edited does not use is dimmed ("Not used by this
-  app"). The app being edited has an accent border; the owner's other apps open in their own editor.
+- **Every part of the owner** under its branch. A part the app being edited does not use is flat with its label
+  muted ("Not used by this app"). The app being edited is selected; the owner's other apps open in their own editor.
 - **One level below a part:**
   - the app: `screens`, `uses.data` (each binding, with the dataset it binds, or a per-person binding with its model),
     `data` (its own state keys no binding holds) and `uses.external` (shared datasets with their owner, other apps;
@@ -159,7 +160,7 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
   - a logic module: its units (`$.logic.<module>.<group>.<unit>`);
   - a connection: its endpoints, plus endpoints the logic calls that are missing from it;
   - a persona: the apps of the workspace it has state in (`$.personas.<persona>.apps.<owner>.<app id>`), the most
-    recently used first, the app being edited with an accent border. A dashed edge joins an app to its instance.
+    recently used first. A dashed edge joins an app to its instance.
 - **`$.personas` holds the person's own persona only.** Another person's state is theirs: an org's admins reach it only
   through the audited support view. A persona is the person's own context of use (`work`, `comptia`, `comptia_bob`),
   not the person, who is `$.user`; the node is named by the persona. Magnetic gives each person the `default` persona,
@@ -169,9 +170,9 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
   the rest, and "Show fewer" after. An owner with many apps and themes would otherwise draw a board too tall to read.
 - **The layout:** a tidy tree going out from `$` on both sides. The branches of `$` are shared between them: the first
   ones go right and the rest left, split where the two sides' heights come closest, so each side reads down in the
-  branches' order. The left side mirrors the right: its cards stand right-aligned in their columns, their + is on the
-  outer side, and a leaf block wraps from the right (`.left`). The branches and the parts in them stand in columns;
-  what a part holds sits just beside it, further out, its leaves wrapped in one block (`.graph-leaves`, 420px) rather than a row each. Each
+  branches' order. The left side mirrors the right: its cards stand right-aligned in their columns, and a leaf block wraps
+  from the right. The branches and the parts in them stand in columns; what a part holds sits just beside it, further
+  out, its leaves wrapped in one block (`leafBlock`, 420px) rather than a row each. Each
   subtree is stacked down and a parent sits across from the middle of its children.
 - **Edges:** the tree's links always show, from a card's outer side to its children's inner side. The edges the tree does not hold (the app's use of a theme, module or
   component, a binding's dataset, a dataset's model, an endpoint the app calls) are drawn only while one of their ends
@@ -179,9 +180,7 @@ While the graph shows the board's place is not kept; leaving Statenet puts the b
 - The graph's words are written by the page (`views.kind.*`, `views.note.*`); the route sends paths, kinds and names.
 
 **The +** on a branch or a part makes what it holds, through the person's tools, and puts it to use in the app. It is
-a round handle on the card's outer edge, where the lines to what it holds start (on the left side, its left
-edge): the page's colour ringed in the accent, filled with the accent on hover. It shows while the card is hovered, focused or chosen, and always where there is no hover (touch). Its
-form opens in the side panel; after Create the panel closes and the tree shows the new node.
+a small round button with an accent `plus` at the card's end, named "Add to <path>". Its form opens in the side panel; after Create the panel closes and the tree shows the new node.
 - `$.apps`: a new app (`POST /new`), which opens in the editor.
 - The app's `screens`: a blank screen (`POST /edit/<id>/screens`, `ui_screen_create`).
 - The app's `uses.data`: binds a dataset of the owner the app does not bind, under a name made from the dataset's (or
@@ -202,11 +201,12 @@ form opens in the side panel; after Create the panel closes and the tree shows t
 the app starts with there. An effect's own definition holds only the path, so `callsOf` looks for `set` commands that
 target that path with a value naming a connection and an endpoint.
 
-**Pressing a card** opens its editor in the side panel, and the board moves so the panel does not cover the card
-(`reveal`: left at 760px and wider, where the panel is at the right; up below that, where it is along the bottom).
+**Pressing a card** opens its editor in the side panel, and the canvas moves so the panel does not cover the card
+(the viewport's `lookAt` in the area its `inset` leaves free: the panel is at the right at 760px and wider, along the
+bottom below that).
 The panel scrolls down only; a record table scrolls sideways in its own box. The chosen card is let go, and the panel
-closed, by the panel's × (Close), by pressing the card again, by Escape, and by a press on the empty board; a drag that
-pans the board keeps it.
+closed, by the panel's × (Close), by pressing the card again, by Escape, and by a press on the empty canvas; a drag that
+pans the canvas keeps it.
 - **The app:** its note, its screens as buttons, each showing that screen in the Screens view
   (`magneticScreens.choose`), and how many parts of each kind it uses.
 - **A dataset:** its records as a table with an input per field. You can change a cell, remove a record and add one
@@ -214,8 +214,8 @@ pans the board keeps it.
   refused.
 - **A model:** its fields with their types. You can change a type, remove a field and add one (`ui_model_write`).
   A field needs a name.
-- **Removing** a record, a field or an endpoint asks first, naming what goes. Each × is a 28px round target. The + and × of the round buttons are drawn as strokes, not
-  typed, so they sit at the centre of the circle in any font.
+- **Removing** a record, a field or an endpoint asks first, naming what goes. Each × is a 28px round target. The × of the round buttons is drawn as strokes, not
+  typed, so it sits at the centre of the circle in any font.
 - **A per-person binding or a state key:** its running value as JSON, saved with `ui_state_set`, which refuses a
   shared dataset.
 - **A connection or an endpoint:** shows the base URL, the sign-in kind and whether a secret is set ("secret kept",

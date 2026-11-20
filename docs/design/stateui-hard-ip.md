@@ -135,12 +135,12 @@ function an app document names rather than code in Magnetic's page.
 ### The first function: `$.components.treeDiagram.functions.layoutTree`
 - Input: the nodes (`id`, `parent`, `width`, `height`), the cross links (`from`, `to`), and options (gaps, and whether
   the root's branches are shared between two sides). Output: each node's `x`, `y` and side, and each edge's path.
-- It is the arithmetic Statenet's `layOut` and `drawEdges` do now, made pure.
-- The `treeDiagram` component in stateui-components calls it itself, in one pass: it measures its cards, lays them
-  out and draws them, with theme tokens, and emits `select`, `add` and `open` with a node's id. Component controllers
+- It is the arithmetic Statenet's own layout did, made pure; Statenet now draws through `treeDiagram` (`magnetic-statenet-diagram.md`).
+- The `treeDiagram` component in stateui-components calls it itself, in one pass: it measures the cards the consumer's
+  template draws, lays them out and places them, with theme tokens, and emits `select` and `open` with a node's id and box. Component controllers
   may read layout (`board` and `chart` do). An app that wants positions in its own state runs the same function as a
   compute.
-- Moving Statenet onto it is its own design.
+- Moving Statenet onto it is its own design, `magnetic-statenet-diagram.md`.
 
 ### Size
 - Component functions add to the components' bundle, which has a gzip gate like stateui-3d's chunk
