@@ -1,7 +1,8 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet 2026-11-19 (see "As built"); Magnetic does not use S8 or S9 yet. S10 to S12
-are proposed.
+Status: S7, S8 and S9 built in statenet, and S11a in Magnetic, 2026-11-19 (see "As built"): Magnetic saves every
+instance through an aggregate in its own process, and does not use relays or groups yet. S10, S11b, S11 and S12 are
+proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -208,8 +209,10 @@ the transaction of the write.
   models: { <binding>: <model> } }`. The model moves from beside the binding's row into the state (`models`), so
   the namespace is whole without the storage knowing about bindings. Records stay a row each (`splitUserState`),
   which the support view, export and search rely on.
-- **Revision, log and applied ids are kept**, as for any namespace. A write sent again across a handoff is then
-  applied once (statenet-relays.md lists that as a gap today), and catch-up comes from the log.
+- **The applied change ids are kept, and the revision never goes back.** A write sent again across a handoff is
+  then applied once (statenet-relays.md lists that as a gap), and an aggregate tells a save sent again from a new
+  one by its revision. The log is not kept: the app's definition may have changed under it, so a view that
+  reconnects to an instance that was loaded again gets a snapshot, as before.
 - **Embeddings are queued at the aggregate**, in the transaction of the save: Magnetic's aggregate storage compares
   each binding's records before and after and queues what changed (`queuePersonaRecordChanges`, as now).
 - **Which workspace a namespace is in** (row-level security) the aggregate reads from `statenet_namespace`, which
@@ -239,7 +242,7 @@ the transaction of the write.
 | S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays (built in statenet) | S8 |
 | S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
-| S11a | Instances as stored namespaces: `InstanceNamespaceStorage` over an `EpochStorage`, `models` in the state, embeddings at the save, the direct writers through the node, the migration; the aggregate in process, on today's addresses | S8 |
+| S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
 | S11b | Owner-rooted addresses: owner numbers, a place as an owner and a path under `$`, in the directory, the grants, the storage and the embedding ids, with their migration | S11a, open questions 1 and 2 |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider | Postgres P4 |
@@ -391,6 +394,51 @@ the transaction of the write.
     ask it has no way for up to its parent.
   - **What a relay asks of a node ends with the link**: a subscription the relay made down a node's link is
     closed when the link drops, and whoever asked subscribes again; the owner mesh's placed upstream does.
+
+### S11a: instances as stored namespaces (19 November 2026)
+- **stateui-mcp**:
+  - `UiInstanceRepository` has `loadWhole` and `saveWhole` (`WholeInstance`), for a repository that keeps an
+    instance as one stored namespace. `InstanceNamespaceStorage` uses them when they are there: one read to load,
+    one write to save, with the change ids the authority applied; a loaded revision is the stored one plus one, or
+    the clock when that is later.
+  - `NamespaceUiInstanceRepository` (`src/infrastructure/storage/`) is that repository over an
+    `InstanceNamespaceStore` (an `EpochStorage` that can also `remove`): the state is the diff, `localData`,
+    `data.<binding>` and `models.<binding>`. Its other methods (`get`, `write`, `getData`, `writeData`,
+    `reset`) read the namespace, change their part and save it at the next revision, under the epoch the node
+    holds the address under.
+  - `WritePersonaData` stops the running instance and writes while it is stopped, as a reset does: a running
+    instance would otherwise save its own records over the new ones.
+  - Tests: `config/instanceStates.test.ts`, "kept as one stored namespace" (3).
+- **stateui-pg**:
+  - `pgWorkspaceStorage` gives `NamespaceUiInstanceRepository` over `namespaces` (a server's way to its aggregate)
+    or, by default, its own `pgInstanceNamespaces`: `PgEpochStorage`, which now has `remove` and an `onSave` hook
+    run in the save's transaction. `queueNamespaceRecordChanges` is that hook: it queues the embeddings of the
+    records a save changes. `txInstances` is the repository inside an open transaction (the import, tests).
+  - The embedding queries read a binding's model from the namespace's `models` row.
+  - `migrations/0006_instance_models.sql` adds `models` to every namespace whose binding rows hold a model. The
+    binding rows keep theirs until the instance is next saved; running it again changes nothing.
+  - `PgUiInstanceRepository` and `queuePersonaRecordChanges` are removed.
+  - Tests: `state/state.test.ts` (the repository's two, and the migration: a migrated instance reads back with its
+    records and model, and its next save drops the model from the binding's row).
+- **Magnetic** (`src/server/startMagnetic.ts`): one `createAggregate` over `pgInstanceNamespaces` per server, and
+  every workspace's instances saved through it (`createAggregateStorage`), under the epoch the placement holds.
+  The support view reads models from `models`; the import and the tests write with `txInstances`.
+- Checked: stateui-mcp 1085, stateui-pg 56 and Magnetic 280 unit tests, with `statenet.test.ts` (an instance
+  moving between two servers, each with its aggregate, keeping its state).
+- Deviations:
+  - **Each server has its own aggregate, in its process.** Two servers are two writers again, held apart by the
+    storage's fence as before. One separate aggregate is S11.
+  - **A removal goes straight to the rows** (`remove` on the storage), not through the aggregate, and there is no
+    `remove` message on the mesh yet.
+  - **The aggregate learns an address's workspace from the workspace that reads or saves it**, kept in memory, not
+    from `statenet_namespace`: enough in one process, not for a separate aggregate.
+  - **Servers still hold every right on the state tables.** Narrowing them to `SELECT` is S11.
+  - **The standalone stateui-mcp still keeps instances in its `personas/` files** (`FileUiInstanceRepository`);
+    `convert` is not extended.
+  - **A save no longer logs the rows it changed** in `state_change`. Nothing reads that log, and the authority's
+    own log is not kept either (above).
+  - **Servers from before and after must not run together on one database**: an older one writes a binding's model
+    beside its row and not into `models`. A deploy restarts them together.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
