@@ -188,7 +188,8 @@ Built 2026-11-19, steps 1 to 6 of the build order except Statenet on `treeDiagra
 - **stateui-app.** `src/core/functions/` (`types.ts`, `table.ts`: `FunctionCatalog`, `FunctionEntry`, `FunctionTable`,
   `hostCatalog`, `catalogOf`, `functionPaths`, `isFunctionPath`); the logic engine runs `run` paths and passes
   `callable` (`core/logic/`); `MountOptions.functions` (`dom/mount/mountApp.ts`, `logic.ts`) loads the browser's
-  functions before the logic starts, effects included, at prepare time; `RuntimeOptions.functions`
+  functions before the logic starts, effects included, at prepare time, with those the templates of the placed
+  components name (`stateui/src/component/define.ts` keeps `static template`); `RuntimeOptions.functions`
   (`runtime/startRuntime.ts`), and the runtime bundle installs `COMPONENT_FUNCTIONS`; the document validator
   `functions` (`core/validate/functions.ts`) and the codes `SUI-LOGIC-FUNCTION` and `SUI-LOGIC-FUNCTION-FIT`. Tests:
   `core/functions/table.test.ts`, `core/logic/logic.test.ts`, `core/logic/effects.test.ts`, `core/logic/runs.test.ts`,
@@ -210,14 +211,15 @@ Built 2026-11-19, steps 1 to 6 of the build order except Statenet on `treeDiagra
 - **Magnetic.** `httpCatalog` (`src/connections/httpEffect.ts`) puts the HTTP effect at `$.functions.host.http`;
   Statenet's `$.functions` branch, library components with their functions under `$.components`, and `run` edges
   (`src/inspector/viewInfo.ts`, `src/http/views.ts`, `src/server/viewRoutes.ts`). Tests: `viewInfo.test.ts`,
-  `e2e/views.spec.ts`. Migration `migrations/0013_effect_function_paths.sql` moves stored effects from `run: "http"` to
+  `e2e/views.spec.ts`. Copies pass the server's functions to `copyAppParts`: publishing a page is refused for a
+  function the server does not run, a move into an org answers and audits `missingFunctions`, a remix logs them
+  (`src/pages/SitePages.ts`, `src/orgs/AppAccess.ts`, `src/server/startMagnetic.ts`). Test: `orgs/orgs.test.ts`.
+  Migration `migrations/0013_effect_function_paths.sql` moves stored effects from `run: "http"` to
   `$.functions.host.http`, in logic modules and in apps' own logic, keeping key order. Test:
   `src/storage/effectFunctionPaths.test.ts`.
 
 Not yet done:
-- A function named only inside a node's template is not loaded by `mountApp`; one the logic also names is. Code that
-  loads at once (the components' catalog, host catalogs) is unaffected.
-- Magnetic's copy and share paths do not pass `functions` to `copyAppParts`, so a missing function shows as the
-  validator's warning on the app rather than before the copy.
+- A node written after the mount that names a function the mount did not load calls nothing until the app mounts
+  again. Code that loads at once (the components' catalog, host catalogs) is unaffected.
 - Statenet shows the functions of the app being edited, not of all the owner's apps; the others are dimmed under the
   pill that every branch has.
