@@ -107,8 +107,9 @@ The page's emits, and what the script does:
   an empty id closes it. `open` does the same.
 - `add` with the record's id: the + form in the side panel.
 - `press`: the side panel closes. Escape also closes it.
-- `view` with `{ x, y, zoom }` after a pan or a zoom: kept per app in `localStorage` (`magnetic.statenet.<appId>`) and
-  shown in the editor's zoom control.
+- `view` with `{ x, y, zoom }` after a pan or a zoom: shown in the editor's zoom control, and kept per person and app on
+  the server half a second after the last one (`POST /edit/<id>/views/kept`). Mounting the page reads it
+  (`GET …/kept?view=statenet`), so Statenet opens where the person left it, in any browser.
 - `layout`: the first one fits the tree, unless a view was kept.
 
 The editor's zoom control drives the canvas while Statenet shows: `shell.ts`'s `magneticShell.canvas.drive(driver)` makes
@@ -135,9 +136,11 @@ moving them under a `viewport` needs a component that holds app frames, which is
 - A leaf block has one edge, to its first card.
 - "N more" is a record the consumer draws, not a diagram feature.
 - One link look; per-kind link colours are not designed.
+- Where the person left the view is theirs on the server, per app, not per browser (owner, 2026-11-19: "Let's do it
+  all", on keeping it in the person's state). It is a row of `editor_view`, keyed by person, app and view, not part of
+  the page's `$.data`: the host panel's frames are local and do not sync.
 - The editor's zoom reaches the canvas as a host-panel command on the node keyed `canvas`, not as app events.
-- Defaults built for the questions left open (2026-11-19): the screens board keeps its own pan and zoom; the view stays
-  per browser in `localStorage`; nothing loads lazily, since both components fit the bundle gate
+- Defaults built for the questions left open (2026-11-19): the screens board keeps its own pan and zoom; nothing loads lazily, since both components fit the bundle gate
   (`stateui-components/test/bundleSize.test.ts`).
 
 ## Rules and Constraints
@@ -174,6 +177,8 @@ magnetic:
   canvas around the tree, in every language, with the emits the page script acts on").
 - `src/server/startMagnetic.ts`: `GET /assets/statenet.json`, and the page in `SitePages`.
 - `src/http/views.ts`: the Statenet section (mount, records, emits, the kept view, the inset); the DOM graph is gone.
+- `migrations/0014_editor_views.sql`, `src/editor/EditorViews.ts` and the `kept` routes in `src/server/viewRoutes.ts`:
+  where the person left the view. Tests: `src/editor/EditorViews.test.ts`, `src/server/viewRoutes.test.ts`.
 - `src/http/shell.ts`: `canvas.drive`, `showZoom` and `freeArea`.
 - `src/http/text.ts`: `statenet.canvas`.
 - `e2e/views.spec.ts`: the Statenet tests read the cards in the frame (`#statenet iframe`, `treeitem`s by `data-id`), at
