@@ -423,13 +423,15 @@ the transaction of the write.
 - **Magnetic** (`src/server/startMagnetic.ts`): one `createAggregate` over `pgInstanceNamespaces` per server, and
   every workspace's instances saved through it (`createAggregateStorage`), under the epoch the placement holds.
   The support view reads models from `models`; the import and the tests write with `txInstances`.
+- **Removing a namespace** (a reset, a deleted app) goes through the aggregate too: statenet's `remove` / `removed`
+  messages and `Aggregate.remove`, which runs after the namespace's saves and refuses an older epoch;
+  `InstanceNamespaceStore.remove(address, epoch)`, `PgEpochStorage.remove` with its fence. Tests: statenet
+  `src/mesh/aggregate.test.ts`, "removing a namespace".
 - Checked: stateui-mcp 1085, stateui-pg 56 and Magnetic 280 unit tests, with `statenet.test.ts` (an instance
   moving between two servers, each with its aggregate, keeping its state).
 - Deviations:
   - **Each server has its own aggregate, in its process.** Two servers are two writers again, held apart by the
     storage's fence as before. One separate aggregate is S11.
-  - **A removal goes straight to the rows** (`remove` on the storage), not through the aggregate, and there is no
-    `remove` message on the mesh yet.
   - **The aggregate learns an address's workspace from the workspace that reads or saves it**, kept in memory, not
     from `statenet_namespace`: enough in one process, not for a separate aggregate.
   - **Servers still hold every right on the state tables.** Narrowing them to `SELECT` is S11.
