@@ -13,8 +13,9 @@ the 100 person limit is hit, the login will say we've met our limit, but they ca
 contact them when we do the next beta test." That is **Signing up** below; it changes steps 1 to 4 where it says.
 
 ## Signing up (the beta as it runs now)
-- **Only the server's providers sign people in** (LinkedIn on the host). The work-email field of orgs with their own
-  sign-in is gone from the sign-in page, and `/signin/sso` is a 404.
+- **People sign in with the server's providers** (LinkedIn on the host), or with their work email through an org's own
+  provider (owner, 2026-11-20: org sign-in on again in the beta, statenet-network.md S10). Since nobody makes an org in
+  the beta, that is an org made before it.
 - **The admin's sign-in makes the org.** When someone whose verified email is in `MAGNETIC_ADMIN_EMAILS` signs in (or
   opens Your apps) and there is no beta org yet, it is made with them as its owner, as Start the beta does.
 - **Everyone else who signs in joins it**, as a builder with a place, while places are left: at sign-in, and again on

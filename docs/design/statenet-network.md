@@ -1,8 +1,10 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19 (see "As built"): Magnetic's
-servers save people's state through a relay to a separate aggregate, as a role that only reads the state tables. S11
-is not deployed yet: the stack update (a new secret) and the deploy are the owner's. S10 and S12 are proposed.
+Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, and S10, 2026-11-20 (see "As
+built"): Magnetic's servers save people's state through a relay to a separate aggregate, as a role that only reads the
+state tables, and a Magnetic is reached from other computers on its local network over HTTPS. S11 is not deployed yet:
+the stack update (a new secret) and the deploy are the owner's. S10's check from another computer is the owner's. S10b
+and S12 are proposed.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
 make sure relays, nodes and aggregates auth with each other. Nodes should have a persistent connection with relays.
@@ -129,7 +131,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 - **The node is Magnetic's server.** Magnetic uses stateui-mcp as a library (`createStateUiTools`, `Services`,
   `PreviewBrowser`), so a person signs in to Magnetic and their page's socket goes to that server. Signing in is
   Magnetic's: LinkedIn now. An org's own sign-in over OpenID Connect is built (Postgres P4) and switched off in
-  the beta (`/signin/sso` is a 404, magnetic-beta.md); it is turned on again for this (S10). SAML is not built.
+  the beta until S10, which turned it on again (owner, 2026-11-20). SAML is not built.
 - Magnetic already works this way. The relay's `startClientServer` (browsers straight to a relay) is not used by
   this design; it stays for relays whose clients only read, until nothing needs it.
 - A page served over plain HTTP sends its session in the clear, so a node off loopback serves its pages over
@@ -235,9 +237,29 @@ the transaction of the write.
   addresses do not move, so it can be run again and an older server reads what it wrote.
 
 ### Locally (owner, 2026-11-19: a local authority key)
-- With no `MAGNETIC_SECRET_KEY` holding the statenet's authority, a local stack makes an authority key in its data
-  directory on first run and signs its own nodes', relay's and aggregate's certificates. Nothing to set up.
+- With no `MAGNETIC_SECRET_KEY` holding the statenet's authority, a local stack makes a secret key in its data
+  directory on first run (`<data dir>/secret-key`), which seals the authority key the first server makes, and signs
+  its own nodes', relay's and aggregate's certificates. Nothing to set up. Processes that share a database share the
+  key: one data directory, or one `MAGNETIC_SECRET_KEY`.
 - A local Magnetic (`npm run magnetic`) can run the three roles in one process, linked in memory.
+
+### On the local network (S10; owner, 2026-11-20)
+- **Magnetic serves TLS itself** (owner, 2026-11-20: "Magnetic serves TLS"). `--network-host <address>` adds a
+  second listener on an address of the local network, on the same two ports, HTTPS only, while `--host` stays
+  loopback. Its certificate is the operator's (`--tls-cert`, `--tls-key`) or one a **local certificate authority**
+  makes in `<data dir>/tls`: the authority once, named for the machine, and a server certificate for the address and
+  the machine's name, made again when either changes or it is within 30 days of its end. Another computer trusts the
+  authority's certificate once.
+- **Development sign-in stays on loopback.** The network listener offers no development users, no providers and no
+  work email (their redirect URIs are the loopback origin's); `/signin/dev` there answers 403. Its cookies are Secure.
+- **Sign in another device** (owner, 2026-11-20: "Sign in another device"). A signed-in person makes a link on Your
+  apps (Profile, "Sign in on another device"); it signs in as them once, within ten minutes, and is made for the network
+  listener's origin when there is one, else the server's. Opening it only asks "Continue as <name>", so a preview of
+  the link signs nobody in; confirming posts the token. Only its hash is kept. It is a feature of every server, hosted
+  too, not a development switch.
+- **Org sign-in is on in the beta** (owner, 2026-11-20: "In the beta too"). The work-email field and `/signin/sso` come
+  back while `--beta-org` is set; making an org stays closed there.
+- A server behind a proxy (`--public-origin`) is not also given `--network-host`.
 
 ### Magnetic's servers save through a separate aggregate (S11; owner, 2026-11-19: a `magnetic_aggregate` role)
 ```
@@ -278,7 +300,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 | S7 | Role rules and the directory check in the handshake; every link sealed; certificate renewal over the link (built) | S6 |
 | S8 | The aggregate: `startAggregateNode`, the storage port (Postgres, files), batches, `persisted`, `fenced`, loads; in process and over the mesh (built) | S7 |
 | S9 | Nodes link up: a node dials a relay and a relay an aggregate; groups in certificates and the directory; peer links only inside a group, routing between groups by relays (built in statenet) | S8 |
-| S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again | S9 |
+| S10 | Magnetic on the network: the local authority, a server reachable from another computer over HTTPS, org sign-in (OpenID Connect) on again (built) | S9 |
 | S10b | stateui-mcp off loopback: signing in as the person through the node (authorization code, PKCE, a loopback redirect), the kept token, and `--statenet` naming a node | S10 |
 | S11a | Instances as stored namespaces: one save of the whole instance, `models` in the state, embeddings at the save, the direct writers while the instance is stopped, the migration; the aggregate in process, on today's addresses (built) | S8 |
 | S11b | Owner-rooted addresses: owner numbers; a place as an owner and a path under `$`; owners by number in addresses, grants and keys (all built) | S11a |
@@ -382,7 +404,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
   - **An aggregate serves no subscriptions and no catch-up from the database**: a relay that subscribes at one is
     told so. Relays still get state from the nodes, until S9.
   - **No `statenet-aggregate` command**: statenet has no database driver, so a process with Postgres is Magnetic's
-    to start (S11); with files it comes with the local stack (S10).
+    to start (S11). A file-backed one has no command: a local Magnetic keeps the aggregate in its process (S10).
   - **A restarted aggregate forgets what landed**, so a save sent again after its restart is written once more with
     the same content. The storage's fence still holds.
   - **A node with no link holds its saves without limit**: the limit past which it refuses writes is not built.
@@ -578,6 +600,42 @@ person's own workspace and an org's workspace go by the person's and the org's n
     it in the new workspace whatever it was in. The last save of an instance still open where the app was, as the
     person's workspace closes after the move, lands in the org's workspace with the rest.
   - **`magnetic import`** still writes the state tables itself: run it as the owner.
+
+### S10: Magnetic on the local network (20 November 2026)
+- **stateui-mcp**: `startHttpServer` takes `network` (`NetworkListener`: host, key, cert) and listens there too over
+  `node:https`, the pages and sockets on the main port and the runtime frame on the runtime port, both origins named
+  `https://<Host>:<port>` for its requests. `isNetworkRequest` (the socket is TLS) and `networkOrigin` are exported.
+- **Magnetic**:
+  - `src/server/localTls.ts`: `makeCertificateAuthority`, `issueServerCertificate` (X.509 v3 written as DER, ECDSA
+    P-256 with SHA-256; the authority 10 years, a server certificate 397 days with its names as subject alternative
+    names and `serverAuth`), `localTls(dir, machine, names)` and `localSecretKey(dataDir)`.
+  - Options `--network-host`, `--tls-cert`, `--tls-key` (`MAGNETIC_NETWORK_HOST`, `MAGNETIC_TLS_CERT`,
+    `MAGNETIC_TLS_KEY`). A wildcard or loopback address is refused, and so is `--public-origin` with it. `cli.ts`
+    makes the certificate for the address, the machine's name and `<name>.local`, and uses `localSecretKey` in every
+    command when `MAGNETIC_SECRET_KEY` is not set; the options no longer refuse `--mesh-port`, `aggregate` and
+    `--beta-org` without it.
+  - `startMagnetic` takes `network`; `fromNetwork(request)` drives the sign-in page (no providers, development users or
+    work email, the notice how to sign in), the 403 at `/signin/dev`, Secure cookies and the runtime origin's scheme.
+    `RunningMagnetic.networkOrigin`.
+  - `src/accounts/DeviceLinks.ts` and migration `0019_device_link.sql`; routes `GET /settings/device` (the link
+    page), `GET /signin/link/<token>` (the sign-in page with one "Continue as" button) and `POST /signin/link`. Your
+    apps has the `device` link beside Data. Texts in English, German, French and Spanish.
+  - The beta's gate on `/signin/sso` and the work-email field is gone; `docs/design/magnetic-beta.md` says so.
+- Checked: `localTls.test.ts` (the chain, the names, a real TLS handshake trusting only the authority, a certificate
+  kept or made again, the secret key), `deviceLinks.test.ts` (once, ten minutes, only the hash), `network.test.ts` (the
+  pages and runtime frame over HTTPS at a second address, no development sign-in there, a link made on loopback that
+  signs the other device in once with a Secure cookie, an app opened and synced over `wss`), `options.test.ts` and
+  `beta.test.ts`; stateui-mcp 1086 and Magnetic 300 unit tests. Run here with `--network-host 192.168.254.136`, the
+  link page names `https://192.168.254.136:4300/signin/link/…`.
+- Not yet checked: S10's check from the laptop (an app opens there, takes a change made here and makes one of its own).
+  It needs the firewall to let the laptop reach ports 4300 and 4301, and the laptop to trust `authority.crt`.
+- Deviations:
+  - **A second listener, not a server bound to the network address.** Development sign-in is refused off loopback,
+    so a server bound only to the network address would have no way to sign the first person in.
+  - **Providers are not offered on the network listener.** Their redirect URIs are the loopback origin's.
+  - **Links the server makes elsewhere** (shares, the beta link) still name the loopback origin on a local server.
+  - **No file-backed aggregate command.** A local Magnetic needs Postgres anyway and keeps the aggregate in its
+    process; a statenet with files and no Magnetic has no aggregate process yet.
 
 ## Settled (owner, 2026-11-19)
 - **What nodes keep in the database.** State tables go to the aggregate in S11. `namespace_owner` and
