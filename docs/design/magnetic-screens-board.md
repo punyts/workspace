@@ -157,7 +157,7 @@ Steps:
 | B1 | Per-app resolver and node options in `stateui`; two apps on different libraries in one page. |
 | B2 | The `embeddedApp` component and `mountApp`'s app host; a live app and previews of it in one page. |
 | B3 | Magnetic's app host and the board as the `magnetic-screens` page; the live app and previews leave their frames. |
-| B4 | The editor's panels and Statenet leave their frames the same way, until the editor is StateUI apps in one document. Its own design. |
+| B4 | The editor's panels and Statenet leave their frames the same way, until the editor is StateUI apps in one document. Its own design: [magnetic-editor-in-page.md](magnetic-editor-in-page.md). |
 
 ## Checks
 
