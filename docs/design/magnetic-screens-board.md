@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4a, B4b and B4c of B4 built (B4b and B4c 2026-11-20), B4d proposed.
+Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4 built (B4a 2026-11-19, B4b to B4d 2026-11-20).
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
