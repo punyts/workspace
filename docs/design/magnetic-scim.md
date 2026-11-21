@@ -159,11 +159,10 @@ SCIM). Details name what changed (`active`, `members` added and removed by count
   for one org, discovery, 401s; held until sign-in then a member with pushed groups; linked at once, not removable by an
   admin, cannot leave; refusals of an outside email, a duplicate, a missing email, a filter and a body type; PATCH in
   Entra's and Okta's forms, PUT and DELETE remove and rejoin; the last owner; groups pushed, renamed, members by both
-  PATCH forms, a name clash, an admin edit refused, deletion dropping access; `autoJoin` while on; turning off; the
-  audit log holds no email); `e2e/orgs.spec.ts` ("an owner turns on SCIM, sees the token once, and makes a new one",
-  with the control route `POST /domain` in `e2e/server.mjs`).
-- Not covered by a test: views closing on removal (the same `closeOrgViews` and `closeLostViews` the org routes use),
-  and an invite while SCIM is on.
+  PATCH forms, a name clash, an admin edit refused, deletion dropping access; open views closing when SCIM takes someone
+  out of the group that gave the app, and out of the org; an invite while on, refused to a pushed group; `autoJoin`
+  while on; turning off; the audit log holds no email); `e2e/orgs.spec.ts` ("an owner turns on SCIM, sees the token
+  once, and makes a new one", with the control route `POST /domain` in `e2e/server.mjs`).
 
 ## Not in this design
 - Roles from the provider (by group or attribute).
