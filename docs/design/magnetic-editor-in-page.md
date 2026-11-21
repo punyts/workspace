@@ -1,6 +1,6 @@
 # The editor as StateUI apps in one document
 
-Status: B4a built (2026-11-19), B4b and B4c built (2026-11-20); B4d proposed. B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
+Status: B4a built (2026-11-19), B4b, B4c and B4d built (2026-11-20). B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
 
 Asked for on 2026-11-19: "Start B4 of the screens board". B4 there reads: the editor's panels and Statenet leave their
 frames the same way as the board, until the editor is StateUI apps in one document. The ask behind the whole board work
@@ -60,10 +60,12 @@ The hand-written views become `PageSpec`s, as Statenet is, each with de/fr/es lo
   the value the theme sets or empty with the value shown as its placeholder. Its data is `$.data.theme`: `themes`,
   `chosen`, `others` (options), `specimens` (per mode `surface`, `border`, `text`, `accent`, `accentOn`), `tokens` (one
   record per token: `id` its path, `group`, `name`, `all` and each mode with `<column>Shown` and `<column>Label`, and
-  `locked`), `sharedText`, the flags that hide its parts, `status`, `refusal` and `noBack`. It emits `choose` and `add`
+  `locked` and `modesLocked`), `sharedText`, the flags that hide its parts, `status`, `refusal` and `noBack`. It emits `choose` and `add`
   (a field's change, `{ value }`), `token` with the token's record once a cell changes (`views.ts` finds the column
   changed against the record it wrote), `editAll`, `clone`, `default`, `remove`, `create` with the preset, and `back`.
   A shared theme's cells are disabled (`locked`) until Edit for all or Clone for this app.
+  A token a mode overlay may not hold (outside `color` and `elevation`, stateui-app's `KIND_GROUPS`) has its mode
+  cells disabled (`modesLocked`, from `moded` in `themeTokensOf`); its value for all modes stays editable.
 - `magnetic-logic` (`src/logic/LogicPage.ts`): a head of the kind of a new unit and New; the two lanes, Server and
   Browser, as a `board` (`columnField: 'runs'`) of unit cards, each with its name as its title, its kind, what it does
   and its paths, and buttons to move it to the other lane and to delete it; and the screens' handlers in a `list`
@@ -86,30 +88,34 @@ The hand-written views become `PageSpec`s, as Statenet is, each with de/fr/es lo
 
 `views.ts` keeps what it does with the server (the reads, `POST /edit/<id>/views/<what>`, the refusals) and writes
 these pages' data instead of DOM. It mounts Theme and Logic in the page on an element of the board (`#view-page`),
-placed in the area the editor's panels leave free, and its sheet keeps only the side panel and Statenet's status. Of
-its reads only the last one started draws, so a read begun before a write cannot show the old value over the new.
-The side panel is mounted in the sheet's side once and kept; the sheet holds only it and Statenet's status, and
-`VIEWS_CSS` only places them and draws the screens' layers.
+placed in the area the editor's panels leave free, and its sheet keeps only Statenet's status. Of its reads only
+the last one started draws, so a read begun before a write cannot show the old value over the new. The editor places the
+side panel (section 3), and `VIEWS_CSS` only places the sheet and draws the screens' layers.
 
-### 3. One document
+### 3. The side panel in the editor's document
 
-The editor document holds the canvas. Under its `stage`, below the floating panels, it places an `embeddedApp` keyed
-`canvas`, `'<-app': '$.data.editor.canvasApp'` (`magnetic-screens`, `magnetic-statenet`, `magnetic-theme` or
-`magnetic-logic`), and the side panel as an `embeddedApp` keyed `side` (`magnetic-side`, `'<-active':
-'$.data.editor.sideOpen'`). The view selector's `view` emit sets `canvasApp`; nothing in code decides which app shows.
+The editor document places the side panel. Its `stage` has a float keyed `side` (at the right below the corners, down
+to above the chat bar, 360px wide but at most 45% of the window; below 760px a sheet over the bottom half), hidden by
+`$.data.editor.sideHidden`. It holds a live `embeddedApp` of `magnetic-side` with `fill`, so the page takes the
+float's size and scrolls inside it. The `embeddedApp` stays mounted while the float is hidden, so the panel is mounted
+once per editor mount.
 
-Magnetic's app host (B3) opens these names as well as the person's own apps: a name of one of Magnetic's pages resolves to
-the page's current version for the signed-in person (the person's copy where `PersonPages` keeps one, else the site's),
-mounted standalone. The host's `mounted` and `disposed` hooks hand each script its app: `screens.ts` gets the board,
-`views.ts` gets Statenet, Theme, Logic and the side panel. The scripts write their app's `$.data` and listen to its
-emits through the `MountedApp`, not through `stateuiHost.mount`. The editor page mounts one app, the editor, with
-`stateuiPage.mountApp` and that host.
+The page's app host opens Magnetic's pages by name. `stateuiHost.pages(provider)` (stateui-mcp) gives it a provider:
+`open(name)` answers a page's document, icons and title, and the host mounts the page in the asking element as a panel
+in the page (the runtime core, as `stateuiHost.mount` with `inPage`), filling the frame. `shell.ts` registers the
+provider before the editor mounts; it knows `magnetic-side` and serves it from `/assets/side.json`. The host hands
+the panel to the provider's `mounted(name, panel, element)` and calls `disposed(name, panel)` when the
+`embeddedApp` lets it go; the page's emits reach the `embeddedApp` and `stateui:emit` on its element.
+`magneticShell.page(name, { mounted, disposed })` passes them to the script that drives the page: `views.ts` takes
+the side panel's panel there, writes `$.data.side` through it, listens to its emits on the element, and opens and
+closes it with `sideHidden`. What the panel covers of Statenet's canvas is read from where the editor placed it, so a
+copy that places it at the left moves the canvas's free area to the right.
 
-The zoom control drives whichever canvas app has a node keyed `canvas`, through its `MountedApp`'s commands; Theme and
-Logic have none, and the control hides.
+The canvas stays a page element under the editor (`#board`, with `#screens`, `#statenet` and `#view-page`),
+mounted by `screens.ts` and `views.ts` with `stateuiHost.mount`. The view selector writes `$.data.editor.view`
+and emits `view`, and `views.ts` mounts the page that view shows.
 
-A person's copy of the editor can then move, restyle or drop any part of the editor, the canvas and the side panel
-included, and a copy of a view page changes that view.
+A person's copy of the editor can move, restyle or drop the side panel like any part of the editor.
 
 ## Stages
 
@@ -118,7 +124,7 @@ included, and a copy of a view page changes that view.
 | B4a | The editor, Statenet, the sign-in and link pages and Your apps run in the page; `panel`'s `passThrough`, `app`'s `seeThrough`; keys on the page. |
 | B4b | `magnetic-theme` and `magnetic-logic` replace the Theme and Logic views' DOM. |
 | B4c | `magnetic-side` replaces the side panel's DOM. |
-| B4d | One document: the editor places the canvas and the side panel as `embeddedApp`s; the app host opens Magnetic's pages; the scripts take their apps from the host. |
+| B4d | The editor places the side panel as an `embeddedApp`; the app host opens Magnetic's pages by name and hands the script the page's panel; `embeddedApp`'s `fill`. |
 
 ## Checks
 
@@ -127,8 +133,8 @@ included, and a copy of a view page changes that view.
   nothing while typing in the chat.
 - **B4b, B4c:** the views' e2e (`views.spec.ts`) passes on the pages: edit a token, clone a theme, move and delete a
   unit, add a dataset from Statenet's +, edit a record in the side panel.
-- **B4d:** the editor page mounts one app; switching views changes `canvasApp` only; a person's copy of the editor
-  that moves the side panel to the left keeps working (e2e).
+- **B4d:** the views' e2e passes with the side panel in the editor's document; a person's copy of the editor that
+  moves the side panel to the left keeps working (e2e).
 
 ## Decisions
 
@@ -157,6 +163,18 @@ included, and a copy of a view page changes that view.
 - No component repeats buttons from data in a row, so the side panel's actions are fixed buttons, each hidden by its
   own flag.
 - The side panel's form comes last: what a part holds is read before what adds to it.
+- The canvas stays out of the editor's document (owner, 2026-11-20). The inspector's overlay, the shield that takes
+  Select and Move presses, and the views' layers are page DOM laid between the canvas and the editor's panels. Inside
+  the editor's document nothing could sit between them: above the editor they would cover the panels, below it the
+  canvas would hide them. The canvas can move into the editor once the inspector and the layers are part of the screens
+  page.
+- No `canvasApp` field: the selector's `view` already names what the canvas shows.
+- The app host attaches Magnetic's pages with the page runtime (`stateuiHost.mount`'s panel), not `mountApp`: the
+  scripts need the panel's commands, language and mode switch and icons, which a `MountedApp` does not have.
+- The provider is registered by `shell.ts`, before the editor mounts, so the editor's first ask finds it; a script
+  that loads later takes the panel through `magneticShell.page`, which hands over a page already mounted.
+- `disposed` names the panel it lets go: an editor mounted again mounts its side panel before the old editor's is let
+  go, and only the panel mounted now counts.
 
 ## Rules and Constraints
 
@@ -207,3 +225,17 @@ B4c (2026-11-20):
 - Tests: `src/side/SidePage.test.ts` ("should serve a signed-in person the panel of every kind of part, in every
   language, with every emit of its contract"); `e2e/views.spec.ts` ("a dataset is made from Statenet's + with its
   first record, and a record's value is edited in the side panel", and the Statenet tests that open the side panel).
+
+B4d (2026-11-20):
+- stateui-mcp: `src/browser/host.ts` (`stateuiHost.pages`, `SitePages`, `attachPage`, the `fill` of a panel in
+  the page); test `test/browser.integration.test.ts` ("should open a page of the site's own by name in an
+  embeddedApp, hand its provider the panel and pass its emits on").
+- stateui-components: `components/composites/embedded-app/` (`fill`); test
+  `test/composites/embedded-app.browser.test.ts` ("should take the size its node is given with fill, and width by
+  height without").
+- Magnetic: `src/editor/EditorApp.ts` (`sidePanel`, `SIDE_PLACEMENT`, `sideHidden`), `src/http/shell.ts`
+  (`PLACED_PAGES`, the provider, `magneticShell.page`), `src/http/views.ts` (the side panel from the shell,
+  `insetOf` from where it is placed; the sheet keeps only Statenet's status), `src/http/text.ts` (`views.side`),
+  `e2e/server.mjs` (`POST /editor-node`) and `e2e/fixtures.ts` (`changeEditor`).
+- Tests: `e2e/views.spec.ts` ("keeps the side panel working where the copy moves it, at the left", and the Statenet
+  tests, which find the side panel as the region Details).
