@@ -1,11 +1,14 @@
 # The editor as StateUI apps in one document
 
-Status: B4a built (2026-11-19), B4b, B4c and B4d built (2026-11-20). B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
+Status: B4a built (2026-11-19), B4b, B4c, B4d and B4e built (2026-11-20). B4 of [magnetic-screens-board.md](magnetic-screens-board.md); builds on B3b and B3c.
 
 Asked for on 2026-11-19: "Start B4 of the screens board". B4 there reads: the editor's panels and Statenet leave their
 frames the same way as the board, until the editor is StateUI apps in one document. The ask behind the whole board work
 (2026-11-19): "We are changing this to use the stateui so we can edit the editor and prove that this is powerful enough
 to make anything."
+
+Asked for on 2026-11-20, with the canvas still a page element under the editor: "Let's get this finished", and then
+"Remember, these are all in the same DOM." The canvas moves into the editor's document (B4e, section 4).
 
 ## The problem
 
@@ -87,10 +90,8 @@ The hand-written views become `PageSpec`s, as Statenet is, each with de/fr/es lo
   `removeRecord`, `removeField`, `baseUrl`, `secret`, `connect`, `try` and `removeEndpoint`.
 
 `views.ts` keeps what it does with the server (the reads, `POST /edit/<id>/views/<what>`, the refusals) and writes
-these pages' data instead of DOM. It mounts Theme and Logic in the page on an element of the board (`#view-page`),
-placed in the area the editor's panels leave free, and its sheet keeps only Statenet's status. Of its reads only
-the last one started draws, so a read begun before a write cannot show the old value over the new. The editor places the
-side panel (section 3), and `VIEWS_CSS` only places the sheet and draws the screens' layers.
+these pages' data instead of DOM. Of its reads only the last one started draws, so a read begun before a write cannot
+show the old value over the new. The editor places the side panel (section 3) and the pages of the canvas (section 4).
 
 ### 3. The side panel in the editor's document
 
@@ -111,11 +112,37 @@ the side panel's panel there, writes `$.data.side` through it, listens to its em
 closes it with `sideHidden`. What the panel covers of Statenet's canvas is read from where the editor placed it, so a
 copy that places it at the left moves the canvas's free area to the right.
 
-The canvas stays a page element under the editor (`#board`, with `#screens`, `#statenet` and `#view-page`),
-mounted by `screens.ts` and `views.ts` with `stateuiHost.mount`. The view selector writes `$.data.editor.view`
-and emits `view`, and `views.ts` mounts the page that view shows.
-
 A person's copy of the editor can move, restyle or drop the side panel like any part of the editor.
+
+### 4. The canvas in the editor's document
+
+The editor document places the canvas. The first children of its `stage` are four live `embeddedApp`s with `fill`, so
+every panel after them lies over them: `board` (`magnetic-screens`) and `statenet` (`magnetic-statenet`) take the whole
+window, `theme` (`magnetic-theme`) and `logic` (`magnetic-logic`) the area right of the rail, below the corners and
+above the chat bar (on a narrow window below the rail along the top). Each is hidden by a flag of `$.data.editor`
+(`boardHidden`, `statenetHidden`, `themeHidden`, `logicHidden`), which `views.ts` writes as the view changes: one
+shows at a time. A hidden page stays mounted, so it keeps where the person left it and the next view shows at once. The
+canvas pages set the `embed` tokens so their frames draw no border, corners or fill.
+
+`shell.ts`'s provider knows the four pages beside the side panel and serves each from its asset; the board's names
+Escape (`keys`). It keeps the document each page was opened with and passes it to `magneticShell.page`'s
+`mounted(panel, element, document)`, where a script finds its page's `canvas` by key. `screens.ts` takes the board
+there, and `views.ts` takes Statenet, Theme and Logic. Neither mounts a page of its own: there is no `#board`,
+`#screens`, `#statenet` or `#view-page`. A page mounted again (a new editor) is given its data again: the board its
+view and cards, Statenet its view and tree, Theme or Logic its view when it shows.
+
+The layers over the board are in the same DOM as the board, so they lie between its canvas and the editor's panels by
+being in the board page's own element. `magneticShell.boardLayer(node)` appends a layer to the element the provider
+was handed for the board (the `embeddedApp`'s `.app`, after the page's panel), makes that element the layers'
+containing block and takes the layers again when the board is mounted again. The inspector's layer (its shield and
+overlay, `inspect.ts`) and the views' layers (`views.ts`) are drawn there. The element is inside the `embeddedApp`'s
+shadow root, where the page's sheets do not reach, so the shell links `/assets/layers.css` (`LAYERS_CSS` of
+`shell.ts` and `VIEWS_LAYERS_CSS` of `views.ts`) into that root; the colours are the page's custom properties,
+which the root inherits. A layer is placed from `magneticShell.boardOrigin()`, where the board's element is in the
+window.
+
+Statenet's page shows the views' status and refusals itself (`status` with `noStatus`, `refusal` with `noRefusal`),
+over its canvas at the top, as Theme and Logic do: the views' sheet goes, and `VIEWS_CSS` with it.
 
 ## Stages
 
@@ -125,6 +152,7 @@ A person's copy of the editor can move, restyle or drop the side panel like any 
 | B4b | `magnetic-theme` and `magnetic-logic` replace the Theme and Logic views' DOM. |
 | B4c | `magnetic-side` replaces the side panel's DOM. |
 | B4d | The editor places the side panel as an `embeddedApp`; the app host opens Magnetic's pages by name and hands the script the page's panel; `embeddedApp`'s `fill`. |
+| B4e | The editor places the canvas: the board, Statenet, Theme and Logic as `embeddedApp`s first on its stage, the layers in the board page's element, Statenet's own status. |
 
 ## Checks
 
@@ -135,6 +163,9 @@ A person's copy of the editor can move, restyle or drop the side panel like any 
   unit, add a dataset from Statenet's +, edit a record in the side panel.
 - **B4d:** the views' e2e passes with the side panel in the editor's document; a person's copy of the editor that
   moves the side panel to the left keeps working (e2e).
+- **B4e:** the screens', views' and editor's e2e pass with the canvas pages found in the editor (`BOARD`,
+  `canvasPage`): the inspector selects and drops on the live app, the layers draw on the cards, a press on the empty
+  Statenet canvas reaches it past the panels.
 
 ## Decisions
 
@@ -163,11 +194,13 @@ A person's copy of the editor can move, restyle or drop the side panel like any 
 - No component repeats buttons from data in a row, so the side panel's actions are fixed buttons, each hidden by its
   own flag.
 - The side panel's form comes last: what a part holds is read before what adds to it.
-- The canvas stays out of the editor's document (owner, 2026-11-20). The inspector's overlay, the shield that takes
-  Select and Move presses, and the views' layers are page DOM laid between the canvas and the editor's panels. Inside
-  the editor's document nothing could sit between them: above the editor they would cover the panels, below it the
-  canvas would hide them. The canvas can move into the editor once the inspector and the layers are part of the screens
-  page.
+- The canvas is in the editor's document, and the layers over the board are in the board page's element (owner,
+  2026-11-20: "Remember, these are all in the same DOM"). With no frame between them, a layer appended inside the board
+  page lies over its canvas and under every panel the editor places after the board.
+- The four canvas pages stay mounted and are shown by flags rather than mounted for the view shown: the editor's
+  document holds them as it holds every panel, and a view comes back where the person left it.
+- Theme and Logic take a fixed area of the stage (`VIEW_PLACEMENT`) rather than the free area the script measures:
+  the editor's document places them, as it places its panels.
 - No `canvasApp` field: the selector's `view` already names what the canvas shows.
 - The app host attaches Magnetic's pages with the page runtime (`stateuiHost.mount`'s panel), not `mountApp`: the
   scripts need the panel's commands, language and mode switch and icons, which a `MountedApp` does not have.
@@ -186,7 +219,7 @@ A person's copy of the editor can move, restyle or drop the side panel like any 
 - Texts are in four languages; the server's answers hold data, never words.
 - `stateui` writes the DOM synchronously and never reads layout; `passThrough` is CSS (`pointer-events`), not measuring.
 - No backwards compatibility: the frame clipping, the page's panel shadows, the frames' policies (`shellPageCsp`,
-  `hostPageCsp`), the views' DOM and `VIEWS_CSS` go.
+  `hostPageCsp`), the views' DOM, the views' sheet and `VIEWS_CSS` go.
 
 ## As built
 
@@ -239,3 +272,37 @@ B4d (2026-11-20):
   `e2e/server.mjs` (`POST /editor-node`) and `e2e/fixtures.ts` (`changeEditor`).
 - Tests: `e2e/views.spec.ts` ("keeps the side panel working where the copy moves it, at the left", and the Statenet
   tests, which find the side panel as the region Details).
+
+B4e (2026-11-20):
+- Magnetic: `src/editor/EditorApp.ts` (`canvasPages`, `CANVAS_FRAME`, `VIEW_PLACEMENT`, the four hidden flags),
+  `src/http/shell.ts` (the four pages in `PLACED_PAGES`, `LAYERS_CSS`, `magneticShell.boardLayer` and
+  `boardOrigin`, the document passed to `mounted`), `src/http/screens.ts` (`boardMounted`, `boardDisposed`),
+  `src/http/inspect.ts` and `src/http/views.ts` (the layers in the board page, `VIEWS_LAYERS_CSS`, the pages
+  taken from the shell, `says` writing Statenet's or the shown page's status), `src/statenet/StatenetPage.ts`
+  (`status`, `refusal`), `src/server/startMagnetic.ts` (`/assets/layers.css`), `src/storage/exclusive.ts`
+  (callers of one key queue on their server before taking a connection: the editor asks for its pages at once).
+- The sizes in one document: the editor's stage is the window less its border, and the board's and Statenet's
+  canvases the window less the stage's, frame's and page's borders, so neither page scrolls; the editor's mount
+  never scrolls (`.editor > .stateui-panel`). A board column is as wide as a screen and the board's gap
+  (`space.gap.md`) is the room between columns; a card is a pass-through panel holding the tile, which is as tall
+  as its head and screen, so the gaps across and down show the canvas and the tile's surface outlines its screen at
+  any zoom (owner, 2026-11-20: "The screens have extra margin on the right side", "When zoomed out we lose the
+  screen border").
+- stateui-components: the viewport counts only `data-own-gestures` marks between the target and itself, so a
+  viewport in a page that a live `embeddedApp` holds pans and wheels (owner, 2026-11-20: "Drag is not panning").
+  Test: `test/composites/viewport.browser.test.ts` ("should pan and wheel inside a page that a live embeddedApp
+  holds…"). An `embeddedApp` sized width by height scrolls an app taller than its screen inside it, and one with
+  `fill` leaves its app to size itself (owner, 2026-11-20: "Looks like we are missing the scrollbar for the
+  screens"), with a scrollbar of the `embed.scrollbar` token (owner, 2026-11-20: "The scrollbar is too dark to see"),
+  and the `app` root fills the least height its host is given, so an app shorter than its screen fills it (owner,
+  2026-11-20: "The Overlays screen doesn't take up the entire height"). Test:
+  `test/composites/embedded-app.browser.test.ts`.
+- A press on the board that is not on a card, such as the room under a screen, pans the canvas: the board leaves it to
+  the viewport (owner, 2026-11-20: "When I drag under the screen it starts a grab"). Test:
+  `test/composites/viewport.browser.test.ts`.
+- Each canvas page is a stack of its own (`z: 0`), so the inspector's layer in the board page stays under the
+  editor's panels wherever the live app runs.
+- Tests: `e2e/fixtures.ts` (`BOARD`, `canvasPage`) with `e2e/screens.spec.ts`, `e2e/views.spec.ts` and
+  `e2e/editor.spec.ts`; `src/server/startupRace.test.ts` ("should finish more callers of one key than the pool has
+  connections, when the work itself queries"); `src/server/editor.browser.test.ts` (the chat and selection tests
+  over the live app, and the press beside the panels followed through the shadow roots to the board's page).
