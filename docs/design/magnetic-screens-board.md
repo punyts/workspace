@@ -1,6 +1,6 @@
 # The screens board as a StateUI page, with apps in the page
 
-Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4 built (B4a 2026-11-19, B4b to B4d 2026-11-20).
+Status: B1, B2 and B3 (B3a, B3b, B3c) built (2026-11-19); B4 built (B4a 2026-11-19, B4b to B4e 2026-11-20).
 
 Asked for on 2026-11-19: "Let's do it all", on moving the screens board onto `viewport` after Statenet moved
 ([magnetic-statenet-diagram.md](magnetic-statenet-diagram.md), "The screens board").
@@ -106,25 +106,43 @@ What the frames did for the page, and what replaces it:
 
 `magnetic-screens` is a `PageSpec`, as Statenet's is. Its screen is a `viewport` keyed `canvas` (`grid`, the window's
 height) around a bare `board` of cards, one column per place in a row of Screens in a row, one card per screen, each
-holding an `embeddedApp` node: the live one for the screen worked on, previews for the rest. Its data is
+holding an `embeddedApp` node: the live one for the screen worked on mounts its app, the rest show their names. Its data is
 `$.data.screens`:
 - `tiles`: one record per screen (`id` the screen name, `title`, `column`, `row`, `live`, `active`, `width`, `height`,
   and the flags that hide a card's head buttons).
 - `lanes`: the board's columns, one per place in a row.
 - `view`: `{ x, y, zoom }`, linked to the viewport, kept per person and app on the server as Statenet's is
   (`editor_view` with `view = 'screens'`).
-- `names`: true while zoomed below `NAMES_BELOW_ZOOM` or with more than `MOST_IN_VIEW` tiles in view; the cards show
-  their names and only a selected screen's app is live. It is also the board's `movable`: cards are dragged only in names.
+- `names`: true while zoomed below both `NAMES_BELOW_ZOOM` (40%) and `NAMES_BELOW_FIT` (0.6) of the zoom that fits a
+  card, however many are in view (a count of cards in view no longer counts: with one app mounted it only hid the screen
+  in view; owner, 2026-11-20: "we're over a screen and it's not rendered"); the cards show their names with no
+  head, and only a selected screen's app is live (owner, 2026-11-20: "When zoomed out like this, only a selected screen
+  should be rendered, even if there are only a couple of screens in the view. The screen title should not be shown when
+  we are only showing the name"). The share of the fit keeps a small window's fit, under 40%, showing the apps. A
+  card's ⋯, and the selected card's ×, sit in a corner over the screen's top right (owner, 2026-11-20: "Let's have the
+  context menu button sit on top of the card not above it. And make is bigger"). Its buttons are a size in the screens'
+  pixels (`CORNER`, 96px), so they shrink with the card as the board zooms out (owner, 2026-11-20: "The context menu
+  should not grow as we zoom out"). It is also the board's `movable`: cards are dragged only in names.
 - `inset`: the room the editor's panels take, so the viewport's fit leaves it free.
 
-The card and column sizes are theme writes on the board node (`board.column`, `board.card`, `board.height`), and in
-names the title's size (`text.title.size`), so a name stays 20px on the screen at any zoom.
+Out of names a card's head holds the screen's title in the title role, its size, and its ⋯ at the right (owner,
+2026-11-20: "The title is a bit small, and we'll want the context menu button on the right side when zoomed in like
+this"). The head and the corner stand `EDGE` (24px of the screens') in from the screen's edges (owner, 2026-11-20: "We
+need more whitespace on the left and right side in the title bar").
 
-The page script (`screens.ts`) writes these and sets `active` for the tiles in view from the view and the places it
-measures in the board's columns, so only those are mounted. It acts on the emits: `press` makes the screen the one
-worked on (or in names selects it), `menu` opens the tile menu at the pointer, `deselect` ends a selection, `canvas`
-(a press on the empty canvas) does too, `board`'s `move` posts the new order, `navigated` follows the live app to its
-screen, `view` keeps the view and updates the zoom control, and `add` adds the first screen. With no screens the board
+The card and column sizes are theme writes on the board node (`board.column`, `board.card`, `board.height`), with
+`board.gap`, the room under a card in its row that a dragged card's placeholder leaves out, so it is no bigger than the
+screen (owner, 2026-11-20: "The drag and drop boxes are bigger than the screen"). The board also sets the `lg` control
+and icon sizes (the corner's buttons), the panel padding (the head's sides) and, in names, the title's size
+(`text.title.size`), so a name stays 20px on the screen at any zoom.
+
+The page script (`screens.ts`) writes these and sets `active` for the live tile only, so one app is mounted at a time
+(owner, 2026-11-20: "Let's just have one screen showing at a time, the one with the most in the screen"). It acts on
+the emits: `press` makes the screen the one worked on (or in names selects it), `menu` opens the tile menu at the
+pointer, `deselect` ends a selection, `canvas` (a press on the empty canvas) does too, `board`'s `move` posts the new
+order, `navigated` follows the live app to its screen, `view` keeps the view, updates the zoom control and, out of
+names, makes the screen with the most of its card in view (`mostInView`, measured from the places in the board's
+columns; the screen worked on keeps a tie, so a zoom out that shows every card whole changes nothing) the one worked on, as it does once the cards are placed when the board opens on a kept view, and `add` adds the first screen. With no screens the board
 holds one card, Add a screen.
 
 The zoom control drives the canvas through `command` on the node keyed `canvas`, as for Statenet. With none kept, the
@@ -152,8 +170,8 @@ Steps:
   the page's `AppHost`: the live app is attached in an `embeddedApp`'s element (`AttachedApp`), and a preview
   follows its store. `inspect` and `watch` run on the app's own element and answer in its pixels, divided by the zoom
   around it.
-- **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, mounted in the page by
-  `stateuiHost.mount` with `inPage`, whose runtime is given that app host; `screens.ts` keeps its board logic (names,
+- **B3b: the board as the `magnetic-screens` page.** The `PageSpec` of section 4, run in the page with the runtime
+  that app host is given (since B4e the editor places it, as a live `embeddedApp` first on its stage); `screens.ts` keeps its board logic (names,
   menu, order, add) and writes `$.data.screens` instead of DOM; `shell.ts`'s pan and zoom and `#world` go to the
   `viewport`.
 - **B3c: the inspector, the views' layers and the e2e.** `inspect.ts` and `views.ts` reach the live app and previews
@@ -284,8 +302,9 @@ B3c:
 - `magnetic/migrations/0023_editor_view_screens.sql`: `editor_view` keeps the `screens` view. Test:
   `src/editor/EditorViews.test.ts` ("should keep the screens board's view apart from Statenet's").
 - `magnetic/src/http/screens.ts`: `magneticScreens.liveApp`, `cards` and `panBy`. `src/http/inspect.ts`: the
-  overlay and shield in `.inspect-layer` in `#board`, following the live app's element; the Move tool pans the board
-  through `panBy`. `src/http/views.ts`: the layers in `.views-layer` in `#board`, one per card, and the leads between
-  the cards' boxes. `src/http/shell.ts`: the layer's CSS. Tests: `src/server/editor.browser.test.ts`,
+  overlay and shield in `.inspect-layer`, following the live app's element; the Move tool pans the board through
+  `panBy`. `src/http/views.ts`: the layers in `.views-layer`, one per card, and the leads between the cards' boxes.
+  Both are drawn in the board page's own element (`magneticShell.boardLayer`, B4e), styled by `/assets/layers.css`
+  (`LAYERS_CSS` of `src/http/shell.ts` and `VIEWS_LAYERS_CSS` of `src/http/views.ts`). Tests: `src/server/editor.browser.test.ts`,
   `e2e/fixtures.ts` (`EditorPage.app` is `ui-embedded-app[live]`), `e2e/screens.spec.ts`, `e2e/editor.spec.ts`,
   `e2e/views.spec.ts`, `e2e/share.spec.ts`.
