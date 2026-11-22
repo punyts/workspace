@@ -323,6 +323,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 | S11b | Owner-rooted addresses: owner numbers; a place as an owner and a path under `$`; owners by number in addresses, grants and keys (all built) | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider (built) | Postgres P4 |
+| S13 | Relays in the directory: the aggregate lists the relays linked to it, a relay's endpoint is in its certificate, a server names its relay ([statenet-relay-directory.md](statenet-relay-directory.md)) | S9, S11 |
 
 ## Checks
 - **S7:** a certified node of the wrong role is refused at each kind of link; a frame changed or replayed on the
@@ -477,7 +478,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
   - **A relay may still dial a node** (`mayLink('relay', 'owner')`), for the relays that hang below Magnetic's
     servers today. It goes when Magnetic moves (S11).
   - **Relays are still not in the directory by themselves**: the tests list them by hand. An aggregate with the
-    database is the one to register the relays linked to it; not built.
+    database is the one to register the relays linked to it; designed as S13.
   - **Only one relay between a node and the aggregate is routed.** A relay under another relay does not pass an
     ask it has no way for up to its parent.
   - **What a relay asks of a node ends with the link**: a subscription the relay made down a node's link is
