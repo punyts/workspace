@@ -95,7 +95,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
   anything. `createMeshUpstream` already keeps a link: pings, a timeout, a reconnect to the next parent, every
   subscription made again from its revision, and writes sent again and applied once by id. Nodes use the same client.
 - A node with no link keeps serving its browsers from memory and holds its changes as pending: nothing is durable,
-  so nothing says Saved, until the link is back. Past a limit of held changes it refuses writes rather than grow.
+  so nothing says Saved, until the link is back. Past a limit of held changes it refuses writes rather than grow, and the browser says why.
 - A relay with no link up answers reads from its cache and refuses writes.
 
 ### Authentication between relays, nodes and aggregates (owner, 2026-11-19: keep today's certificates)
@@ -430,6 +430,21 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     and a server write throws, until a save lands. Ephemeral changes still pass. A save holds the whole namespace, so
     what is held in memory is one copy per namespace, not one per change; the limit bounds the work a person could
     lose, not memory. Test: state-sync `src/authority/Authority.test.ts` ("the limit of unsaved changes").
+  - **A refused change shows a notice by its kind** (22 November 2026; owner, 2026-11-22: a runtime default, and a
+    code per kind of refusal). A rejected ack carries `code`, one of state-sync's `REJECTION_CODES` (`unsaved`,
+    `access`, `invalid`, `logic`, `unavailable`); the limit answers `unsaved`. The code travels through a forwarded
+    write's `WriteOutcome`, statenet's client server and stateui-mcp's view channels into the `sync.rejected` payload.
+    An app whose root has no `sync.rejected` entry shows a warning toast on `$.app.toasts`: `syncUnsaved` ("Not saved:
+    the server is catching up with earlier changes. Try again in a moment.") for `unsaved`, `syncRejected` ("This
+    change was not accepted.") for the rest. The reason is never shown, since server logic may put values in it. Files:
+    state-sync `src/Messages.ts`, `src/Validate.ts`, `src/authority/Authority.ts`, `src/authority/Ownership.ts`,
+    `src/Client.ts`; statenet `src/mesh/ClientServer.ts`; stateui-mcp `src/browser/host.ts`,
+    `src/browser/viewChannel.ts`, `src/infrastructure/http/HttpServer.ts`,
+    `src/infrastructure/statenet/StatenetViews.ts`; stateui-app `src/core/types.ts` (`SYNC_NOTICES`),
+    `src/dom/on/dispatcher.ts`; stateui-components `toast-region`. Tests: state-sync `src/Validate.test.ts`
+    ("should take a rejection code from the closed list, and refuse another"); stateui-components
+    `test/composites/toast-region.browser.test.ts` ("should show the built-in notices of a refused change …"),
+    `test/composites/app-sync-rejected.browser.test.ts`.
 
 ### S9: nodes link up, groups, and routing through relays (19 November 2026)
 - **statenet** `src/mesh/`:
