@@ -500,10 +500,9 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   - A record written moments ago is found once the worker has embedded it (every 2 seconds), as the design says of
     every embedding.
 
-### Not built yet
-- SCIM (magnetic-scim.md). SAML is built (statenet-network.md, S12).
-
 ### Since
+- SAML (`statenet-network.md`, S12) and SCIM (`magnetic-scim.md`) are built, so an org's identity provider signs
+  people in and pushes its people and groups.
 - The statenet stages S1 to S6 are built, and Magnetic's instances run on owner nodes behind the mesh, any number of
   servers on one database (`statenet-relays.md`, "Magnetic behind the mesh").
 - Hosting (`magnetic-hosting.md`): the host sets `MAGNETIC_SECRET_KEY`, so orgs can use their own sign-in. A superuser
