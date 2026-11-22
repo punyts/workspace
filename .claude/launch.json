@@ -20,6 +20,12 @@
       "port": 4300
     },
     {
+      "name": "magnetic-network",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "magnetic", "--", "--network-host", "192.168.254.136"],
+      "port": 4300
+    },
+    {
       "name": "magnetic-beta",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "magnetic:beta"],
