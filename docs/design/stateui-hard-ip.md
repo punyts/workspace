@@ -205,7 +205,7 @@ Built 2026-11-19, steps 1 to 6 of the build order except Statenet on `treeDiagra
   `test/logicTools.test.ts`.
 - **stateui-components.** `layoutTree` (`src/shared/diagram/layoutTree.ts`), `COMPONENT_FUNCTIONS` (`src/functions.ts`,
   export `./functions`, GUID `816de370-aafe-42db-868d-bb94a9b146f1`), the component `treeDiagram`
-  (`components/composites/tree-diagram/`), and the size gate (`test/bundleSize.test.ts`, measured at 223,110 bytes gzipped and since raised to 235,300 as components joined, 5%
+  (`components/composites/tree-diagram/`), and the size gate (`test/bundleSize.test.ts`, measured at 223,110 bytes gzipped and since raised to 250,454 as components joined, 5%
   allowed). The example places `treeDiagram` in its Catalog section and stateui-mcp's showcase in its graphics screen.
   Tests: `layoutTree.test.ts`, `functions.test.ts`, `tree-diagram.browser.test.ts`.
 - **Magnetic.** `httpCatalog` (`src/connections/httpEffect.ts`) puts the HTTP effect at `$.functions.host.http`;
