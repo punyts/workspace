@@ -73,7 +73,12 @@ and row selection. C1 adds the following to `table`, not a second grid component
 - **Filters**: a quick filter over all columns and a filter per column, kept as state so that a data provider can
   serve them.
 - **Grouping** by a field, with totals per group.
-- **CSV export** of the visible rows, as a file the user saves.
+- **CSV export**, built on the authority (owner, 2026-11-21) from the grid's current filters, sort and visible columns,
+  so that rows not loaded into the browser are included and no rows are sent to the browser to be exported. The grid
+  sends the authority a request with these settings, not the rows. The authority runs it as a data query under the
+  requesting persona's access, so the file never holds a row that the persona could not read; with Postgres, row-level
+  security applies. The result is a file the user saves. The export logs the dataset name and the row count, never a
+  value.
 - **`actionBar`**, a new molecule that appears while records are selected. It shows the count, the bulk actions and a
   way to clear the selection. Mantine, Chakra and Spectrum 2 each ship one. It also serves `list`, `board` and
   `record-grid`.
@@ -148,13 +153,32 @@ Most of these are options on existing components:
   value. Formatting belongs to expressions and to the `format` properties that `stat`, `number-field` and `chart`
   already have.
 
-## Open questions
+## A map
 
-- **Map.** Only MUI X Premium has one, as a chart type. Apps with store locators or deliveries will want one. Tiles
-  come from an outside server, so a map needs a decision on which tile hosts a document may use and what is sent to
-  them before it can be designed.
-- **Grid export.** It is not yet decided whether CSV export is a file the browser saves or a command that the
-  authority runs, so that it can include rows that are not loaded.
+Only MUI X Premium has a map, as a chart type. Apps with store locators or deliveries will want one.
+
+Asked on 2026-11-21: "For maps, can we route the communication through our web socket and have the node contact the
+server?"
+
+The browser contacts only our server, and our server fetches the tiles (owner, 2026-11-21). The tile host then sees our
+server, not the user: it gets no user's address, and the document names no outside host. Our server can also cache
+tiles, so each tile is fetched from the tile host once and then served to every user.
+
+The tiles should travel over HTTP on our own origin, not over the sync WebSocket. The sync protocol (`state-sync`) is
+JSON changes to state. It has no binary messages, and tiles do not belong in state. A view needs 15 to 30 tiles of 10
+to 50 KB each, and a pan loads more. Over the socket, those tiles would queue in front of state changes and need a new
+binary message kind with its own request tracking. Over HTTP the browser fetches them in parallel, its cache keeps
+them, and the socket carries only state. A `/tiles/{z}/{x}/{y}` route on the Magnetic host, behind Caddy, fetches each
+tile from the tile host and caches it.
+
+What remains open:
+- **Transport.** It is not yet confirmed whether the owner meant the socket itself or only that the server makes the
+  outside contact. The design above assumes the second.
+- **Tile source.** One option is a commercial raster provider under its terms, with a key held on the server. The other
+  is our own Protomaps file of the region served from S3, in which case no outside party is involved. OpenStreetMap's
+  public tile servers forbid heavy and proxied use, so they are out.
+- **Drawing.** Raster tiles are images placed in a `viewport`, with pins drawn by `draw-repeat`. They need no new
+  runtime. Vector tiles need a WebGL renderer, a lazy chunk like stateui-3d.
 
 ## Rules and Constraints
 
@@ -170,4 +194,6 @@ Most of these are options on existing components:
 
 ## Decisions
 
-None yet. The order C1 to C6 is a proposal for the owner.
+- CSV export is built on the authority, not in the browser (owner, 2026-11-21).
+- A map's tiles are fetched by our server, and the browser never contacts a tile host (owner, 2026-11-21).
+- The order C1 to C6 is a proposal for the owner.
