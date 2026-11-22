@@ -1,7 +1,7 @@
 # Component gaps against the major UI libraries
 
-Status: C1 in progress (2026-11-21). Column resize, pinned columns, inline cell editing and `actionBar` are built;
-filters, grouping and CSV export are next, then C2 to C6.
+Status: C1 built (2026-11-21). Column resize, pinned columns, inline cell editing, `actionBar`, filters, grouping
+and CSV export on the authority are built; C2 to C6 are next.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
 and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
@@ -77,8 +77,8 @@ and row selection. C1 adds the following to `table`, not a second grid component
 - **CSV export**, built on the authority (owner, 2026-11-21) from the grid's current filters, sort and visible columns,
   so that rows not loaded into the browser are included and no rows are sent to the browser to be exported. The grid
   sends the authority a request with these settings, not the rows. The authority runs it as a data query under the
-  requesting persona's access, so the file never holds a row that the persona could not read; with Postgres, row-level
-  security applies. The result is a file the user saves. The export logs the dataset name and the row count, never a
+  requesting persona's access, so the file never holds a row that the persona could not read. The result is a file the
+  user saves. The export logs the dataset name and the row count, never a
   value.
 - **`actionBar`**, a new molecule that appears while records are selected. It shows the count, the bulk actions and a
   way to clear the selection. Mantine, Chakra and Spectrum 2 each ship one. It also serves `list`, `board` and
@@ -204,6 +204,18 @@ What remains open:
   cell and a form field fail the same rules with the same `_errors` keys.
 - The editor of a cell is one overlay in the table, over the cell, not an input in every row: the virtual body recycles
   rows, and one overlay keeps the edit when its row scrolls out.
+- The export reads the requesting persona's own running instance, not storage. Postgres row-level security is per
+  workspace and a dataset is one JSON value, so there is no per-row rule to apply; the instance already holds exactly
+  what the persona can read (a shared dataset whole, a persona binding's own records, another owner's share). Per-row
+  rules for personas would be new design. A source served in pages by an effect exports the records the instance holds.
+- Filtering, sorting and the CSV are one implementation in `@punyts/stateui-app/core` (`src/core/records/`), used by
+  the table in the browser and by the export on the authority, so the file holds the rows the grid shows.
+- The export is a request from the host page, not a logic effect or a stored app file: an effect's answer lands in
+  state, and an app file would be readable by every tenant of the app and count against its quota. Nothing is stored.
+- The frame cannot download (no `allow-downloads`), so the host page fetches the file and saves it with a link.
+- A persona with view access may export: the file holds only what that persona already sees.
+- An export holds at most 100,000 rows; past that it is refused, not cut short. Text a spreadsheet would read as a
+  formula gets a leading `'`.
 - A table with an end-pinned column always shows its vertical scrollbar: with a stable scrollbar gutter, Chromium places
   an end-pinned sticky cell under the scrollbar.
 
@@ -229,3 +241,27 @@ What remains open:
   `error`. `table-row` shows a select column's label and marks editable cells.
 - Test: `test/composites/table-edit.browser.test.ts`.
 - Example: the products' stock table edits the product name (text), lifecycle (select) and reorder (check) in place.
+
+### C1c. Filters and grouping
+- `stateui-components/src/shared/records/tableView.ts`: the view columns, the group rows and their totals
+  (`arrangeView`). `placeholder.ts` names group keys; `recordIndex.ts` resolves them to `groups`; `sortOrder.ts` takes
+  an `arrange` step after the sort. Test: `tableView.test.ts`.
+- `table`: `filter`, `filters`, column `filter` (`text`, `select`) with a filter row, `clearFilters`, event `filter`;
+  `groupBy`, column `total` (`sum`, `average`, `min`, `max`, `count`), `collapsedGroups`, event `groupToggle`; token
+  `group.fill`. `table-row` draws group rows; `record-list` takes `groups`.
+- Test: `test/composites/table-filter-group.browser.test.ts`.
+- Example: the products' stock table is grouped by lifecycle, with a text filter on the name and a select filter on
+  the lifecycle.
+
+### C1d. CSV export on the authority
+- `stateui-app/src/core/records/`: `recordView.ts` (the filter and sort the table uses) and `recordExport.ts`
+  (`readExportRequest`, `exportRecords`, `toCsv`, the patterns and caps). Test: `recordExport.test.ts`.
+- `stateui-app/src/runtime/fileExport.ts`, messages `fileExport` and `fileExported`, the dispatcher hook `exportFile`
+  for `ui-file-export`. Tests: `src/runtime/fileExport.browser.test.ts`, `src/runtime/validate.test.ts`.
+- `stateui-mcp/src/application/recordsCsv.ts`: builds the file from the persona's instance; `POST /apps/:appId/export`
+  in `HttpServer.ts` and the same request over the statenet relay in `StatenetViews.ts`; the host page side in
+  `src/browser/fileExport.ts`. Tests: `test/http.test.ts`, `test/hostFileExport.test.ts`,
+  `test/statenetBridge.test.ts`.
+- `table`: command `export`, runtime `exporting`, event `export`, content `_exportName`. Test:
+  `test/composites/table-export.browser.test.ts`.
+- Magnetic serves the route through `startHttpServer` unchanged. The example has no host, so it places no export.
