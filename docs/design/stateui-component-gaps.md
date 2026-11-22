@@ -1,8 +1,8 @@
 # Component gaps against the major UI libraries
 
-Status: C1 to C4 built (2026-11-21). The data grid, the AI conversation components, the chart types, `sparkline`,
-`meter`, `dateTimeField`, the calendar's agenda and timeline views and `dateField`'s `precision` are built; C5 and C6
-are next.
+Status: C1 to C5 built (2026-11-21). The data grid, the AI conversation components, the chart types, `sparkline`,
+`meter`, `dateTimeField`, the calendar's agenda and timeline views, `dateField`'s `precision` and the smaller gaps of
+C5 are built; C6 is next.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
 and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
@@ -244,6 +244,25 @@ What remains open:
   record whose resource is not a row is not shown, as a record with no readable start is not.
 - `dateField`'s month and year precision use the native month input and a number input, so the value stays text
   compared as text, as the day precision's is.
+- The password strength is a hint, not a rule: it never sets `error`. The score counts length and kinds of character
+  and calls a run or a repeat weak; no word list ships, which would cost more bundle than the hint is worth. Its bar
+  takes the `field` group's `selected.fill` and `error.color`, because a token added to `field` must be added to
+  every field.
+- `infoTip` is an atom of its own, not a `tooltip` option: a tooltip is `aria-hidden` and opens on hover, a toggletip
+  is a button whose note is announced (`role="status"`) and opens on press, so touch reaches it.
+- The context menu is `menu`'s `anchor: "pointer"`, positioned by a zero-size fixed point at the pointer that the popup
+  anchors to, so the anchor positioning and its fallbacks are the menu's own. A long press is 500 ms within 10 px, for
+  touch and pen only; Shift+F10 and the ContextMenu key open it at the trigger.
+- `buttonGroup` draws its own buttons from keyed `actions` rather than holding `button` children, so the joined corners
+  and the split menu need no reach into children; a split group's menu items are the actions after the first.
+- `tour` finds a step's node by its state path through the shadow roots, and measures it each frame while it moves
+  (the controller reads layout, as `board` and `viewport` do). A node not found within 30 frames leaves the card in
+  the middle of the viewport rather than ending the tour. `done` is plain state, so an app links it to data and a
+  finished tour stays finished.
+- `editableText` keeps the edit in a runtime `draft` and writes `value` once, on Enter or blur, so a link to data hears
+  one change per edit.
+- Choice cards are an `appearance` of `radioField` and `checkField`, so the native controls, their keyboard and the
+  field contract stay; a press anywhere on a card works through the label.
 
 ## As built
 
@@ -328,3 +347,18 @@ What remains open:
 - `dateField`'s `precision`. Test: `test/molecules/date-field.browser.test.ts`.
 - Example: the preferences screen's notifications card holds a `dateTimeField` that pauses notifications until a
   time in Los Angeles (`example/src/seed.ts`: `pauseUntil`).
+
+### C5. Smaller gaps
+- `text-field`: the password reveal and strength hint; `src/shared/password/strength.ts` (`passwordStrength`). Tests:
+  `src/shared/password/strength.test.ts`, `test/molecules/text-field-password.browser.test.ts`.
+- `components/atoms/info-tip/`. Test: `test/atoms/info-tip.browser.test.ts`.
+- `menu`'s `anchor: "pointer"`. Test: `test/composites/menu-context.browser.test.ts`.
+- `components/molecules/button-group/`. Test: `test/molecules/button-group.browser.test.ts`.
+- `components/composites/tour/` and `src/shared/tour/tourModel.ts` (`tourSteps`, `tourPosition`, `stepAfter`,
+  `nodeElement`). Tests: `src/shared/tour/tourModel.test.ts`, `test/composites/tour.browser.test.ts`.
+- `components/molecules/editable-text/`. Test: `test/molecules/editable-text.browser.test.ts`.
+- Choice cards: `radioField` and `checkField` `appearance: "card"`. Test: `test/molecules/choice-cards.browser.test.ts`.
+- The `eye` and `eye-off` icons join the core set.
+- stateui-mcp's showcase shows `buttonGroup` and `editableText` (forms) and `infoTip` and `tour` (overlays).
+- Example: the notifications preview card holds an `editableText` sender name with an `infoTip`, a split `buttonGroup`
+  that sends a test, and a `tour` over the pause field, the sender and the button group.
