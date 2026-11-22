@@ -1,9 +1,10 @@
 # Component gaps against the major UI libraries
 
-Status: proposed (2026-11-21). Nothing built.
+Status: C1 in progress (2026-11-21). Column resize, pinned columns, inline cell editing and `actionBar` are built;
+filters, grouping and CSV export are next, then C2 to C6.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
-and see if there are any components we should add." Then: "Write the doc".
+and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
 
 ## The survey
 
@@ -198,4 +199,33 @@ What remains open:
 
 - CSV export is built on the authority, not in the browser (owner, 2026-11-21).
 - A map's tiles are fetched by our server, and the browser never contacts a tile host (owner, 2026-11-21).
-- The order C1 to C6 is a proposal for the owner.
+- The stages are built in the order C1 to C6 (owner, 2026-11-21: "Build it all").
+- Inline editing reuses the form-field rules (`src/shared/field/rules.ts`) through `src/shared/records/cellEdit.ts`, so a
+  cell and a form field fail the same rules with the same `_errors` keys.
+- The editor of a cell is one overlay in the table, over the cell, not an input in every row: the virtual body recycles
+  rows, and one overlay keeps the edit when its row scrolls out.
+- A table with an end-pinned column always shows its vertical scrollbar: with a stable scrollbar gutter, Chromium places
+  an end-pinned sticky cell under the scrollbar.
+
+## As built
+
+### C1a. Column resize, pinned columns, `actionBar`
+- `stateui-components/components/composites/table/`: `pin` per column (sticky header and cells at
+  `--table-pin-<index>`), `resizable` with a `role=separator` handle per header (drag and arrow keys, 48 px least
+  width, `columnResize`), sideways scroll with the header following the body; tokens `pin.fill`, `pin.width`,
+  `column.min`. `table-row` draws pinned cells; `record-list` reads `--sui-list-overflow-x`, `--sui-list-overflow-y`,
+  `--sui-list-gutter` and `--sui-rows-min`.
+- `stateui-components/components/molecules/action-bar/`: the new molecule.
+- Tests: `test/composites/table-columns.browser.test.ts`, `test/molecules/action-bar.browser.test.ts`,
+  `test/catalog.test.ts`.
+- Example: the dashboard's top-customers table is resizable, multi-select, with the customer column pinned, and an
+  `actionBar` above it. Showcase: an `actionBar` example in `stateui-mcp/showcase/examples/data.json`.
+
+### C1b. Inline cell editing
+- `stateui-components/src/shared/records/cellEdit.ts`: reads a column's editor and checks a draft against the form-field
+  rules. Test: `cellEdit.test.ts`.
+- `table`: column `edit` (`text`, `number`, `date`, `select`, `check`), `options` and the rules `required`,
+  `minLength`, `maxLength`, `min`, `max`, `step`, `pattern`; `_errors`; runtime `editing`; event `edit`; token
+  `error`. `table-row` shows a select column's label and marks editable cells.
+- Test: `test/composites/table-edit.browser.test.ts`.
+- Example: the products' stock table edits the product name (text), lifecycle (select) and reorder (check) in place.
