@@ -2,10 +2,10 @@
 
 Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 built (2026-11-21): the
 `richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 built (2026-11-21): paste and drop of Markdown and
-HTML, and the link panel.
+HTML, and the link panel. T4 built (2026-11-21): the `/` command menu, mentions and tables.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
-editor".
+editor". On 2026-11-21: "Build T4", with T4 chosen as "/ command menu, Mentions, Tables".
 
 ## The problem
 
@@ -53,13 +53,20 @@ The value is a keyed map of blocks. Each block holds its own text as an array of
   - `quote`
   - `code`, with an optional `language`
   - `divider`, which has no runs
+  - `table`, which has no runs of its own: `rows` (the first is the header), each `{ cells }` with every cell
+    `{ runs }`, and an optional `align` with `left`, `center`, `right` or `""` per column
 - **Lists are flat blocks with an indent, not nested trees.** Every block is then one path. Numbering is worked out
   from the run of `numbered` blocks around it.
-- **Runs** are `{ text, marks?, link? }`.
+- **Runs** are `{ text, marks?, link?, mention? }`.
   - The marks are `bold`, `italic`, `strike` and `code`.
   - A `link` is an `https:` URL, a relative in-app target or a `#` fragment. These are the three kinds that
     `markdown`'s link check (`src/shared/markdown/links.ts`) already keeps.
+  - A `mention` is the id of the person or record a run names (1 to 128 characters); the run's text is what it shows,
+    `@Ada Lovelace`. A mention carries no link and is never merged with its neighbours.
   - Adjacent runs with the same marks and link are merged when written, so equal content always has one form.
+- **A table** has 1 to 20 columns, as many as its header row has, and 1 to 500 rows; every row is padded or cut to the
+  header. A cell is one line: a line break in a stored cell reads as a space. Its characters count toward `maxLength`.
+  A table is one block, so an edit in any cell writes the whole table.
 
 A block is the unit of a write and of a conflict. Every edit writes the blocks it changed, whole.
 
@@ -110,6 +117,35 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
   (`example.com/a`) gets `https://`, since it would otherwise be a relative target; the result must pass `safeHref`, or
   the panel stays open with an error.
 
+### Commands, mentions and tables (T4)
+
+- **One picker.** Typing `/` or `@` at the start of a block's text or after a space opens a listbox popover anchored
+  under the block, like the link panel. The text typed after the trigger is its query; the picker closes when the caret
+  leaves that text, the trigger is deleted, the query passes 64 characters or holds a line break, or on Escape or a
+  press outside. ArrowUp and ArrowDown move through the options (`aria-activedescendant` on the editor names the active
+  one), Enter or Tab picks, and a press on an option picks it without taking the focus. Picking takes the trigger and
+  query out and runs the option, as one undo step. The runtime property `picker` is `slash` or `mention` while it shows.
+- **The `/` menu** offers the block kinds the field allows (headings, lists, check, quote, code block, divider and
+  table), labelled from `_tools`. It filters by label, and closes on a space or when nothing matches. It does not open in
+  a code block or a table cell.
+- **Mentions.** `@` offers the field's `mentions` records: each record's `mentionValue` field (default `value`) is
+  the id and its `mentionLabel` field (default `label`) the label, filtered by label with the search collator the
+  combobox uses, at most eight. The field raises `mentionQuery` with the query once typing pauses for 300 ms, so an app
+  can load matching records into `mentions`; the options follow as they are written. A picked mention goes in as the run
+  `@label` with its id, then a space. The editor draws it as `span.mention`, not editable; the caret never sits inside
+  it, Backspace and Delete take it whole, and a selection that cuts into it is widened to cover it. Mentions work in
+  table cells, never in code.
+- **Tables.** The toolbar and the `/` menu insert a table of three columns and three rows in place of an empty block,
+  or after the caret's block, with a paragraph after it. A cell takes typing, marks, links and mentions like a
+  paragraph, but no block shortcut and no line break. Tab moves to the next cell and adds a row from the last;
+  Shift+Tab goes back; Enter goes to the cell below and adds a row from the last. In a table the toolbar shows add row
+  (below), add column (right), remove row, remove column and remove table; removing the last row or column removes the
+  table. Backspace after a table and Delete before one move the caret into it instead of joining. A selection that
+  reaches out of a cell takes the whole table as one block.
+- **Display and Markdown.** `richText` draws a table as `table` with the header row in `thead`, alignment as
+  `data-align`, and a mention as `span.mention`. `fromMarkdown` reads a GFM table as a table block and `toMarkdown`
+  writes one (a pipe in a cell is escaped); a mention is written as its text.
+
 ### Paste and drop
 
 - **Plain text** becomes one paragraph per line. If it reads as Markdown (headings, list markers, fences), it goes
@@ -121,11 +157,13 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
   - An element's inline `font-weight` (bold or 600 and above), `font-style: italic` and `line-through` count as marks,
     since Google Docs marks text that way; the `b` it wraps a whole copy in is not bold. Nothing else of `style` is
     read.
-  - A `li` with a checkbox is a check item; a nested list indents its items; table cells join into one paragraph per
-    row.
+  - A `li` with a checkbox is a check item; a nested list indents its items; a `table` is a table block, each cell's
+    blocks joined into one line.
   - Every other element contributes its text only.
   - No attribute is kept except a link's checked `href`.
-- **Paste respects `blocks`.** A block type the field does not allow becomes a paragraph, and a divider is dropped.
+- **Paste respects `blocks`.** A block type the field does not allow becomes a paragraph, a divider is dropped, and a
+  table becomes a paragraph per row with its cells joined by ` | `. Pasted text with a table's delimiter row reads as
+  Markdown. A paste into a table cell goes in as one line.
 - **Where it lands.** One pasted block goes in at the caret. With more, the block at the caret is split: the first
   pasted block joins its start, the last its end. A pasted paragraph takes the kind of the block it lands in, so lines
   pasted into a list become items; an empty block takes the first pasted block's kind. In a code block the plain text
@@ -146,11 +184,10 @@ new text. Merging characters within one block needs a sequence CRDT. That belong
 2. **T2, the editor.** Build `richTextField` with the block types and marks, typing, deleting, splitting and joining
    blocks, composition, undo and redo, Markdown shortcuts, keyboard commands and the toolbar.
 3. **T3, paste and links.** Add paste and drop of plain text, Markdown and HTML, and the link popover.
-4. **Later:**
+4. **T4, commands, mentions and tables** (owner, 2026-11-21). The `/` menu, mentions with `mentionQuery`, and the
+   `table` block with its editing, display and Markdown.
+5. **Later:**
    - images as app files
-   - mentions of people or records
-   - a `/` command menu
-   - tables
    - comments anchored to text
    - character-level merging (T5, with the statenet direction)
 
@@ -169,6 +206,16 @@ so T2 also includes a manual check on both before it is called done.
   italic. Only the three style properties above are read.
 - The link panel is anchored to the block, not to the selected characters: anchoring to a text range needs its layout,
   which the editor does not read.
+
+- One picker serves `/` and `@`, anchored to the block like the link panel, for the same reason: the editor reads no
+  layout.
+- A mention is a run, not a block or an inline node, so it costs the value one optional field and every run function
+  keeps working. Its label is stored as its text, so a value reads without the records; a renamed person keeps their
+  old label until the mention is put in again.
+- A table is one block with its cells inside, not a block per cell, so it moves, copies and undoes as one; two people
+  typing in two cells of one table conflict, as two people typing in one paragraph do.
+- An edit in a cell runs the paragraph edit on the cell as a one-block document and writes the result back, so cells
+  share every rule of typing, marks, links and limits with paragraphs.
 
 ## Rules and Constraints
 
@@ -228,3 +275,23 @@ T3, in stateui-components:
   `linkInvalid`, five `_tools` names in every locale, token `link.width`, and the `link` icon in the core set. Test:
   `test/molecules/rich-text-field.browser.test.ts` (HTML and Markdown paste, a paste splitting a block, a drop, and
   the panel: Ctrl+K and Enter, an unsafe address, edit, remove and Escape).
+
+T4, in stateui-components:
+- `src/shared/richtext/model.ts`: the `table` block (`rows`, `align`, `MAX_COLUMNS` 20, `MAX_ROWS` 500), the run's
+  `mention`, `blockLength` and `joinRunsOf`. Test: `model.test.ts` ("tables and mentions").
+- `src/shared/richtext/runs.ts`: `atomAround`; marks and links keep a mention and never link it.
+- `src/shared/richtext/edit.ts`: points with a `cell`, cell edits through `viaCell`, `insertTable`, `tableCommand`,
+  `insertMention`, `opensPicker`, `pickerQuery` and `chainEdits`; mention snapping in `rangeOf`. Test: `edit.test.ts`
+  ("tables", "mentions", "pickers").
+- `src/shared/richtext/editorView.ts` and `render.ts`: tables and mention chips, points in cells.
+- `src/shared/richtext/markdown.ts`: GFM tables both ways. Test: `markdown.test.ts` ("tables in Markdown").
+- `src/shared/richtext/paste.ts`: HTML tables, Markdown tables in text, tables the field does not allow. Test:
+  `paste.test.ts` ("pasted tables").
+- `components/molecules/rich-text-field/`: the picker (`#picker`, runtime `picker`), properties `mentions`,
+  `mentionValue` and `mentionLabel`, event `mentionQuery`, the `table` tool and five table tools, eight `_tools` names in
+  every locale, tokens `mention.color`, `mention.background`, `table.header`, `picker.active` and `picker.on`, and six
+  icons added to the core set. Test: `test/molecules/rich-text-field.browser.test.ts` (the `/` menu, arrows and Escape,
+  no menu inside a word, typing and Tab and Enter in cells, the table tools, mentions from records and from
+  `mentionQuery`).
+- `components/atoms/rich-text/`: table and mention styles, tokens `mention.color`, `mention.background` and
+  `table.header`.
