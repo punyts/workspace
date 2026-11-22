@@ -8,16 +8,12 @@ Updated 2026-11-22.
 
 ## This machine
 
-In progress:
+Built 2026-11-22, not deployed: the agent sees the page ([design/magnetic-agent-browser.md](design/magnetic-agent-browser.md)).
+Magnetic's agent has `ui_preview`, `ui_screenshot` and `ui_interact` through one shared headless Chromium per server.
 
-1. **The agent sees the page.** Magnetic's agent gets `ui_preview`, `ui_screenshot` and `ui_interact` back: one shared
-   headless Chromium per server, a browser context per workspace, and a short-lived agent session so the headless page
-   can sign in to its own workspace's view. Design: [design/magnetic-agent-browser.md](design/magnetic-agent-browser.md).
-   Touches `magnetic/src/agent`, `magnetic/src/server`, `magnetic/src/auth`, stateui-mcp's
-   `src/infrastructure/preview/BrowserPreview.ts` and `docker/Dockerfile` (Chromium in the image).
-After the tower's `/paths` route lands:
+Nothing in progress. After the tower's `/paths` route lands:
 
-2. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
+1. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
    its `/paths` URL for `mediaPlayer`, the read grant in the runtime frame and its image and media policy, real tiles in
    the example and the showcase.
 
@@ -41,7 +37,8 @@ asks first, in this file.
 
 ## The owner
 
-- Deploys (`node infra/aws/deploy.mjs`, with Docker Desktop running), stack changes and SSO.
+- Deploys (`node infra/aws/deploy.mjs`, with Docker Desktop running), stack changes and SSO. The next deploy carries
+  Chromium (about 920 MB more image): check the t3.small's memory with an agent turn running.
 - The MapTiler template and key: `/magnetic/map-tiles-url` and `/magnetic/map-tiles-key` in SSM (us-east-1), and
   `MAP_TILES_URL` and `MAP_TILES_KEY` in `.env`. Whether MapTiler's terms allow our proxy and disk cache.
 - The manual checks on Safari and an Android keyboard (the rich-text editor, the composer, the map's touch drag):

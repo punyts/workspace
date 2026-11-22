@@ -1,13 +1,12 @@
 # The agent sees the page
 
-Status: designed 2026-11-22; building on this machine ([../work-split.md](../work-split.md)).
+Status: built 2026-11-22 (see "As built"); not deployed.
 
 Asked for on 2026-11-22, after the list of what is left ("The agent cannot see the page" first among Magnetic's): "Let's
 do all of what you think we should do here."
 
-Magnetic's agent builds apps with `ui_validate` as its only check. `ui_preview`, `ui_screenshot` and `ui_interact` are
-withheld (`WITHHELD_TOOLS` in `magnetic/src/agent/AgentTurns.ts`), and the image has no Chromium. Two things kept them
-out (`magnetic/README.md`, "Not yet"): each workspace would start its own Chromium, and its headless page cannot sign in
+Before this, Magnetic's agent built apps with `ui_validate` as its only check: `ui_preview`, `ui_screenshot` and
+`ui_interact` were withheld, and the image had no Chromium. Two things kept them out (`magnetic/README.md`, "Not yet"): each workspace would start its own Chromium, and its headless page cannot sign in
 to reach the app.
 
 ## The design
@@ -47,7 +46,7 @@ no session.
 
 ### The tools come back
 
-`WITHHELD_TOOLS` keeps `ui_call_answer` and `ui_effect_answer` (Magnetic answers calls and effects itself) and gives
+`withheldTools(browser)` keeps `ui_call_answer` and `ui_effect_answer` (Magnetic answers calls and effects itself) and gives
 back `ui_preview`, `ui_screenshot` and `ui_interact`. The agent's instructions name the check as `ui_validate`, then
 `ui_screenshot`, then `ui_interact` for what the user will do. A `ui_screenshot` image goes to the model as an image
 block and counts against the turn's budget like any other input.
@@ -57,10 +56,12 @@ the agent falls back to `ui_validate`. Magnetic starts with `--agent-browser off
 
 ### The image
 
-The image installs Playwright's Chromium and its system libraries in the runtime stage, at the version the root
-`overrides` pin. Chromium runs as the image's user with its sandbox on. If the container's seccomp profile refuses the
-sandbox, the fallback is `--no-sandbox` for this browser only, which is acceptable because it loads only our own
-origins over loopback and the runtime origin, and the runtime frame is sandboxed itself.
+The image installs Playwright's Chromium headless shell and its system libraries in the runtime stage, at the version
+the root `overrides` pin (`playwright install --with-deps --only-shell chromium`, into `/ms-playwright`). The container
+runs as root, and Playwright starts Chromium without its sandbox by default (`chromiumSandbox: false`). That is
+acceptable because the browser loads only this server's own pages over loopback and the runtime origin, and the runtime
+frame is sandboxed itself. The layer adds about 920 MB to the image (the headless shell, fonts and libraries), so an
+image is about 3 GB on the host's 29 GB disk; `host-deploy.sh` already prunes old images before it pulls.
 
 ## Rules and Constraints
 
@@ -80,4 +81,18 @@ origins over loopback and the runtime origin, and the runtime frame is sandboxed
 
 ## As built
 
-Not built yet.
+- stateui-mcp: `src/infrastructure/preview/SharedChromium.ts` (`SharedChromium`, `PageSource`); `BrowserPreview` takes
+  `{ launchArgs?, pages? }` and `createServices` takes `pages`; `HttpServer.ts` gives a request to a loopback name
+  loopback origins behind public ones (`publicOriginsOf`). Tests: `test/sharedChromium.integration.test.ts`,
+  `test/http.test.ts` ("should give a request to a loopback name loopback origins behind public ones…").
+- Magnetic: `src/agent/AgentSessions.ts` (`AgentSessions`, `AGENT_COOKIE`, `fromThisMachine`); `AgentTurns.ts`
+  (`BROWSER_TOOLS`, `withheldTools`, the `browser` option); `instructions.ts` (`magneticInstructions(browser)`);
+  `startMagnetic.ts` (`agentBrowser`, the shared browser, the context that sets the agent cookie, `agentTenant` before
+  the signed-in tenant, closing on stop); `options.ts` (`--agent-browser`, `MAGNETIC_AGENT_BROWSER`, default on).
+  `startMagnetic` defaults `agentBrowser` to off, so tests that do not ask for it keep the tools withheld. Tests:
+  `src/server/agentBrowser.browser.test.ts` (behind public origins, the agent previews and screenshots its own app; a
+  made-up agent cookie is refused), `src/agent/AgentSessions.test.ts`, `src/server/options.test.ts`, and
+  `src/server/agentRoutes.test.ts` (still withheld without the browser).
+- `docker/Dockerfile`: the headless shell in the runtime stage. Checked by launching it and taking a screenshot in the
+  same base image as root.
+- Not checked yet: the memory of the hosted t3.small with the browser running (the owner's deploy).

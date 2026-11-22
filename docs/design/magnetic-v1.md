@@ -1,7 +1,7 @@
 # Magnetic v1: an AI app builder you can hand out as a link
 
 Status: M1 to M6 built (see "As built"). M7, hosting, is built as `magnetic-hosting.md` describes. Storage moved from
-files to Postgres (`magnetic-postgres.md`), and the image has no Chromium (below).
+files to Postgres (`magnetic-postgres.md`). The agent's browser is `magnetic-agent-browser.md`.
 
 ## Summary
 Magnetic is a web app where a person signs in with LinkedIn, describes an app in a chat box, and watches an agent build
@@ -89,7 +89,8 @@ These pieces are new:
   Replaced by `magnetic-postgres.md`: Magnetic keeps everything in Postgres, and nothing is written to disk.
 - The headless Chromium is shared, with one browser context per user, and pages are closed when idle. The agent
   needs it for screenshots. A limit on open pages per user and in total keeps memory bounded.
-  Not built: the browser tools are withheld and the image has no Chromium (`magnetic-hosting.md`, "Not in M7").
+  Built as `magnetic-agent-browser.md`: one Chromium per server, a context per workspace, signed in with an agent
+  session.
 
 ### Two origins, as today
 - `magnetic.<domain>` serves the shell, the sign-in pages and the API, and holds the session cookie.
@@ -257,7 +258,7 @@ Each stage ends in something you can run and is committed on `develop`, like the
 | M7 | Hosting: container with Chromium, TLS, the two domains, backups of the data volume, invite flow, then the LinkedIn post | all |
 
 M2 can run beside M3. M4 and M5 can run beside each other once M3 is in.
-M7 was built as `magnetic-hosting.md` describes: no Chromium, and Postgres on RDS with its backups in place of a
+M7 was built as `magnetic-hosting.md` describes: Chromium came later (`magnetic-agent-browser.md`), and Postgres on RDS with its backups in place of a
 data volume.
 
 ## Checks
@@ -374,9 +375,9 @@ data volume.
     declines is retried on the fallback model. A refusal that remains ends the turn with a message.
   - **The ends of a turn.** A turn ends when the model answers without a tool call, after 40 tool calls, after 5
     minutes, or on Stop.
-  - **Tools withheld.** The browser tools are withheld, because each workspace would open its own Chromium and the
-    headless page cannot sign in. `ui_call_answer` and `ui_effect_answer` are withheld too, because no logic waits
-    for an agent here (`agentAnswers: false`).
+  - **Tools withheld.** `ui_call_answer` and `ui_effect_answer` are withheld, because no logic waits for an agent
+    here (`agentAnswers: false`). The browser tools are withheld only with `--agent-browser off`
+    (`magnetic-agent-browser.md`).
 - **The model.** The default is Opus 5.5 at `high` effort, set with `--model` and `--effort`; decision 5 is
   still yours.
 - **Budgets.** Each request is priced from its token counts, cache reads and writes included.

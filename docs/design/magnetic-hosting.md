@@ -11,7 +11,7 @@ servers became nodes of the statenet (`statenet-relays.md`).
 | AWS account | `047947909044`, reached through the `magnetic` SSO profile with the `MagneticDeployer` permission set (`infra/aws/`) |
 | Network | Only the default VPC in `us-east-2`; nothing in `us-east-1` |
 | DNS | `ai-minion.com` is a Route 53 zone in the account. The apex and `www` are taken; `magnetic` and `run` are free |
-| Image | `docker/Dockerfile` builds Magnetic and the relay; no Chromium (`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`) |
+| Image | `docker/Dockerfile` builds Magnetic and the relay, with Chromium's headless shell for the agent (`magnetic-agent-browser.md`) |
 | Topology | `docker/statenet.compose.yml`: Postgres, migrate, two servers, a relay certificate, a relay. Local ports only |
 | Origins | The runtime origin is built as `http://<Host>:<runtime port>` (`startMagnetic.ts` `runtimeOriginOf`, `HttpServer.ts` `runtimeRoute`), so it cannot be `https://run.ai-minion.com` yet |
 | Budgets | `MAGNETIC_DAILY_BUDGET` per user per day, `MAGNETIC_MONTHLY_BUDGET` for the server per month |
@@ -65,8 +65,7 @@ Why this shape:
    `MAGNETIC_EMBEDDING=local` and a volume for the model cache, environment from a file the instance writes from
    Parameter Store, and `restart: unless-stopped`.
 
-Not in M7: **Chromium.** The agent's browser tools are withheld until one shared browser can sign in
-(`magnetic/README.md`, "Not yet"); the image stays without it, and it comes back with that work.
+Chromium was not in M7; it came back with the agent's browser (`magnetic-agent-browser.md`).
 
 ## AWS (H2)
 Kept as one CloudFormation template, `infra/aws/magnetic.yml`, so the whole thing is made, changed and removed as a
