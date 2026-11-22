@@ -424,7 +424,12 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     to start (S11). A file-backed one has no command: a local Magnetic keeps the aggregate in its process (S10).
   - **A restarted aggregate forgets what landed**, so a save sent again after its restart is written once more with
     the same content. The storage's fence still holds.
-  - **A node with no link holds its saves without limit**: the limit past which it refuses writes is not built.
+  - **The limit of held changes is counted per namespace** (22 November 2026): state-sync's authority takes
+    `maxUnsaved` (10000 by default), the changes it holds that no landed save covers. A node with no link holds its
+    save in `MeshUpstream` until the link is back, so its changes count up; past the limit a client change is rejected
+    and a server write throws, until a save lands. Ephemeral changes still pass. A save holds the whole namespace, so
+    what is held in memory is one copy per namespace, not one per change; the limit bounds the work a person could
+    lose, not memory. Test: state-sync `src/authority/Authority.test.ts` ("the limit of unsaved changes").
 
 ### S9: nodes link up, groups, and routing through relays (19 November 2026)
 - **statenet** `src/mesh/`:
