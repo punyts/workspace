@@ -1,11 +1,11 @@
 #!/bin/bash
 # Runs on the Magnetic host as root, through Session Manager (infra/aws/deploy.mjs puts it in /opt/magnetic/docker with
 # the compose files). Fetches the secrets, writes the two env files, makes sure the database has its extensions and the
-# magnetic_app role, then pulls the image and starts the stack.
-#   host-deploy.sh <image> <database host> <master secret> <app password secret> <secret key secret> <operator> <contact>
+# magnetic_app and magnetic_aggregate roles, then pulls the image and starts the stack.
+#   host-deploy.sh <image> <database host> <master secret> <app password secret> <aggregate password secret> <secret key secret> <operator> <contact>
 # No secret is printed: the env files are 0600 and the values never reach the command line of another process.
 set -euo pipefail
-IMAGE="$1" DB_HOST="$2" MASTER_SECRET="$3" APP_SECRET="$4" KEY_SECRET="$5" OPERATOR="$6" CONTACT="$7"
+IMAGE="$1" DB_HOST="$2" MASTER_SECRET="$3" APP_SECRET="$4" AGGREGATE_SECRET="$5" KEY_SECRET="$6" OPERATOR="$7" CONTACT="$8"
 STACK_REGION=us-east-2
 PARAM_REGION=us-east-1
 export HOME=/root
@@ -21,6 +21,7 @@ MASTER_JSON=$(secret "$MASTER_SECRET")
 MASTER_USER=$(jq -r .username <<<"$MASTER_JSON")
 MASTER_PASS=$(jq -r .password <<<"$MASTER_JSON")
 APP_PASS=$(secret "$APP_SECRET")
+AGGREGATE_PASS=$(secret "$AGGREGATE_SECRET")
 SECRET_KEY=$(secret "$KEY_SECRET")
 LINKEDIN_ID=$(param /magnetic/linkedin-client-id)
 LINKEDIN_SECRET=$(param /magnetic/linkedin-client-secret)
@@ -37,19 +38,25 @@ umask 022
 curl -fsS -o rds-ca.pem "https://truststore.pki.rds.amazonaws.com/$STACK_REGION/$STACK_REGION-bundle.pem"
 umask 077
 
-echo "== extensions and the magnetic_app role"
-export PGPASSWORD="$MASTER_PASS" PGSSLMODE=verify-full PGSSLROOTCERT=/opt/magnetic/docker/rds-ca.pem APP_PASS
+# The servers connect as magnetic_app, which only reads people's state; the aggregate as magnetic_aggregate, which
+# writes it (docs/design/statenet-network.md, S11). migrate --app-role and --aggregate-role grant them their tables
+echo "== extensions and the magnetic_app and magnetic_aggregate roles"
+export PGPASSWORD="$MASTER_PASS" PGSSLMODE=verify-full PGSSLROOTCERT=/opt/magnetic/docker/rds-ca.pem APP_PASS AGGREGATE_PASS
 psql -h "$DB_HOST" -U "$MASTER_USER" -d magnetic -v ON_ERROR_STOP=1 -q <<'SQL'
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS ltree;
 \getenv app_pass APP_PASS
 SELECT format('CREATE ROLE magnetic_app LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE', :'app_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'magnetic_app') \gexec
 SELECT format('ALTER ROLE magnetic_app PASSWORD %L', :'app_pass') \gexec
+\getenv aggregate_pass AGGREGATE_PASS
+SELECT format('CREATE ROLE magnetic_aggregate LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE', :'aggregate_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'magnetic_aggregate') \gexec
+SELECT format('ALTER ROLE magnetic_aggregate PASSWORD %L', :'aggregate_pass') \gexec
 SQL
 unset PGPASSWORD
 
 echo "== env files"
-# For compose itself: the image, the host names and the two database URLs (the owner's only reaches migrate)
+# For compose itself: the image, the host names and the three database URLs (the owner's only reaches migrate, the
+# aggregate's only the aggregate)
 cat > deploy.env <<EOF
 MAGNETIC_IMAGE='$IMAGE'
 MAGNETIC_ENV_FILE='magnetic.env'
@@ -58,6 +65,7 @@ MAGNETIC_RUNTIME_HOST_NAME='run.ai-minion.com'
 MAGNETIC_EMBEDDING='local'
 MAGNETIC_OWNER_DATABASE_URL='postgres://$(uri "$MASTER_USER"):$(uri "$MASTER_PASS")@$DB_HOST:5432/magnetic?sslmode=verify-full'
 MAGNETIC_APP_DATABASE_URL='postgres://magnetic_app:$(uri "$APP_PASS")@$DB_HOST:5432/magnetic?sslmode=verify-full'
+MAGNETIC_AGGREGATE_DATABASE_URL='postgres://magnetic_aggregate:$(uri "$AGGREGATE_PASS")@$DB_HOST:5432/magnetic?sslmode=verify-full'
 EOF
 # For the containers
 cat > magnetic.env <<EOF

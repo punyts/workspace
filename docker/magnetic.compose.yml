@@ -1,5 +1,8 @@
-# Magnetic as hosted (docs/design/magnetic-hosting.md): Caddy in front of two Magnetic servers and a relay, at two
-# public origins over HTTPS. The database is outside the stack (RDS when hosted).
+# Magnetic as hosted (docs/design/magnetic-hosting.md): Caddy in front of two Magnetic servers, at two public origins
+# over HTTPS. The database is outside the stack (RDS when hosted). The servers save people's state through a relay to
+# the aggregate, the one process that writes it (docs/design/statenet-network.md, S11):
+#
+#   magnetic-1, magnetic-2 (group "magnetic") ══▶ relay-1 ══▶ aggregate-1 ──▶ Postgres as magnetic_aggregate
 #
 # Settings come from an env file (MAGNETIC_ENV_FILE, default docker/magnetic.env): the two host names, the database
 # URLs and the secrets. On the host the deploy writes it from Parameter Store. To try it here, with Postgres in the
@@ -16,7 +19,8 @@ x-magnetic: &magnetic
   restart: unless-stopped
   env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
   environment: &magnetic-env
-    # The servers connect as magnetic_app, a role row-level security holds; migrations run as the owner
+    # The servers connect as magnetic_app, a role row-level security holds that only reads people's state; migrations
+    # run as the owner
     MAGNETIC_DATABASE_URL: ${MAGNETIC_APP_DATABASE_URL}
     MAGNETIC_PUBLIC_ORIGIN: https://${MAGNETIC_HOST_NAME}${MAGNETIC_PUBLIC_PORT_SUFFIX:-}
     MAGNETIC_RUNTIME_ORIGIN: https://${MAGNETIC_RUNTIME_HOST_NAME}${MAGNETIC_PUBLIC_PORT_SUFFIX:-}
@@ -26,6 +30,8 @@ x-magnetic: &magnetic
     MAGNETIC_HOST: 0.0.0.0
     MAGNETIC_MESH_PORT: '4310'
     MAGNETIC_MESH_HOST: 0.0.0.0
+    MAGNETIC_GROUP: magnetic
+    MAGNETIC_RELAYS: ws://relay-1:4310
   volumes:
     - models:/models
   depends_on:
@@ -33,7 +39,7 @@ x-magnetic: &magnetic
       condition: service_completed_successfully
 
 services:
-  # Only for trying the stack on one machine: Postgres with the two roles the hosted database has
+  # Only for trying the stack on one machine: Postgres with the roles the hosted database has
   db:
     profiles: [local]
     image: pgvector/pgvector:pg16
@@ -54,7 +60,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    command: ['migrate', '--app-role', 'magnetic_app']
+    command: ['migrate', '--app-role', 'magnetic_app', '--aggregate-role', 'magnetic_aggregate']
     env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
     environment:
       MAGNETIC_DATABASE_URL: ${MAGNETIC_OWNER_DATABASE_URL}
@@ -93,14 +99,31 @@ services:
       migrate:
         condition: service_completed_successfully
 
-  # Links to the servers' mesh; not public in M7
+  # The one writer of people's state, as magnetic_aggregate. It signs its certificate with the statenet's authority,
+  # which the servers (or relay-certificate) make in the database: until then it fails and restarts
+  aggregate-1:
+    image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
+    restart: unless-stopped
+    command: ['aggregate']
+    env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
+    environment:
+      MAGNETIC_DATABASE_URL: ${MAGNETIC_AGGREGATE_DATABASE_URL}
+      MAGNETIC_EMBEDDING: ${MAGNETIC_EMBEDDING:-local}
+      MAGNETIC_NODE_ID: aggregate-1
+      MAGNETIC_MESH_PORT: '4310'
+      MAGNETIC_MESH_HOST: 0.0.0.0
+    depends_on:
+      relay-certificate:
+        condition: service_completed_successfully
+
+  # Above the servers: they link up to it, and it links up to the aggregate. Not public
   relay-1:
     image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
     restart: unless-stopped
     entrypoint: ['node', 'statenet/dist/relayCli.js']
     environment:
       STATENET_NODE_ID: relay-1
-      STATENET_PARENTS: ws://magnetic-1:4310,ws://magnetic-2:4310
+      STATENET_PARENTS: ws://aggregate-1:4310
       STATENET_NODE_KEY_FILE: /certs/relay-1.key.json
       STATENET_NODE_CERTIFICATE_FILE: /certs/relay-1.certificate
       STATENET_AUTHORITY_PUBLIC_KEY_FILE: /certs/relay-1.authority
@@ -110,7 +133,7 @@ services:
     depends_on:
       relay-certificate:
         condition: service_completed_successfully
-      magnetic-1:
+      aggregate-1:
         condition: service_started
 
   caddy:

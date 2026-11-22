@@ -160,7 +160,8 @@ carries as `data-id`.
   - a logic module: its units (`$.logic.<module>.<group>.<unit>`);
   - a connection: its endpoints, plus endpoints the logic calls that are missing from it;
   - a persona: the apps of the workspace it has state in (`$.personas.<persona>.apps.<owner>.<app id>`), the most
-    recently used first. A dashed edge joins an app to its instance.
+    recently used first: the app being edited and the most recent others, eight in all (`TREE_RECORDS`), and how many
+    more. A dashed edge joins an app to its instance.
 - **`$.personas` holds the person's own persona only.** Another person's state is theirs: an org's admins reach it only
   through the audited support view. A persona is the person's own context of use (`work`, `comptia`, `comptia_bob`),
   not the person, who is `$.user`; the node is named by the persona. Magnetic gives each person the `default` persona,
