@@ -18,7 +18,8 @@ validation-seeking. Write docs and messages in plain declarative sentences, no h
   a design doc here) and needs a commit in each. `npm run status` shows every repo's branch, changes and unpushed
   commits.
 - Commit straight to `develop` in every punyts repo: no feature branches or pull requests (owner, 2026-11-17). ai-minion
-  is different: branch from its `develop` and merge through a pull request. Pushing a library's `develop` is its
+  is different: branch from its `develop`, commit, and merge the branch into `develop` locally with `--no-ff`, with no
+  pull request (owner, 2026-11-21). Pushing a library's `develop` is its
   release: ai-minion's CI and Docker clone `develop` of each library fresh, and locally ai-minion links
   `libraries/<name>` to these checkouts (its scripts default to the workspace that holds it). Nothing is published to
   npm. Bump a `version` only when a consumer raises its range; if a library's dependencies change, ai-minion's lockfile is
