@@ -47,11 +47,19 @@ Paths that everyone may read need no grant. Query strings of `/paths` are not lo
 
 ### The tile provider
 
-The provider is configured, not chosen in code: an XYZ URL template with `{z}`, `{x}`, `{y}` and `{key}`, and the key.
-Locally they are `MAP_TILES_URL` and `MAP_TILES_KEY` in `.env`; hosted they are the SSM parameters
-`/magnetic/map-tiles-url` and `/magnetic/map-tiles-key` (us-east-1), which the owner sets. Without them the tile
-source answers `404` and a map shows its background. The provider's terms decide caching and attribution; the
-attribution is the map's `_attribution`. OpenStreetMap's public tile servers forbid proxied use and are not an option.
+The provider is MapTiler (owner, 2026-11-22), configured rather than written into code: an XYZ URL template with
+`{z}`, `{x}`, `{y}` and `{key}`, and the key. MapTiler's raster tiles of 256 pixels match `map`'s tile size:
+
+```
+MAP_TILES_URL=https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key={key}
+```
+
+Another MapTiler map id (or another provider) is a change of configuration only. Locally the template and key are
+`MAP_TILES_URL` and `MAP_TILES_KEY` in `.env`; hosted they are the SSM parameters `/magnetic/map-tiles-url` and
+`/magnetic/map-tiles-key` (us-east-1), which the owner sets. Without them the tile source answers `404` and a map shows
+its background. The provider's terms decide caching and attribution; the attribution is the map's `_attribution`
+(MapTiler's and OpenStreetMap's contributors'). OpenStreetMap's public tile servers forbid proxied use and are not an
+option.
 
 The server fetches a tile once and keeps it in a disk cache with a size cap, least recently used out. Concurrent misses
 for one tile share one upstream fetch. Zooms outside the provider's range and coordinates outside `0 .. 2^z - 1` are
@@ -81,8 +89,9 @@ refused before any fetch.
 
 - Bytes are addressed by their statenet path, not by a route per kind (`/tiles`, `/files`) (owner, 2026-11-22).
 - The route is built on the tower; this workspace builds its clients (owner, 2026-11-22).
-- The tile provider is configuration: a URL template and a key in env or SSM, the provider decided later (owner,
-  2026-11-22).
+- The tile provider is configuration: a URL template and a key in env or SSM (owner, 2026-11-22). The provider is
+  MapTiler (owner, 2026-11-22: "Let's go with MapTiler"). That its terms allow the server's proxy and disk cache is to
+  be confirmed before the route is built.
 - Audio and video uploads stay under the 10 MiB file limit, so only short clips fit (owner, 2026-11-22).
 - The frame reads with a short-lived signed grant in the query, because its sandboxed requests carry no cookie. To be
   confirmed when the route is built.

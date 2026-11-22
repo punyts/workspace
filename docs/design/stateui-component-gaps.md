@@ -277,7 +277,7 @@ same statenet path pattern?" Tiles and files are addressed by statenet path and 
   URL of it is made and no byte reaches the store; the framed part is re-encoded in its own type (a GIF as a PNG) and
   at most 2048 pixels on its longest edge.
 
-- The tile source is a configured XYZ template and key (env locally, SSM hosted), the provider decided later
+- The tile source is a configured XYZ template and key (env locally, SSM hosted), and the provider is MapTiler
   (owner, 2026-11-22). The browser reads tiles from our origin only; `map` refuses a template that is neither https
   with a host nor a path of the app's own origin, or lacks `{z}`, `{x}` or `{y}`.
 - `map` draws the nearest whole zoom's tiles scaled to the fractional view zoom, at most 256 tiles, nearest the middle
