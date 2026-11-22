@@ -142,11 +142,13 @@ Most of these are options on existing components:
 - **`mediaPlayer`**: video or audio from an uploaded file or an https URL, with themed controls and captions.
 - **`imageField` cropping**: a crop step for an uploaded picture, with a fixed ratio for avatars.
 
+### A rich-text editor
+
+The rich-text editor has its own design, in [stateui-text-editor.md](stateui-text-editor.md). It needs no HTML
+insertion, and its value is block JSON (owner, 2026-11-21).
+
 ## Not proposed
 
-- **Rich-text editor.** A WYSIWYG editor needs `contenteditable` and HTML. That conflicts with the rule against
-  `innerHTML` for text, and it is the heaviest component in every library that has one. `markdown` with a
-  `textarea-field` covers notes and descriptions.
 - **Transfer list, cascader, tree select and mentions.** Two or three libraries ship each, and multi-select and
   combobox cover most cases. Tree select can be reconsidered if apps ask for hierarchical pickers.
 - **Masonry, marquee, watermark, number ticker, speed dial, affix, kbd and formatting components.** These have low
