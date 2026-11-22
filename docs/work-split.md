@@ -8,24 +8,22 @@ Updated 2026-11-22.
 
 ## This machine
 
-In progress, in this order:
+In progress:
 
 1. **The agent sees the page.** Magnetic's agent gets `ui_preview`, `ui_screenshot` and `ui_interact` back: one shared
    headless Chromium per server, a browser context per workspace, and a short-lived agent session so the headless page
    can sign in to its own workspace's view. Design: [design/magnetic-agent-browser.md](design/magnetic-agent-browser.md).
    Touches `magnetic/src/agent`, `magnetic/src/server`, `magnetic/src/auth`, stateui-mcp's
    `src/infrastructure/preview/BrowserPreview.ts` and `docker/Dockerfile` (Chromium in the image).
-2. **What sharing leaves behind.** Deleting an app removes the instances of the people it was shared with and its
-   links; a person moved from a `use` link to a `view` link has their `use` data cleared from their browser; a revoked
-   app's page no longer shows its name. Touches `magnetic/src/sharing` and `magnetic/src/server`.
-
 After the tower's `/paths` route lands:
 
-3. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
+2. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
    its `/paths` URL for `mediaPlayer`, the read grant in the runtime frame and its image and media policy, real tiles in
    the example and the showcase.
 
 ## The tower
+
+Built 2026-11-22: what sharing leaves behind ([design/magnetic-sharing-leftovers.md](design/magnetic-sharing-leftovers.md)).
 
 1. **The `/paths` route** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): the sources table, the
    MapTiler tile cache, files with byte ranges, the read grants.
