@@ -1,8 +1,8 @@
 # Component gaps against the major UI libraries
 
-Status: C1 to C5 built (2026-11-21). The data grid, the AI conversation components, the chart types, `sparkline`,
-`meter`, `dateTimeField`, the calendar's agenda and timeline views, `dateField`'s `precision` and the smaller gaps of
-C5 are built; C6 is next.
+Status: C1 to C6 built (2026-11-21). The data grid, the AI conversation components, the chart types, `sparkline`,
+`meter`, `dateTimeField`, the calendar's agenda and timeline views, `dateField`'s `precision`, the smaller gaps of C5
+and the media components of C6 are built.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
 and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
@@ -141,8 +141,9 @@ Most of these are options on existing components:
   PrimeReact and Web Awesome each ship one.
 - **`qrCode`**: an atom that encodes its value as a QR code, drawn as SVG paths. It needs no network access and serves
   tickets and bookings. Ant Design, Chakra and Web Awesome each ship one.
-- **`mediaPlayer`**: video or audio from an uploaded file or an https URL, with themed controls and captions.
-- **`imageField` cropping**: a crop step for an uploaded picture, with a fixed ratio for avatars.
+- **`mediaPlayer`**: video or audio from an https URL or a file that ships with the app, with themed controls and
+  captions.
+- **Cropping in `fileField`**: a crop step for an uploaded picture, with a fixed ratio for avatars.
 
 ### A rich-text editor
 
@@ -263,6 +264,20 @@ What remains open:
   one change per edit.
 - Choice cards are an `appearance` of `radioField` and `checkField`, so the native controls, their keyboard and the
   field contract stay; a press anywhere on a card works through the label.
+- `qrCode` encodes with its own byte-mode encoder rather than a package: under 400 lines, no network and no
+  dependency, checked against a published Reed-Solomon vector and an independent reader. Its colours follow the theme's
+  text and surface, so a dark theme draws a light code on dark; a theme that wants dark on light sets `dark` and
+  `light`.
+- `lightbox` takes a keyed map or a list of records, so it binds to a dataset as well as to literal pictures. Its
+  pictures are https or `data:` PNG, JPEG, GIF or WebP; SVG is refused, as the URL rule refuses it for `image`.
+- `mediaPlayer` plays https URLs and paths of the app's own origin only. The URL rule allows `data:` only for
+  pictures, the runtime frame allows no `blob:`, and ADR-0017's upload types have no audio or video, so playing
+  uploaded media waits for those to change. stateui-mcp's runtime frame and app pages allow `media-src https:`, as
+  their `img-src` allows https pictures.
+- The crop step is part of `fileField` (`crop`), not an `imageField` of its own: the transfer, the rules and the
+  field contract stay one component's. The picture is decoded with `createImageBitmap` and drawn on a canvas, so no
+  URL of it is made and no byte reaches the store; the framed part is re-encoded in its own type (a GIF as a PNG) and
+  at most 2048 pixels on its longest edge.
 
 ## As built
 
@@ -362,3 +377,21 @@ What remains open:
 - stateui-mcp's showcase shows `buttonGroup` and `editableText` (forms) and `infoTip` and `tour` (overlays).
 - Example: the notifications preview card holds an `editableText` sender name with an `infoTip`, a split `buttonGroup`
   that sends a test, and a `tour` over the pause field, the sender and the button group.
+
+### C6. Media
+- `components/atoms/qr-code/` and `src/shared/qr/qr.ts` (`encodeQr`, `qrPath`; byte mode, versions 1 to 40, Reed-Solomon
+  blocks, mask penalty). Tests: `src/shared/qr/qr.test.ts` (capacities, a published Reed-Solomon vector, format and
+  version bits, an independent reader's round trip), `test/atoms/qr-code.browser.test.ts`.
+- `components/composites/lightbox/` and `src/shared/lightbox/gallery.ts` (`isSafeImageSrc`, `galleryImages`,
+  `galleryStep`, `zoomStep`). Tests: `src/shared/lightbox/gallery.test.ts`, `test/composites/lightbox.browser.test.ts`.
+- `components/molecules/media-player/` and `src/shared/media/media.ts` (`isMediaUrl`, `captionTracks`, `formatTime`).
+  Tests: `src/shared/media/media.test.ts`, `test/molecules/media-player.browser.test.ts` with the fixtures
+  `test/fixtures/silence-4s.wav` and `captions.en.vtt`.
+- `fileField`'s `crop` and `src/shared/field/crop.ts` (`cropRatio`, `cropRect`, `croppedSize`, `croppedType`,
+  `croppedName`). Tests: `src/shared/field/crop.test.ts`, `test/molecules/file-field-crop.browser.test.ts`.
+- The `badge-cc`, `maximize`, `minimize`, `volume`, `volume-off`, `zoom-in`, `zoom-out` and `zoom-reset` icons join the
+  core set. The components bundle's gzip measure is 305,532 bytes (`test/bundleSize.test.ts`).
+- stateui-mcp: `runtimeCsp` and `APP_PAGE_CSP` allow `media-src https:` (`src/infrastructure/http/security.test.ts`).
+  The showcase shows `qrCode` and `mediaPlayer` (content), `lightbox` (overlays) and a cropping `fileField` (forms).
+- Example: the general settings hold a profile picture field cropped to a square and a QR code card; the customers'
+  About card opens a `lightbox` of two photos; the help screen plays a sample clip in a `mediaPlayer`.
