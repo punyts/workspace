@@ -1,6 +1,8 @@
 # A rich-text editor for StateUI
 
-Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 and T3 are not built.
+Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 built (2026-11-21): the
+`richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 is not
+built.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
 editor".
@@ -93,13 +95,15 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
 - **Composition.** IME composition (Chinese, Japanese, Korean, and Android keyboards) cannot be cancelled. During
   composition the browser edits the block's DOM. At `compositionend` the controller reads that one block's text back,
   rebuilds its runs and redraws it. This is the only place the DOM is read for content.
-- **Selection** is kept as `{ block, offset }` anchor and focus points in `$.runtime`, which never syncs. It is mapped
-  to and from the DOM selection on each edit, and the toolbar's active marks come from it.
+- **Selection** is kept as `{ block, offset }` anchor and focus points in the field's runtime property `selection`,
+  which is never synced or saved. It is mapped to and from the DOM selection on each edit, and the toolbar's active
+  marks and block kind (the runtime `active`) come from it.
 - **Markdown shortcuts** at the start of a block turn it into another type: `#`, `##`, `###`, `-`, `1.`, `[]`, `>`,
-  three backticks and `---`. Inline shortcuts add marks: `**`, `_`, `~~` and backticks. Ctrl+B, Ctrl+I and Ctrl+K
-  (link) work, along with Tab and Shift+Tab to indent and outdent list items.
-- **Undo** keeps a history of the user's own edits in `$.runtime`. Typing is grouped by pauses. It never undoes another
-  person's edit.
+  three backticks and `---`. Inline shortcuts add marks: `**`, `_`, `~~` and backticks. Ctrl+B, Ctrl+I, Ctrl+E (code),
+  Ctrl+Shift+X (strike) and, with T3, Ctrl+K (link) work, along with Tab and Shift+Tab to indent and outdent list items.
+- **Undo** keeps a history of the user's own edits in the field's controller, never in the store: each entry holds the
+  changed blocks before and after. Typing is grouped until a pause of a second or a caret move. A block someone else
+  changed since an edit is skipped, so undo never takes back another person's edit.
 - **Links** are added and edited in a `popover` anchored to the selection, with the URL checked as above.
 
 ### Paste and drop
@@ -156,7 +160,8 @@ so T2 also includes a manual check on both before it is called done.
 - No attribute other than a checked link `href` survives paste. Links are only `https:`, relative in-app targets or `#`
   fragments.
 - Block keys and every other key in the value are never integer-like. The value is stored as `json`, never `jsonb`.
-- Selection, history and the toolbar's state live in `$.runtime` and never sync.
+- Selection and the toolbar's state are runtime properties of the field, and the history stays in its controller;
+  none of them syncs.
 - The editor never logs text, runs or links. Errors name the field's path and the block key only, and their codes are in
   the catalog in `stateui-app/src/core/errors/catalog.ts`.
 - CSS uses theme tokens only. The editor reads the DOM only for the selection, and for a block's text at the end of
@@ -177,3 +182,22 @@ T1, in stateui-components:
   `code.background` and `check.fill`). Test: `test/atoms/rich-text.browser.test.ts`.
 - The example places a `richText` in the support desk's "Escalate and note" card, and stateui-mcp's showcase has an
   example of it.
+
+T2, in stateui-components:
+- `src/shared/richtext/runs.ts`: ranges over runs in UTF-16 offsets, `styleAt` and delete boundaries by grapheme, word
+  and line. Test: `runs.test.ts`.
+- `src/shared/richtext/edit.ts`: every edit as a pure function from the blocks and a selection to the blocks it wrote
+  and removed, the Markdown shortcuts among them. Test: `edit.test.ts`.
+- `src/shared/richtext/history.ts`: undo and redo by block, typing grouped. Test: `history.test.ts`.
+- `src/shared/richtext/editorView.ts`: the editor's DOM, one element per block, and the mapping of points between the
+  model and the DOM. Test: `editorView.test.ts` (numbering).
+- `src/shared/field/field.ts`: the `deep` option, so a field hears writes under its value.
+- `components/molecules/rich-text-field/`: the `richTextField` molecule (`toolbar`, `blocks`, `rows`, `maxLength`,
+  `minLength`, `required` and the field frame; tokens `gap`, `code.background`, `check.fill`, `toolbar.background` and
+  `toolbar.active`), with fifteen toolbar icons added to the core set. Test:
+  `test/molecules/rich-text-field.browser.test.ts`, which drives real keys in Chromium and dispatches paste and
+  composition events.
+- The plain-text half of paste (one paragraph per line) is in T2; Markdown and HTML paste are T3.
+- The example places a compact `richTextField` ("Handover") in the support desk's "Escalate and note" card, and
+  stateui-mcp's showcase has an example of it.
+- Not done: the manual check on Safari and an Android keyboard.
