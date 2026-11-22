@@ -1,11 +1,14 @@
 # Component gaps against the major UI libraries
 
-Status: C1 to C6 built (2026-11-21). The data grid, the AI conversation components, the chart types, `sparkline`,
-`meter`, `dateTimeField`, the calendar's agenda and timeline views, `dateField`'s `precision`, the smaller gaps of C5
-and the media components of C6 are built.
+Status: C1 to C6 built (2026-11-21) and C7 built (2026-11-22). The data grid, the AI conversation components, the
+chart types, `sparkline`, `meter`, `dateTimeField`, the calendar's agenda and timeline views, `dateField`'s
+`precision`, the smaller gaps of C5, the media components of C6, and C7's `map`, `treeSelectField` and audio and
+video uploads are built. The server route that C7's tiles and uploaded media are read from is designed in
+[statenet-paths-route.md](statenet-paths-route.md) and built on the tower.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
-and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
+and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all". On 2026-11-22, of
+the map, tree select and uploaded media: "Do it all".
 
 ## The survey
 
@@ -152,38 +155,33 @@ insertion, and its value is block JSON (owner, 2026-11-21).
 
 ## Not proposed
 
-- **Transfer list, cascader, tree select and mentions.** Two or three libraries ship each, and multi-select and
-  combobox cover most cases. Tree select can be reconsidered if apps ask for hierarchical pickers.
+- **Transfer list, cascader and mentions.** Two or three libraries ship each, and multi-select and combobox cover
+  most cases.
 - **Masonry, marquee, watermark, number ticker, speed dial, affix, kbd and formatting components.** These have low
   value. Formatting belongs to expressions and to the `format` properties that `stat`, `number-field` and `chart`
   already have.
 
-## A map
+## C7. Map, tree select and uploaded media
 
-Only MUI X Premium has a map, as a chart type. Apps with store locators or deliveries will want one.
+Only MUI X Premium has a map, as a chart type. Apps with store locators or deliveries want one.
 
 Asked on 2026-11-21: "For maps, can we route the communication through our web socket and have the node contact the
-server?"
+server?" The browser contacts only our server, and our server fetches the tiles (owner, 2026-11-21), so the tile host
+sees our server, not the user, and can be cached once for every user. The tiles travel over HTTP on our own origin,
+not the sync WebSocket: state-sync carries JSON changes and has no binary messages, a view needs 15 to 30 tiles, and
+over HTTP the browser fetches them in parallel and caches them. Asked on 2026-11-22: "Is there a way we can use the
+same statenet path pattern?" Tiles and files are addressed by statenet path and read at `/paths/<path>`
+([statenet-paths-route.md](statenet-paths-route.md)); the route is built on the tower.
 
-The browser contacts only our server, and our server fetches the tiles (owner, 2026-11-21). The tile host then sees our
-server, not the user: it gets no user's address, and the document names no outside host. Our server can also cache
-tiles, so each tile is fetched from the tile host once and then served to every user.
-
-The tiles should travel over HTTP on our own origin, not over the sync WebSocket. The sync protocol (`state-sync`) is
-JSON changes to state. It has no binary messages, and tiles do not belong in state. A view needs 15 to 30 tiles of 10
-to 50 KB each, and a pan loads more. Over the socket, those tiles would queue in front of state changes and need a new
-binary message kind with its own request tracking. Over HTTP the browser fetches them in parallel, its cache keeps
-them, and the socket carries only state. A `/tiles/{z}/{x}/{y}` route on the Magnetic host, behind Caddy, fetches each
-tile from the tile host and caches it.
-
-What remains open:
-- **Transport.** It is not yet confirmed whether the owner meant the socket itself or only that the server makes the
-  outside contact. The design above assumes the second.
-- **Tile source.** One option is a commercial raster provider under its terms, with a key held on the server. The other
-  is our own Protomaps file of the region served from S3, in which case no outside party is involved. OpenStreetMap's
-  public tile servers forbid heavy and proxied use, so they are out.
-- **Drawing.** Raster tiles are images placed in a `viewport`, with pins drawn by `draw-repeat`. They need no new
-  runtime. Vector tiles need a WebGL renderer, a lazy chunk like stateui-3d.
+- **`map`**: a composite of raster tiles in Web Mercator. `tiles` is an XYZ template that is https with a host or a
+  path of the app's own origin (the `/paths` route), with `{z}`, `{x}` and `{y}`. `lat`, `lng` and `zoom` are state,
+  moved by drag, wheel, arrow keys and the zoom buttons; markers are a keyed map or a list of records, pressed to
+  select. Raster tiles need no new runtime; vector tiles would need a WebGL chunk like stateui-3d and are not built.
+- **`treeSelectField`**: a field whose options are a hierarchy, records naming their parent, chosen from an expandable
+  `tree` popup behind a select-only combobox button. Hierarchical pickers (regions, departments, categories) were
+  asked for with the map.
+- **Audio and video uploads**: ADR-0017's list gains MP3, M4A, Ogg, WAV, MP4 and WebM under the 10 MiB limit, so a
+  `fileField` can take a short clip for a `mediaPlayer`. It plays once the `/paths` route serves files.
 
 ## Rules and Constraints
 
@@ -271,13 +269,24 @@ What remains open:
 - `lightbox` takes a keyed map or a list of records, so it binds to a dataset as well as to literal pictures. Its
   pictures are https or `data:` PNG, JPEG, GIF or WebP; SVG is refused, as the URL rule refuses it for `image`.
 - `mediaPlayer` plays https URLs and paths of the app's own origin only. The URL rule allows `data:` only for
-  pictures, the runtime frame allows no `blob:`, and ADR-0017's upload types have no audio or video, so playing
-  uploaded media waits for those to change. stateui-mcp's runtime frame and app pages allow `media-src https:`, as
+  pictures, the runtime frame allows no `blob:`, and uploaded files have no URL, so playing uploaded media waits for the
+  `/paths` route (C7). stateui-mcp's runtime frame and app pages allow `media-src https:`, as
   their `img-src` allows https pictures.
 - The crop step is part of `fileField` (`crop`), not an `imageField` of its own: the transfer, the rules and the
   field contract stay one component's. The picture is decoded with `createImageBitmap` and drawn on a canvas, so no
   URL of it is made and no byte reaches the store; the framed part is re-encoded in its own type (a GIF as a PNG) and
   at most 2048 pixels on its longest edge.
+
+- The tile source is a configured XYZ template and key (env locally, SSM hosted), the provider decided later
+  (owner, 2026-11-22). The browser reads tiles from our origin only; `map` refuses a template that is neither https
+  with a host nor a path of the app's own origin, or lacks `{z}`, `{x}` or `{y}`.
+- `map` draws the nearest whole zoom's tiles scaled to the fractional view zoom, at most 256 tiles, nearest the middle
+  first, wrapping columns around the world. Markers more than 64 pixels outside the view are not drawn. A drag writes
+  the centre once a frame; `change` carries `{ lat, lng, zoom }`.
+- `treeSelectField` keeps `expanded` as state, so a document can hold it. A missing parent makes a root and a cycle is
+  broken at its first option. With `leafOnly` a parent only opens and closes.
+- Audio and video uploads stay under 10 MiB (owner, 2026-11-22). The server sniffs the container; QuickTime and
+  Matroska other than WebM are refused.
 
 ## As built
 
@@ -395,3 +404,19 @@ What remains open:
   The showcase shows `qrCode` and `mediaPlayer` (content), `lightbox` (overlays) and a cropping `fileField` (forms).
 - Example: the general settings hold a profile picture field cropped to a square and a QR code card; the customers'
   About card opens a `lightbox` of two photos; the help screen plays a sample clip in a `mediaPlayer`.
+
+### C7. Map, tree select and uploaded media
+- `components/composites/map/` and `src/shared/map/map.ts` (`isTileTemplate`, `tileUrl`, `project`, `unproject`,
+  `coverTiles`, `panBy`, `zoomAround`, `placeMarkers`). Tests: `src/shared/map/map.test.ts`,
+  `test/composites/map.browser.test.ts`. The `map-pin` icon joins the core set; `viewport`'s last purpose became "bring
+  a part of a big diagram into view".
+- `components/molecules/tree-select-field/` and `src/shared/field/treeOptions.ts` (`readTreeOptions`, `ancestorsOf`,
+  `pathLabel`, `visibleRows`). Tests: `src/shared/field/treeOptions.test.ts`,
+  `test/molecules/tree-select-field.browser.test.ts`.
+- Audio and video types in `src/shared/field/files.ts` (test `files.test.ts`) and stateui-mcp's `src/domain/UiFile.ts`
+  (`detectMediaType`; test `UiFile.test.ts`, "audio and video detection"). ADR-0017 in ai-minion is amended.
+- stateui-mcp: the showcase shows `map` (data, no tiles) and `treeSelectField` (forms).
+- Example: the Deliveries screen's side card has a `map` of four depots over sample graticule tiles
+  (`scripts/map-tiles.ts`, `npm run tiles`, written to `public/map-tiles`); the general settings have a home depot
+  `treeSelectField` of regions and cities bound to `$.data.prefs.region`.
+- Not built: the `/paths` route, its tile cache and read grants (on the tower).
