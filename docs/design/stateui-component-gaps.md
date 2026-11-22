@@ -1,6 +1,7 @@
 # Component gaps against the major UI libraries
 
-Status: C1 and C2 built (2026-11-21). The data grid and the AI conversation components are built; C3 to C6 are next.
+Status: C1 to C3 built (2026-11-21). The data grid, the AI conversation components and the chart types, `sparkline`
+and `meter` are built; C4 to C6 are next.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
 and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
@@ -105,8 +106,8 @@ These serve Magnetic's own builder chat as well as the apps it makes.
   Heatmap, funnel and radar come next.
 - **`sparkline`**, a compact line or bar with no axes or legend, for `stat` and table cells.
 - **`meter`**, a new atom with `role="meter"` for a measured value within a known range, such as disk use or a score.
-  It draws a bar or a gauge and has optional thresholds that set its tone. `progress` stays for a task that is moving
-  towards done.
+  It draws a bar, and the thresholds `low`, `high` and `optimum` set its level and colour as the HTML `meter` element
+  does. `progress` stays for a task that is moving towards done.
 
 ### C4. Dates and time
 
@@ -223,6 +224,13 @@ What remains open:
 - `actionConfirm` decides once: after approve or reject the buttons give way to the outcome, and the application sets
   `status` back to `pending` to ask again.
 - Only `http` and `https` source URLs become links, opened with `noopener noreferrer`.
+- The scatter, radar and heatmap charts are types of `chart`, not new components: they share its records, series,
+  format, marks, tooltip, keyboard, renderers and data table. A scatter reads `x` as a number; a heatmap's rows are
+  the series and its columns the records, so it needs no new data shape.
+- `meter` draws a bar only. A gauge would repeat `progress`'s ring; the level rule is the HTML `meter` element's, so
+  `low`, `high` and `optimum` mean what they mean there.
+- `sparkline` is an atom with its own small svg, not a `chart` without axes: it has no tooltip, legend or table, and a
+  table cell holds hundreds of them.
 - A table with an end-pinned column always shows its vertical scrollbar: with a stable scrollbar gutter, Chromium places
   an end-pinned sticky cell under the scrollbar.
 
@@ -286,3 +294,15 @@ What remains open:
   `steps`, cites `sources`, proposes a refund with `actionConfirm` and is asked through a `composer`. Test:
   `example/test/app.browser.test.ts` ("should run the assistant's steps when it is asked and record an approved
   refund").
+
+### C3. Charts, sparkline and meter
+- `stateui-components/src/shared/chart/polar.ts`: `buildScatter`, `buildRadar`, `buildHeatmap`, dispatched by
+  `buildScene`; `CHART_TYPES` gains the three, `ChartInput.formatX` formats a scatter's x. The drawing tree passes
+  `opacity` and paints the `web` rings. Tests: `src/shared/chart/polar.test.ts`,
+  `test/composites/chart-types.browser.test.ts`.
+- `components/atoms/meter/` with `src/shared/meter/level.ts`. Tests: `src/shared/meter/level.test.ts`,
+  `test/atoms/meter.browser.test.ts`.
+- `components/atoms/sparkline/` with `src/shared/spark/spark.ts`. Tests: `src/shared/spark/spark.test.ts`,
+  `test/atoms/sparkline.browser.test.ts`.
+- Example: the dashboard's Warehouse load card holds a `meter` of the open orders and a `sparkline` of orders per
+  month, and a heatmap shows orders by weekday and channel (`example/src/seed.ts`: `ordersByWeekday`, `openRatio`).
