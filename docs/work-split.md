@@ -23,14 +23,15 @@ After the tower's `/paths` route lands:
 
 ## The tower
 
-Built 2026-11-22: what sharing leaves behind ([design/magnetic-sharing-leftovers.md](design/magnetic-sharing-leftovers.md)).
+Built 2026-11-22: what sharing leaves behind ([design/magnetic-sharing-leftovers.md](design/magnetic-sharing-leftovers.md));
+the limit of held changes on a node with no link and the notice of a refused change
+([design/statenet-network.md](design/statenet-network.md)); relays in the directory, S13
+([design/statenet-relay-directory.md](design/statenet-relay-directory.md)).
 
 1. **The `/paths` route** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): the sources table, the
    MapTiler tile cache, files with byte ranges, the read grants.
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
    - a restarted aggregate forgets what landed, so a save sent again is written again;
-   - a node with no link holds its saves without limit;
-   - relays are not in the directory by themselves (an aggregate with the database registers the relays linked to it);
    - only one relay between a node and the aggregate is routed.
 3. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the permission
    schema, sharing and revocation; requests that wait for an offline owner; the binary wire format; WebRTC, then
