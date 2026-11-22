@@ -63,7 +63,7 @@ one persona did in an app, laid over its definition. Logic is machines, rules, l
 - Error codes live in one catalog (`stateui-app/src/core/errors/catalog.ts`); messages take paths and names, never
   values.
 - Design docs in `docs/design/` and ai-minion's `knowledge-base/design/` carry "Rules and Constraints" sections; read
-  the one for the area before changing it. `statenet-direction.md` (ai-minion) is direction new work must not
+  the one for the area before changing it. `docs/design/statenet-direction.md` is direction new work must not
   contradict.
 
 ## Commands (from the root)
