@@ -21,7 +21,7 @@ servers became nodes of the statenet (`statenet-relays.md`).
 ```
                  Route 53: magnetic.ai-minion.com, run.ai-minion.com  ->  Elastic IP
                                           |
-  EC2 t3.medium, us-east-2, default VPC, Docker Compose, SSM Session Manager (no SSH)
+  EC2 t3.small, us-east-2, default VPC, Docker Compose, SSM Session Manager (no SSH)
    ├─ caddy        :443  TLS from Let's Encrypt; magnetic.* -> servers :4300, run.* -> servers :4301
    ├─ magnetic-1   :4300 pages and sockets, :4301 runtime, :4310 mesh
    ├─ magnetic-2   the same, a second node
@@ -45,7 +45,9 @@ Why this shape:
   not a true superuser, so row-level security holds; Magnetic still connects as its own role (below).
 - **`us-east-2`.** Close to you, and it has a default VPC to start in. The certificates come from Let's Encrypt, so
   nothing needs `us-east-1`.
-- **About $50 a month:** t3.medium $30, RDS $13 plus 20 GB $2.30, Elastic IP $3.60, the rest pennies.
+- **About $45 a month:** t3.small $15, RDS $13 plus 20 GB $2.30, Elastic IP $3.60, the 30 GB volume $2.40, Route 53
+  $5.50, the rest pennies. The host was a t3.medium until 2026-11-22, when it used 917 MB of its 3.8 GB with the
+  servers, relay and Caddy running, and was moved to a t3.small (owner, 2026-11-22: "Switch the host to t3.small").
 
 ## Code changes (H1)
 1. **Public origins.** `MAGNETIC_RUNTIME_ORIGIN` (`--runtime-origin`) beside `MAGNETIC_PUBLIC_ORIGIN`. When both are
@@ -146,7 +148,7 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
     `/magnetic/` by hand.
   - RDS `magnetic`: Postgres 16.15, db.t4g.micro, 20 GB gp3 growing to 100, encrypted, private, 7 days of backups
     (08:00 UTC), deletion protection, and a final snapshot if the stack is deleted.
-  - The machine: Ubuntu 24.04 (the image pinned, so a stack update never replaces it by itself), t3.medium, 30 GB
+  - The machine: Ubuntu 24.04 (the image pinned, so a stack update never replaces it by itself), t3.small, 30 GB
     encrypted, IMDSv2 only, a 2 GB swap file; Docker 29, Compose 2.40, the AWS CLI and psql 16 from its user data. No
     SSH: Session Manager only. Its role `/magnetic/magnetic-host` is under `magnetic-workload-boundary`.
   - The Elastic IP and `A` records for `magnetic.ai-minion.com` and `run.ai-minion.com`. No certificate yet: Caddy

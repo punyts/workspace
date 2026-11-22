@@ -30,7 +30,7 @@ Parameters:
     Default: ami-096d6538c463eb1db
   InstanceType:
     Type: String
-    Default: t3.medium
+    Default: t3.small
   DbInstanceClass:
     Type: String
     Default: db.t4g.micro
