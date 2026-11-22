@@ -1,7 +1,6 @@
 # Component gaps against the major UI libraries
 
-Status: C1 built (2026-11-21). Column resize, pinned columns, inline cell editing, `actionBar`, filters, grouping
-and CSV export on the authority are built; C2 to C6 are next.
+Status: C1 and C2 built (2026-11-21). The data grid and the AI conversation components are built; C3 to C6 are next.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
 and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
@@ -86,8 +85,8 @@ and row selection. C1 adds the following to `table`, not a second grid component
 
 ### C2. AI conversation (`chat-view`, `message-list`)
 
-`chat-view` is a composed component: a `messageList`, a `textareaField` and a send button. C2 adds the parts that the
-AI kits share:
+`chat-view` is a composed component: a `messageList` and, since C2, a `composer`. C2 adds the parts that the AI kits
+share:
 - **`composer`**, a molecule that replaces the textarea and button in `chat-view`. It takes text, attaches files (as
   `file-field` does), shows suggested prompts as chips and has a stop button while a reply streams.
 - A **streaming state** for a message in `message-list`, with a typing indicator, in which text grows in place
@@ -216,6 +215,14 @@ What remains open:
 - A persona with view access may export: the file holds only what that persona already sees.
 - An export holds at most 100,000 rows; past that it is refused, not cut short. Text a spreadsheet would read as a
   formula gets a leading `'`.
+- The composer clears itself after a send and sends `{ text, attachments }`; the old composer left clearing to the
+  application through a second command. One event with the whole message keeps the attachments with their text.
+- A suggestion chip sends its prompt at once rather than filling the composer: a prompt is a whole message.
+- The typing indicator is a `spinner` look (`dots`) with `active`, linked from the message row to `$row.streaming`, not
+  a new component; the row stays one template an app can replace.
+- `actionConfirm` decides once: after approve or reject the buttons give way to the outcome, and the application sets
+  `status` back to `pending` to ask again.
+- Only `http` and `https` source URLs become links, opened with `noopener noreferrer`.
 - A table with an end-pinned column always shows its vertical scrollbar: with a stable scrollbar gutter, Chromium places
   an end-pinned sticky cell under the scrollbar.
 
@@ -265,3 +272,17 @@ What remains open:
 - `table`: command `export`, runtime `exporting`, event `export`, content `_exportName`. Test:
   `test/composites/table-export.browser.test.ts`.
 - Magnetic serves the route through `startHttpServer` unchanged. The example has no host, so it places no export.
+
+### C2. AI conversation
+- `stateui-components/components/molecules/composer/`: text, attachments through `ui-file-transfer`, suggestion
+  chips, send and stop. `chatView`'s composer is a `composer`; `chat.send` carries `{ text, attachments }`, and
+  `chat.stop` is new. Tests: `test/molecules/composer.browser.test.ts`, `test/composed/chat-view.browser.test.ts`.
+- `spinner` `look: "dots"` and `active`; `messageList`'s default row shows the dots while `$row.streaming`. Test:
+  `test/atoms/spinner-dots.browser.test.ts`.
+- `components/molecules/sources/`, `steps/`, `action-confirm/`. Tests: `test/molecules/sources.browser.test.ts`,
+  `steps.browser.test.ts`, `action-confirm.browser.test.ts`.
+- Core icons `arrow-up`, `circle`, `circle-x`, `paperclip`.
+- Example: the support chat links `streaming`, offers two suggestions and stops a reply; an Assistant card runs
+  `steps`, cites `sources`, proposes a refund with `actionConfirm` and is asked through a `composer`. Test:
+  `example/test/app.browser.test.ts` ("should run the assistant's steps when it is asked and record an approved
+  refund").
