@@ -18,7 +18,8 @@ validation-seeking. Write docs and messages in plain declarative sentences, no h
   a design doc here) and needs a commit in each. `npm run status` shows every repo's branch, changes and unpushed
   commits.
 - Commit straight to `develop` in every punyts repo: no feature branches or pull requests (owner, 2026-11-17). ai-minion
-  is different: branch from its `develop` and merge through a pull request. Pushing a library's `develop` is its
+  is different: branch from its `develop`, commit, and merge the branch into `develop` locally with `--no-ff`, with no
+  pull request (owner, 2026-11-21). Pushing a library's `develop` is its
   release: ai-minion's CI and Docker clone `develop` of each library fresh, and locally ai-minion links
   `libraries/<name>` to these checkouts (its scripts default to the workspace that holds it). Nothing is published to
   npm. Bump a `version` only when a consumer raises its range; if a library's dependencies change, ai-minion's lockfile is
@@ -63,7 +64,7 @@ one persona did in an app, laid over its definition. Logic is machines, rules, l
 - Error codes live in one catalog (`stateui-app/src/core/errors/catalog.ts`); messages take paths and names, never
   values.
 - Design docs in `docs/design/` and ai-minion's `knowledge-base/design/` carry "Rules and Constraints" sections; read
-  the one for the area before changing it. `statenet-direction.md` (ai-minion) is direction new work must not
+  the one for the area before changing it. `docs/design/statenet-direction.md` is direction new work must not
   contradict.
 
 ## Commands (from the root)
