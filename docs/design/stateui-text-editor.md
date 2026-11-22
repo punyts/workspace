@@ -1,8 +1,8 @@
 # A rich-text editor for StateUI
 
 Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 built (2026-11-21): the
-`richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 is not
-built.
+`richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 built (2026-11-21): paste and drop of Markdown and
+HTML, and the link panel.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
 editor".
@@ -100,11 +100,15 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
   marks and block kind (the runtime `active`) come from it.
 - **Markdown shortcuts** at the start of a block turn it into another type: `#`, `##`, `###`, `-`, `1.`, `[]`, `>`,
   three backticks and `---`. Inline shortcuts add marks: `**`, `_`, `~~` and backticks. Ctrl+B, Ctrl+I, Ctrl+E (code),
-  Ctrl+Shift+X (strike) and, with T3, Ctrl+K (link) work, along with Tab and Shift+Tab to indent and outdent list items.
+  Ctrl+Shift+X (strike) and Ctrl+K (link) work, along with Tab and Shift+Tab to indent and outdent list items.
 - **Undo** keeps a history of the user's own edits in the field's controller, never in the store: each entry holds the
   changed blocks before and after. Typing is grouped until a pause of a second or a caret move. A block someone else
   changed since an edit is skipped, so undo never takes back another person's edit.
-- **Links** are added and edited in a `popover` anchored to the selection, with the URL checked as above.
+- **Links** are added and edited in a panel, a popover anchored under the block that holds the selection (CSS anchor
+  positioning, so the editor reads no layout). It opens with the link at the caret or selection. A caret in a link
+  edits the whole link; a caret elsewhere puts the address in as linked text. An address that starts like a domain
+  (`example.com/a`) gets `https://`, since it would otherwise be a relative target; the result must pass `safeHref`, or
+  the panel stays open with an error.
 
 ### Paste and drop
 
@@ -113,10 +117,19 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
 - **HTML** is parsed by `DOMParser` into an inert document, where scripts do not run and nothing loads. The converter
   walks it and keeps only these elements, turning each into a block or a mark:
   - `p`, `h1` to `h6` (a heading level above 3 is drawn as 3), `ul`, `ol`, `li`, `blockquote`, `pre`, `code` and `hr`
-  - `b`, `strong`, `i`, `em`, `s`, `del` and `a`
+  - `b`, `strong`, `i`, `em`, `s`, `del`, `strike` and `a`
+  - An element's inline `font-weight` (bold or 600 and above), `font-style: italic` and `line-through` count as marks,
+    since Google Docs marks text that way; the `b` it wraps a whole copy in is not bold. Nothing else of `style` is
+    read.
+  - A `li` with a checkbox is a check item; a nested list indents its items; table cells join into one paragraph per
+    row.
   - Every other element contributes its text only.
   - No attribute is kept except a link's checked `href`.
-- **Paste respects `blocks`.** A block type the field does not allow becomes a paragraph.
+- **Paste respects `blocks`.** A block type the field does not allow becomes a paragraph, and a divider is dropped.
+- **Where it lands.** One pasted block goes in at the caret. With more, the block at the caret is split: the first
+  pasted block joins its start, the last its end. A pasted paragraph takes the kind of the block it lands in, so lines
+  pasted into a list become items; an empty block takes the first pasted block's kind. In a code block the plain text
+  goes in as it is. `maxLength` cuts the paste. A drop lands at the drop point the browser gives.
 
 ### Collaboration
 
@@ -152,6 +165,10 @@ so T2 also includes a manual check on both before it is called done.
 - We build the editor ourselves. Lexical (about 22 KB gzipped) and ProseMirror (about 80 KB) would each bring their own
   document model, which would have to be translated to and from state on every edit.
 - Lists are flat blocks with an indent, so every block is one path and one unit of conflict.
+- Pasted HTML reads marks from inline styles as well as from elements, so a copy from Google Docs keeps its bold and
+  italic. Only the three style properties above are read.
+- The link panel is anchored to the block, not to the selected characters: anchoring to a text range needs its layout,
+  which the editor does not read.
 
 ## Rules and Constraints
 
@@ -197,7 +214,17 @@ T2, in stateui-components:
   `toolbar.active`), with fifteen toolbar icons added to the core set. Test:
   `test/molecules/rich-text-field.browser.test.ts`, which drives real keys in Chromium and dispatches paste and
   composition events.
-- The plain-text half of paste (one paragraph per line) is in T2; Markdown and HTML paste are T3.
 - The example places a compact `richTextField` ("Handover") in the support desk's "Escalate and note" card, and
   stateui-mcp's showcase has an example of it.
 - Not done: the manual check on Safari and an Android keyboard.
+
+T3, in stateui-components:
+- `src/shared/richtext/paste.ts`: `looksLikeMarkdown`, `textToShapes`, `htmlToShapes` (from an inert document) and
+  `allowedShapes`. Test: `paste.test.ts`.
+- `src/shared/richtext/edit.ts`: `insertBlocks`, `linkAt`, `setLink` and `linkTarget`; `runs.ts`: `linkRuns` and
+  `linkExtent`. Test: `edit.test.ts` ("insertBlocks", "links", "linkTarget").
+- `components/molecules/rich-text-field/`: paste and drop through them, the `link` tool (in the compact toolbar too)
+  and Ctrl+K, the link panel (`createPopover`, anchor `--richtext-link` on `.block.anchored`), runtime `link` and
+  `linkInvalid`, five `_tools` names in every locale, token `link.width`, and the `link` icon in the core set. Test:
+  `test/molecules/rich-text-field.browser.test.ts` (HTML and Markdown paste, a paste splitting a block, a drop, and
+  the panel: Ctrl+K and Enter, an unsafe address, edit, remove and Escape).
