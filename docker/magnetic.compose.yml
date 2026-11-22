@@ -89,7 +89,7 @@ services:
   # Signs the relay's certificate with the statenet's authority, which the servers keep in the database
   relay-certificate:
     image: ${MAGNETIC_IMAGE:-punyts/magnetic:dev}
-    command: ['relay-certificate', '--node-id', 'relay-1', '--out', '/certs']
+    command: ['relay-certificate', '--node-id', 'relay-1', '--group', 'magnetic', '--mesh-url', 'ws://relay-1:4310', '--out', '/certs']
     env_file: ${MAGNETIC_ENV_FILE:-magnetic.env}
     environment:
       MAGNETIC_DATABASE_URL: ${MAGNETIC_APP_DATABASE_URL}

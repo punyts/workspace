@@ -81,7 +81,7 @@ services:
   # Signs the relay's certificate with the statenet's authority, which the servers keep in the database
   relay-certificate:
     image: punyts/magnetic:dev
-    command: ['relay-certificate', '--node-id', 'relay-1', '--out', '/certs']
+    command: ['relay-certificate', '--node-id', 'relay-1', '--group', 'magnetic', '--mesh-url', 'ws://relay-1:4310', '--out', '/certs']
     environment:
       MAGNETIC_DATABASE_URL: postgres://magnetic:magnetic@db:5432/magnetic
       MAGNETIC_SECRET_KEY: ${MAGNETIC_SECRET_KEY:-statenet-compose-secret-change-me}

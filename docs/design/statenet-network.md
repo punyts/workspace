@@ -1,10 +1,10 @@
 # Statenet on the network: nodes at the edge, relays, aggregates
 
-Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, and S10, S10b and S12, 2026-11-20
+Status: S7, S8 and S9 built in statenet, and S11a, S11b and S11 in Magnetic, 2026-11-19, S10, S10b and S12, 2026-11-20, and S13, 2026-11-22
 (see "As built"): Magnetic's servers save people's state through a relay to a separate aggregate, as a role that only
 reads the state tables, a Magnetic is reached from other computers on its local network over HTTPS, and a standalone
 stateui-mcp signs in there as the person and runs its tools in their workspace, and an org signs in
-with SAML. S11 is not deployed yet: the stack
+with SAML, and the aggregate lists the relays linked to it, so relays route between groups. S11 is not deployed yet: the stack
 update (a new secret) and the deploy are the owner's. The checks of S10 and S10b from another computer are the owner's.
 
 Asked for on 2026-11-19: "I want to bring the network stuff back, that's a big part of the statenet. We just need to
@@ -323,7 +323,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 | S11b | Owner-rooted addresses: owner numbers; a place as an owner and a path under `$`; owners by number in addresses, grants and keys (all built) | S11a |
 | S11 | Magnetic hosted: servers get a group and link up to a relay (`--group`, `group` in `statenet_node`), instances save through a separate aggregate, servers keep only `SELECT` on the state tables, the compose stack gains an aggregate, relays move above the servers, deployed | S9 |
 | S12 | SAML sign-in per org, with its settings page and tests against a test identity provider (built) | Postgres P4 |
-| S13 | Relays in the directory: the aggregate lists the relays linked to it, a relay's endpoint is in its certificate, a server names its relay ([statenet-relay-directory.md](statenet-relay-directory.md)) | S9, S11 |
+| S13 | Relays in the directory: the aggregate lists the relays linked to it, a relay's endpoint is in its certificate, a server names its relay ([statenet-relay-directory.md](statenet-relay-directory.md)) (built) | S9, S11 |
 
 ## Checks
 - **S7:** a certified node of the wrong role is refused at each kind of link; a frame changed or replayed on the
@@ -478,7 +478,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
   - **A relay may still dial a node** (`mayLink('relay', 'owner')`), for the relays that hang below Magnetic's
     servers today. It goes when Magnetic moves (S11).
   - **Relays are still not in the directory by themselves**: the tests list them by hand. An aggregate with the
-    database is the one to register the relays linked to it; designed as S13.
+    database is the one to register the relays linked to it; built as S13.
   - **Only one relay between a node and the aggregate is routed.** A relay under another relay does not pass an
     ask it has no way for up to its parent.
   - **What a relay asks of a node ends with the link**: a subscription the relay made down a node's link is
