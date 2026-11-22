@@ -1,7 +1,8 @@
 # Component gaps against the major UI libraries
 
-Status: C1 to C3 built (2026-11-21). The data grid, the AI conversation components and the chart types, `sparkline`
-and `meter` are built; C4 to C6 are next.
+Status: C1 to C4 built (2026-11-21). The data grid, the AI conversation components, the chart types, `sparkline`,
+`meter`, `dateTimeField`, the calendar's agenda and timeline views and `dateField`'s `precision` are built; C5 and C6
+are next.
 
 Asked for on 2026-11-21: "Let's do some deep research on components. Could you look at all the major players like MUI
 and see if there are any components we should add." Then: "Write the doc". Then, for all six stages: "Build it all".
@@ -233,6 +234,16 @@ What remains open:
   table cell holds hundreds of them.
 - A table with an end-pinned column always shows its vertical scrollbar: with a stable scrollbar gutter, Chromium places
   an end-pinned sticky cell under the scrollbar.
+- `dateTimeField` stores an instant with an offset, never a bare wall time: an empty `timeZone` is the viewer's zone,
+  and a change of zone keeps the instant and moves the wall clock. A wall time a clock change skips moves forward by
+  the gap and a repeated hour takes the earlier instant, as `Temporal`'s default `compatible` disambiguation does.
+  The zone arithmetic uses `Intl.DateTimeFormat` only, with no time zone library.
+- The agenda is the focused month, listing only the days that have records. The timeline is one day: a week of
+  resource rows at minute resolution is too wide to read, and a Gantt is not proposed.
+- The timeline's rows come from `resources`, or, when it is empty, from the resources the day's records name. A
+  record whose resource is not a row is not shown, as a record with no readable start is not.
+- `dateField`'s month and year precision use the native month input and a number input, so the value stays text
+  compared as text, as the day precision's is.
 
 ## As built
 
@@ -306,3 +317,14 @@ What remains open:
   `test/atoms/sparkline.browser.test.ts`.
 - Example: the dashboard's Warehouse load card holds a `meter` of the open orders and a `sparkline` of orders per
   month, and a heatmap shows orders by weekday and channel (`example/src/seed.ts`: `ordersByWeekday`, `openRatio`).
+
+### C4. Dates and time
+- `stateui-components/src/shared/dates/zone.ts`: `isTimeZone`, `offsetAt`, `wallTimeOf`, `instantOf`, `isoInZone`,
+  `parseInstant`, `zoneLabel`. Test: `src/shared/dates/zone.test.ts`.
+- `components/molecules/date-time-field/`. Test: `test/molecules/date-time-field.browser.test.ts`.
+- `calendar` views `agenda` and `timeline`: `src/shared/dates/agendaModel.ts` (`buildAgenda`, `buildTimeline`),
+  `calendarModel.ts` (the two views' ranges, steps and keys) and `events.ts` (an event's `resource`). Tests:
+  `src/shared/dates/agendaModel.test.ts`, `test/composites/calendar-agenda.browser.test.ts`.
+- `dateField`'s `precision`. Test: `test/molecules/date-field.browser.test.ts`.
+- Example: the preferences screen's notifications card holds a `dateTimeField` that pauses notifications until a
+  time in Los Angeles (`example/src/seed.ts`: `pauseUntil`).
