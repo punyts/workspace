@@ -1,6 +1,6 @@
 # A rich-text editor for StateUI
 
-Status: designed (2026-11-21). Nothing built.
+Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 and T3 are not built.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
 editor".
@@ -74,8 +74,8 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
 - **Shared code** in `src/shared/richtext/`: the model, normalising, fractional order, edit operations, the DOM view,
   paste conversion and the Markdown converters.
 - **Two compute functions** in `src/functions.ts`, `fromMarkdown` and `toMarkdown`, at
-  `$.components.richTextField.functions.*`. Logic and agents can then convert between Markdown and the block value.
-  An agent writes either form.
+  `$.components.richText.functions.*`, so they exist before the editor. Logic and agents can then convert between
+  Markdown and the block value. An agent writes either form.
 
 ### Editing
 
@@ -161,3 +161,19 @@ so T2 also includes a manual check on both before it is called done.
   the catalog in `stateui-app/src/core/errors/catalog.ts`.
 - CSS uses theme tokens only. The editor reads the DOM only for the selection, and for a block's text at the end of
   composition.
+
+## As built
+T1, in stateui-components:
+- `src/shared/richtext/order.ts`: `orderBetween`, `orderKeys` and `isOrderKey`, base-62 fractional order. Test:
+  `order.test.ts`.
+- `src/shared/richtext/model.ts`: block types, marks and limits, `newBlockKey`, `readRichText` (sorted and checked),
+  `normalizeRuns`, `plainText`, `textLength` and `valueOf`. Test: `model.test.ts`.
+- `src/shared/richtext/markdown.ts`: `fromMarkdown` over `parseMarkdown`, and `toMarkdown`. Test: `markdown.test.ts`
+  (round trips and escapes).
+- `src/shared/richtext/render.ts`: `renderRichText` and `renderRuns`, the DOM built by `createElement` and text nodes.
+- `src/functions.ts`: `$.components.richText.functions.fromMarkdown` and `toMarkdown`, computes on server and browser.
+  Test: `src/functions.test.ts`.
+- `components/atoms/rich-text/`: the `richText` atom (`value`, `headingOffset`, `_empty`, event `press`, tokens `gap`,
+  `code.background` and `check.fill`). Test: `test/atoms/rich-text.browser.test.ts`.
+- The example places a `richText` in the support desk's "Escalate and note" card, and stateui-mcp's showcase has an
+  example of it.
