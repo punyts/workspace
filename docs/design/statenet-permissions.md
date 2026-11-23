@@ -1,6 +1,6 @@
 # Statenet permissions: one table of path patterns per owner
 
-Status: designed 2026-11-22; S14a and S14b built 2026-11-22, S14c to build. Statenet milestone S14.
+Status: built 2026-11-22 (S14a, S14b and S14c). Statenet milestone S14.
 
 Asked for on 2026-11-22: "Yes, design it", to the recommendation to design the direction's open item "the permission
 schema, sharing and revocation" ([statenet-direction.md](statenet-direction.md), "Permissions").
@@ -101,8 +101,9 @@ A token carries a right to places that do not read the table: relays, the `/path
 - It is today's grant token (state-sync `signGrant`), signed with the owner's key (Ed25519, `owner_key`), with
   `address` and `prefix` replaced by `owner` and `pattern`, and `entry` naming the entry it was made from.
 - It lives four hours (`TOKEN_LIFE_MS`) for relays and is renewed while in use; a token for a URL (`/paths`) lives
-  15 minutes and is renewed every 10, as the `PathGrants` grant is today. The HMAC `PathGrants` is removed: the
-  route checks the signed token like a relay does, so there is one format.
+  15 minutes and is renewed every 10. The HMAC `PathGrants` is removed: the route checks the signed token like a
+  relay does, so there is one format. A `/paths` token's subject is the reader and its `entry` the entry they hold
+  the app by (an opened link), so revoking that entry ends the token at once; the owner's own token names a new id.
 - **Revoking an entry** sends `revoked { entry }` toward the owner's node and down every subscription tree, as
   `revoked { grantId }` does now. Relays drop the subscriptions it carried and keep the id until the tokens made
   from it would have expired. The browser scrub runs as today.
@@ -123,7 +124,7 @@ the `/paths` sources table already uses it.
   `(pattern)`, without row-level security, as the tables it replaced (see Decisions). A migration moves `app_access`, `app_setting.open_to_org`, `link_grant`, `link_grant_member` and
   `state_grant` into it and drops them. The audit is unchanged: every made and revoked entry is an `audit_event`.
 - **stateui-mcp alone**: a `PermissionStore` port, with a file store (one JSON file per owner) for the local server,
-  which has one owner and today no sharing.
+  which has one owner and today no sharing. The rules (`allowsIn`, `checkNewEntry`) are pure functions beside the port.
 - An org's policy (`grantsInOrg`, `externalLinks`) is checked when an entry is made, as now.
 
 ### Pages
@@ -196,6 +197,12 @@ Made building S14b:
   entries are passed on from it. A passed-on entry is still never wider than its parent.
 - **Rejecting a shared app revokes the person's `opened` entries** with the person as revoker; Shared by me and the
   link's members ignore those, and the link stays live for others.
+- **A `/paths` token for an org member names no entry**: `AppAccess` answers a level, not the entry behind it, and
+  an org view's socket is closed when the member's access changes, so the token ends with its 15 minutes.
+- **Revocations of `/paths` tokens are read from the table on each read** (`GrantKeys.revoked`), not pushed to the
+  route as relays are told `revoked { entry }`: the route runs beside the table.
+- **Without a secret key, Magnetic signs `/paths` tokens with keys kept in memory** (`MemoryGrantKeys`), as a local
+  server does: its owner keys need the secret key to keep private keys sealed.
 - **The migration names moved rows with `md5(...)::uuid`** (an `opened` entry from its link and person), the one place
   ids come from SQL: a migration has no code to call `randomUUID()`, and the ids are stable if it is run again on a
   copy.
@@ -228,3 +235,12 @@ S14b (2026-11-22):
   `src/server/scim.test.ts`, `src/sharing/sharedData.test.ts`.
 - Shared by me: `src/http/orgSettings.ts` (`sharedPage` over entries), `src/http/orgText.ts`,
   `src/server/grantRoutes.ts` (`namesOf`).
+
+S14c (2026-11-22):
+- stateui-mcp `src/infrastructure/http/PathTokens.ts`: `PathTokens` (`issue`, `allows` with `verifyGrant`),
+  `GrantKeys`, `MemoryGrantKeys`, `PathReader`; `HttpServer.ts` takes `grantKeys` and `HttpTenant.reader`;
+  `PathGrants.ts` is deleted. Tests: `src/infrastructure/http/PathTokens.test.ts`, `test/http.test.ts`.
+- stateui-mcp `src/application/ports/PermissionStore.ts`, `src/application/permissions.ts` and
+  `src/infrastructure/storage/FilePermissionStore.ts`. Test: `src/infrastructure/storage/FilePermissionStore.test.ts`.
+- Magnetic `src/server/startMagnetic.ts` (`pathTokenKeys`, each tenant's `reader`), `OwnerKeys.find`,
+  `Permissions.revokedAmong`, `Grants.access` naming the `opened` entry. Test: `src/server/sharing.test.ts`.

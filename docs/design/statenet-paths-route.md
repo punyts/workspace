@@ -85,21 +85,22 @@ engine's matcher also matches above and below, for changes; the route takes only
 **Who may read.** The permissions table of the direction is not built, so the files source asks what the app routes ask
 today: whoever may open the app may read its files. With a session cookie the server resolves the tenant as for
 `GET /apps/<app>` (the owner, an org member, a person with a live `use` or `view` link) and checks that the tenant's
-owner number is the path's `owner`. Without a cookie it needs a grant. A revoked or deleted app answers `404`, as does an
+owner number is the path's `owner`. Without a cookie it needs a token. A revoked or deleted app answers `404`, as does an
 unknown file and a file of another app.
 
-**The read grant.** The runtime frame's requests carry no cookie, so the host page hands the frame a grant with the
-document:
+**The read token.** The runtime frame's requests carry no cookie, so the host page hands the frame a token with the
+document ([statenet-permissions.md](statenet-permissions.md), "Tokens"):
 
-- A grant names one owner, one app and an expiry 15 minutes ahead: `base64url(owner "." app "." expiry) "." base64url(mac)`,
-  where `mac` is HMAC-SHA-256 over the first part with the server's grant key. It grants every file of that app and
-  nothing else.
-- The key is derived from Magnetic's `secretKey` (HKDF, label `paths-grant`), so both of the host's servers accept each
-  other's grants. stateui-mcp alone makes a random key at start; a restart ends its grants, and the frame's next
-  renewal replaces them.
-- The app page carries the first grant (`data-grant`). The host page sends a new one to the frame every 10 minutes
+- A token is a grant token as relays check them: signed with the owner's key (Ed25519), for `read` of
+  `$.apps.<app>.files` of one owner, 15 minutes long, naming the reader as its subject and the permission entry they
+  hold the app by as its `entry`. It reaches every file of that app and nothing else, and ends when that entry is
+  revoked.
+- Magnetic signs with the owners' keys in its database, so both of the host's servers accept each other's tokens, and
+  reads revocations from its permission table. stateui-mcp alone, and Magnetic without a secret key, keep keys in
+  memory; a restart ends their tokens, and the frame's next renewal replaces them.
+- The app page carries the first token (`data-grant`). The host page sends a new one to the frame every 10 minutes
   through the view's event stream, which already proves the session; a closed or revoked view gets none.
-- The frame appends `?g=<grant>` to the `/paths` URLs it sets on `img`, `audio`, `video` and `track`. A grant in the URL
+- The frame appends `?g=<token>` to the `/paths` URLs it sets on `img`, `audio`, `video` and `track`. A token in the URL
   can leak through a copied link for at most 15 minutes and only reaches that app's files, which the person could read
   anyway.
 - Only the query's `g` is read; any other query answers `400`. Query strings of `/paths` are not logged.
@@ -172,21 +173,21 @@ Files, 2026-11-22. Tiles are not built; the clients are listed in [stateui-compo
 C7, and the frame's use of the grant is the UI machine's ([../work-split.md](../work-split.md)).
 
 - **stateui-mcp**: the route, its sources table and `fileSource` in `src/infrastructure/http/HttpServer.ts`
-  (`pathsRoute`, `readerOf`, `appPaths`, options `ownerTenant` and `pathGrantKey`); the grants in
-  `src/infrastructure/http/PathGrants.ts`; `Range` in `src/infrastructure/http/byteRange.ts`; `ByteRange` and
+  (`pathsRoute`, `readerOf`, `appPaths`, options `ownerTenant` and `grantKeys`); the tokens in
+  `src/infrastructure/http/PathTokens.ts`; `Range` in `src/infrastructure/http/byteRange.ts`; `ByteRange` and
   `UiFileStore.open` (`src/application/ports/UiFileStore.ts`, `src/infrastructure/storage/FsUiFileStore.ts`); `PickBytes`
   in `src/application/use-cases/ReadFile.ts`; `InstanceViews.owner`; the `grant` view message
   (`src/infrastructure/preview/PreviewHub.ts`), `data-paths` and `data-grant` (`src/infrastructure/http/pages.ts`), kept
   by the host (`src/browser/host.ts`); `readStoredFile` and `directChannel` on the files URL (`src/browser/fileRead.ts`,
   `src/browser/viewChannel.ts`); the policies in `src/infrastructure/http/security.ts`. The statenet views keep their
   relayed file requests (`StatenetViews`), which are not HTTP. Tests: `test/http.test.ts` ("GET
-  /paths/<owner>/apps/:appId/files/:fileId"), `src/infrastructure/http/PathGrants.test.ts`,
+  /paths/<owner>/apps/:appId/files/:fileId"), `src/infrastructure/http/PathTokens.test.ts`,
   `src/infrastructure/http/byteRange.test.ts`, `src/infrastructure/http/security.test.ts`, `test/hostFileRead.test.ts`,
   `test/fileSweep.test.ts`.
 - **stateui-pg**: `PgUiFileStore.open` with a range (`src/workspace/PgUiFileStore.ts`). Test:
   `src/workspace/workspaceStorage.test.ts` ("should open a range of a file, cut in the database, and the whole file
   without one").
 - **Magnetic**: `APP_PATH` takes `/paths/<owner>/apps/<id>/…`, and `startHttpServer` gets `ownerTenant` (the
-  workspace of an owner number) and `pathGrantKey` from `secretKey` (`src/server/startMagnetic.ts`). Tests:
+  workspace of an owner number) and `grantKeys` (`pathTokenKeys`, `src/server/startMagnetic.ts`). Tests:
   `src/server/sharing.test.ts` ("should let whoever may open an app read its files by /paths, with the session or the
-  page's grant, and no one else"), `src/server/startMagnetic.test.ts`.
+  page's token, and no one else once the link is revoked"), `src/server/startMagnetic.test.ts`.

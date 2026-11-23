@@ -38,11 +38,11 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
    - a restarted aggregate forgets what landed, so a save sent again is written again;
    - only one relay between a node and the aggregate is routed.
-3. **Permissions, S14** ([design/statenet-permissions.md](design/statenet-permissions.md)): designed, S14a and S14b built
-   2026-11-22; S14c next (`/paths` checks signed tokens, stateui-mcp's `PermissionStore`). One table of path patterns per owner replaces app access, links, state grants, dataset
-   shares and the `/paths` grant. The matcher is in `@punyts/state` and Magnetic keeps every right in
-   `permission`; S14c touches Magnetic's `/paths` route and stateui-mcp's server, so the UI machine leaves those alone
-   while it is built.
+3. **Permissions, S14** ([design/statenet-permissions.md](design/statenet-permissions.md)): built 2026-11-22
+   (S14a to S14c). One table of path patterns per owner replaces app access, links, state grants, dataset
+   shares and the `/paths` grant. The matcher is in `@punyts/state`, Magnetic keeps every right in
+   `permission`, and `/paths` reads with signed tokens. The `request` right waits for "requests that wait for an
+   offline owner" below.
 4. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): requests that wait
    for an offline owner; the binary wire format; WebRTC, then WebTransport.
 
