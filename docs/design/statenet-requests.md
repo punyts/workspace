@@ -1,7 +1,7 @@
 # Requests that wait for the owner
 
-Status: R1 (state-sync, statenet) and R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
-built 2026-11-23, not deployed; R3 not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+Status: R1 (state-sync, statenet), R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
+and R3a (stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; R3b and R3c not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -120,11 +120,93 @@ Asked for on 2026-11-23: "let's continue", then "Requests R2, runtime" as this m
   until the authority answers: its `decided`, not the command, changes `$.runtime.requests`. The runtime's `command`
   message refuses the three commands, as it refuses `set`, `toggle` and `emit`: the minion does not decide requests.
 
-### Magnetic
+### Magnetic: how a change reaches the owner's data today
+Asked for on 2026-11-23: "Design R3's write path".
+
+- A dataset is a data part in its owner's workspace (`WriteData`, the parts tables), not a namespace. An app binds it
+  in `uses.data`, and each running instance holds it at `$.data.<binding>`.
+- Someone who opens an app with `use` runs an instance of their own, `<person>/apps/<app>`, which they own
+  (`userStateAddress`). `view` shares the owner's instance and writes nothing; `edit` opens the owner's.
+- A write to `$.data.<binding>` in any instance is checked against the dataset's model by the instance's data gate and
+  written through to the data part by `DatasetHub`, which sends it on to every other instance that binds the dataset.
+- Sessions carry no access: Magnetic's routes decide who opens which instance, and the instance's authority checks
+  nothing more.
+- A dataset shared with another workspace is read by that workspace's apps at `$.external`, read only
+  ([magnetic-shared-data.md](magnetic-shared-data.md)).
+
+So no change by someone other than the owner reaches an authority the owner owns. The person's change lands in an
+authority they own, and crosses to the owner's data inside `DatasetHub`. R1's check sees an owner writing their own
+namespace and always allows it, and a request kept there would be decided by its own requester.
+
+### Magnetic: the write path (R3)
+**A dataset becomes a namespace, and every writer reaches it with their access.**
+- **The dataset's namespace** is `<owner>/data/<dataset>` (`datasetStateAddress`), the owner named by number as
+  in every statenet address. An authority on the owner's node holds it like an app instance (claimed, leased, saved
+  through the aggregate by `PgEpochStorage`, one row per record). Its state is `$.data.records.<key>`; the data
+  part keeps the dataset's name and model and no longer holds records. In R3b the model check that the instance's
+  data gate runs becomes the dataset authority's change handler, so it runs once, on the owner's node, whoever
+  writes, and shares' `datasetAddress` (now `<workspace id>/data/<dataset>`) takes the namespace's address.
+- **Its authority checks access** (`AuthorityOptions.access`). Magnetic gives it a context from the permission table:
+  an owner's own writes pass, anyone else's are checked against their entries on `$.data.<dataset>` (or a pattern
+  covering it), so `write`, `request` and nothing are told apart there and nowhere else. Requests are R1's, kept in
+  the dataset's namespace, decided by the owner or a holder of read and write, and listed in `pending_request` under
+  the dataset's owner.
+- **Writers reach it over sessions.** `DatasetHub` stops writing through to the part. An instance's binding becomes a
+  sync session to the dataset's namespace, opened for the person the instance acts for (the app acts as the person
+  using it, as S14 says), with an access Magnetic signs from their entry: subject the person, a token whose rights
+  now carry `request` (`StateGrants.tokenFor` drops it today). The session is protocol 3, so a change that becomes a
+  request is acked `requested`, and `requested` and `decided` come back on it.
+- **What the person sees.** The binding's session belongs to the instance, on the server, so the instance passes its
+  requests on to the browser: it writes them to the instance's `$.runtime.requests` (`$.runtime` never syncs, so this
+  is the server telling one session, the instance's own sync client), and R2's runtime shows them. The three
+  commands go back the same way. This is the one piece R2's runtime did not plan for: its list comes from a session
+  the instance holds, not from the browser's own.
+- **Logic.** The app's logic runs in the person's instance as now and sees the dataset's changes as changes under
+  `$.data.<binding>`; an approved request arrives as any change does. Logic that must run on the owner's side for
+  every writer belongs to the dataset (its model's checks), which is where this design puts the model check.
+- **Shared datasets** (`$.external`) are the same session opened from another workspace's instance. With `read` it
+  stays read only; once the owner gives `request` or `write` on the dataset, the reading app may write it through
+  the same path. Writing `$.external` from an app stays refused until a later design names where the app writes it.
+- **Who sees what.** `use` keeps writing what it writes today: an app's `use` entry gives `write` on the datasets the
+  app binds, made with it, so nothing changes for people who use apps now. The owner lowers it to `request` on the
+  Data page ("changes wait for my approval") or per person in the share dialog.
+
+### Magnetic: how R3a is built
+- **The namespace's state** is `$.data.records.<key>`. Postgres keeps one row per record, as it does a persona
+  binding's. The model stays in the stored part, where renames and the usage index already handle it.
+- **The data part is served from it.** The stored `data` part keeps the dataset's id, name and model. The part
+  repository that Services hands out (`DatasetParts`) serves a `data` part with the namespace's records, and the
+  namespace's revision as its revision. A write of a `data` part is written to the namespace: the records that
+  changed, as server writes, checked against the revision the caller read, and answered once they are saved. A
+  namespace's revision counts paths, so a dataset's revision rises once for each path a write changed. So every reader of a dataset
+  (assembly, validation, the tools, Magnetic's pages) reads it as before, and every write is ordered by the dataset's
+  authority. Creating, renaming and deleting a dataset makes, moves (one revision up, without its log) and removes
+  its namespace. The usage index is built from the stored parts, so building it opens no dataset.
+- **Placement.** Production runs two Magnetic servers, and a dataset's authority runs on one of them at a time, like
+  an app's instance. A server that reads or writes a dataset claims its namespace first, as the tools claim an
+  instance; the owner node starts and releases it by address (`hostInstance`, `releaseInstance` take dataset
+  addresses too).
+- **The hub follows the namespace.** `DatasetHub` subscribes to each bound dataset through the relay, which follows
+  the namespace to the server that holds it, and applies to every instance here that binds it what differs from the
+  instance's copy. An instance's write to a binding is checked against the model by the hub, as before, and written
+  to the dataset with `WriteData` through `DatasetParts`; while an instance's writes are pending it is skipped, and
+  brought up to date when they finish. Before, the hub followed part
+  changes, which the database announced to the other server. Until R3b, an instance's write claims the dataset for its
+  own server, so users on both servers writing one dataset move it back and forth; R3b's sessions reach the dataset
+  where it is.
+- **Embeddings.** A record's embedding is queued by the save of its dataset's namespace (`PgEpochStorage`'s
+  `onSave`), not by a part change, and its source id is `<address>/<key>`. A model change, or a dataset moved to
+  another model, queues every record in the namespace.
+- **Imports.** `importPart` (stateui-pg) and Magnetic's `importPeople` put a data part without its records and save
+  them as the namespace at revision 1. The file server keeps namespaces in `data/namespaces/`, and the showcase
+  installs its records there.
+
+### Magnetic: pages
 - The share dialog and the Data page offer "can suggest changes" (`request`) beside read and write.
-- A **Requests** page (`/requests`) lists what waits for the person to decide, from `pending_request`, with the app,
-  the path's label, who asked and when; opening one opens the app at the request. The values are shown only in the
-  app, by the session that may decide.
+- A **Requests** page (`/requests`) lists what waits for the person to decide, from `pending_request`, with the
+  dataset, who asked and when. Opening one loads it from the dataset's authority, as the owner, and shows the record
+  as it is and as asked, with Approve and Reject; the values are shown to the decider only, never stored outside the
+  namespace.
 - The person is told of a new request the way Magnetic tells of a share today (the home page's notice); e-mail is
   not part of this design.
 
@@ -193,6 +275,25 @@ R2's runtime half (2026-11-23):
   stateui-mcp `src/browser/requestsView.test.ts` (entries without `base`; each own pending request announced once,
   none from a welcome) and `src/infrastructure/mcp/guide.test.ts` (the saving topic).
 
+R3a (2026-11-23):
+- **stateui-mcp**: `src/domain/StateAddress.ts` (`datasetStateAddress`, `datasetOfAddress`);
+  `src/infrastructure/sync/DatasetNamespaces.ts` (an authority per dataset, claimed by placement; `RECORDS_PATH`,
+  `seededDataset`); `src/infrastructure/storage/DatasetParts.ts` (the part served from the namespace) and
+  `FileNamespaceStore.ts`; `src/infrastructure/sync/DatasetHub.ts` (follows each namespace through the relay and
+  reconciles bindings); `src/application/IndexedUiPartRepository.ts` (the index from the stored parts);
+  `src/infrastructure/sync/AppAuthorities.ts` (`onClosed`); `src/config/createServices.ts`
+  (`ServicesStorage.datasets`, dataset addresses in the relay's lookup, `hostInstance` and `releaseInstance`);
+  `src/config/showcase.ts` (records installed as namespaces).
+- **stateui-pg**: `src/workspace/PgWorkspaceStorage.ts` (`datasets`, `importPart` splits a dataset,
+  `txSeedDataset`); `src/workspace/PgPartRepository.ts` (`put` says whether it inserted);
+  `src/embeddings/records.ts` and `RecordSimilarity.ts` (record embeddings from the namespace).
+- **Magnetic**: `src/storage/importFiles.ts` (a dataset's records imported into its namespace).
+- Tests: stateui-mcp `src/infrastructure/storage/DatasetParts.test.ts` (records served from the namespace at its
+  revision; a stale write refused; rename and delete), `src/config/datasetHub.test.ts` (bindings over the
+  namespace), `test/dataTools.test.ts`; stateui-pg `src/embeddings/records.test.ts` (embeddings from namespace
+  saves) and `src/workspace/workspaceStorage.test.ts` (an imported dataset); Magnetic
+  `src/storage/importFiles.test.ts`.
+
 ## Stages
 1. **R1, state-sync and statenet**: the pending request in the authority (`StoredNamespace.requests`, limits,
    expiry), sync protocol 3, `GrantRight` `request`, the client's list and its events, `WriteOutcome` `requested`,
@@ -202,8 +303,19 @@ R2's runtime half (2026-11-23):
    migration 0010, applied by `migrate`; no reset); stateui-app `$.runtime.requests`, the three commands
    and the `syncRequested` notice; stateui-components' toast for it. The runtime half was built on the UI
    machine, which owns stateui-app and stateui-components.
-3. **R3, Magnetic**: the `request` right in the share dialog and the Data page, `requestDays`, the Requests page and
-   the home notice. Checks: a person with `request` on a shared dataset suggests a record, the owner approves it on
+3. **R3, Magnetic**, in three steps:
+   - **R3a, datasets as namespaces** (stateui-mcp, stateui-pg, Magnetic): `<owner>/data/<dataset>` held by the owner's
+     node; `WriteData`, the agent's data tools and the Data page read and write
+     it through the authority; the part keeps no records. Magnetic has no users, so its databases are reset rather
+     than their records moved.
+   - **R3b, the write path**: the model check moves to the dataset authority's change handler; shares'
+     `datasetAddress` becomes the namespace's address; `DatasetHub` bindings become sessions with the person's access; Magnetic's access
+     context from the permission table; `tokenFor` keeps `request`; `use` entries give `write` on bound datasets;
+     the instance passes its binding sessions' requests to `$.runtime.requests` (with R2's runtime).
+   - **R3c, pages**: the `request` right in the share dialog and the Data page, `requestDays`, the Requests page and
+     the home notice.
+
+   Checks: a person with `request` on a shared dataset suggests a record, the owner approves it on
    the Requests page, the requester sees it applied; one left alone expires; one approved after the value changed is
    adjusted by the app's logic.
 
@@ -222,6 +334,15 @@ Made in this design:
 - The requester's optimistic change is taken out and kept as a request in `$.runtime`, not left in the shared state,
   so nobody mistakes a suggestion for what was saved.
 
+Made with the owner on 2026-11-23 ("Yes, build R3a"), as proposed:
+- **A dataset becomes a namespace**, `<owner>/data/<dataset>`, whose authority runs the model check and checks access.
+  The alternative, keeping datasets as parts and making `DatasetHub` keep requests of its own, would build a second
+  request store beside R1's and leave every other check to the hub.
+- **`use` gives `write` on the datasets an app binds**, so today's apps behave as now, and the owner lowers it to
+  `request`. The alternative, `use` as `read` only (S14's table read strictly), would stop every shared app's users
+  from saving until the owner gives them more.
+- **A shared dataset may be written from another workspace** once the owner gives `request` or `write`.
+
 Made while building R1:
 - The request's id is the change's id. A resend of the change is answered as the first one was (`requested` while it
   waits, `applied` once approved), as a resent change is today.
@@ -233,8 +354,14 @@ Made while building R1:
   ordering session per authority without access.
 
 ## Open items
+- Until R3b, a shared read (`SharedData`) and the Data page follow a dataset by the part changes of the server
+  they run on. A dataset's records no longer touch its part row, so a write made while the dataset is held by the
+  other server reaches them at the next read, not at once. R3b's sessions follow the namespace instead.
+- Until R3b, an instance's write claims the dataset for its own server, so people on both servers writing one dataset
+  move it back and forth.
 - A relay's browser server (`ClientServer`) acks a request `requested` but sends no `requested`, `decided` or
   `welcome.requests`: it serves a subscription, not a session with the authority. A requester there learns that a
   request was approved when its change arrives.
 - Magnetic's authorities (`AppAuthorities`) and the statenet's (`Statenet.ts`) check no access today (who connects is
-  decided before the session); requests need `AuthorityOptions.access`, which R3 wires.
+  decided before the session). R3 gives access only to the dataset namespaces; app instances stay as they are, each
+  owned by the person it runs for.

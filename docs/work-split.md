@@ -79,7 +79,9 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), and R2's storage in stateui-pg (migration
    0010: the serial, the requests and `pending_request`), not deployed. A change from someone with `request` and not
    `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime half was built
-   on the UI machine 2026-11-23. R3, Magnetic's share dialog, Requests page and the authorities' access, follows it.
+   on the UI machine 2026-11-23. R3's write path is decided (owner, 2026-11-23). R3a is built: a dataset's records live
+   in its namespace `<owner>/data/<dataset>` (stateui-mcp, stateui-pg, Magnetic; databases are reset, not moved). R3b
+   (sessions with access) and R3c (pages) are next.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.
 
