@@ -1,6 +1,7 @@
 # Requests that wait for the owner
 
-Status: R1 built 2026-11-23 in state-sync and statenet, not deployed; R2 and R3 not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+Status: R1 built 2026-11-23 in state-sync and statenet, not deployed; R2's runtime half built 2026-11-23 in
+stateui-app, stateui-components and stateui-mcp, not deployed; R2's storage half and R3 not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -112,9 +113,10 @@ Asked for on 2026-11-23: "let's continue", then "Requests R2, runtime" as this m
   Their argument is the request's id, in `value` (`"$row.id"` reads it in a row over `$.runtime.requests`) or `from`;
   `request.reject` also takes `{ id, note }`, the note at most 500 characters. The dispatcher hands the decision to
   the host (`DispatchHooks.decide`); the runtime posts `decide { action, id, note? }`, and the view host calls the
-  client's `approve`, `reject` or `withdraw`. The command fails when the app has no host that decides
-  (a preview without sync), and does nothing visible offline: the authority's `decided`, not the command, changes
-  `$.runtime.requests`.
+  client's `approve`, `reject` or `withdraw`. A mount with no `decide` hook (an app mounted outside a runtime frame)
+  fails the command; a frame always posts it, and a host without a sync client ignores it. Nothing visible changes
+  until the authority answers: its `decided`, not the command, changes `$.runtime.requests`. The runtime's `command`
+  message refuses the three commands, as it refuses `set`, `toggle` and `emit`: the minion does not decide requests.
 
 ### Magnetic
 - The share dialog and the Data page offer "can suggest changes" (`request`) beside read and write.
@@ -160,6 +162,26 @@ R1 (2026-11-23):
   serial in memory storage; an owner node answering `requested`); statenet `src/mesh/groups.test.ts` ("requests
   across groups": a write from a node of another group kept as a request and approved by the owner) and
   `src/mesh/aggregate.test.ts` (a save that takes no revision written by its serial, in memory and in files).
+
+R2's runtime half (2026-11-23):
+- **stateui-app**: `src/core/types.ts` (`APP_EVENTS` with `sync.requested`, `SYNC_NOTICES.requested`);
+  `src/core/on/types.ts` (`REQUEST_COMMANDS`, `MAX_REQUEST_NOTE`, `MAX_REQUEST_ID`, `RequestDecision`, in
+  `SYSTEM_COMMANDS`); `src/core/on/validateOn.ts` (a request command with a target or no id is `SUI-ON-SHAPE`);
+  `src/dom/on/commands.ts` (`requestDecision`, `CommandContext.decide`); `src/dom/on/types.ts`
+  (`DispatchHooks.decide`); `src/dom/on/dispatcher.ts` (the `syncRequested` notice); `src/runtime/messages.ts`,
+  `validate.ts` and `limits.ts` (the outbound `decide`, writes to `$.runtime.requests`); `src/runtime/createRuntime.ts`
+  (the hook posts `decide`); `src/dom/mount/mountApp.ts` (`$.runtime.requests` starts empty);
+  `src/core/links/extractLinks.ts` and `runtimePath.ts` (a link to `$.runtime.requests`).
+- **stateui-components**: `toastRegion`'s `_requestedText` and its locales; the controller shows `syncRequested` as an
+  info toast.
+- **stateui-mcp**: `src/browser/requestsView.ts` (`requestEntries`, `newRequests`); `src/browser/host.ts` (writes
+  `$.runtime.requests`, raises `sync.requested`, answers `decide`); the guide's `saving` topic.
+- Tests: stateui-app `src/core/on/on.test.ts` (the request commands' shapes), `src/runtime/validate.test.ts` (the
+  `decide` message, writes to `$.runtime.requests`), `src/runtime/startRuntime.browser.test.ts` (a request command
+  posts `decide`, one with no id is a runtime error; a row command reads the id from the requests the host wrote);
+  stateui-components `test/composites/toast-region.browser.test.ts` (the built-in notices with `syncRequested`);
+  stateui-mcp `src/browser/requestsView.test.ts` (entries without `base`; each own pending request announced once,
+  none from a welcome) and `src/infrastructure/mcp/guide.test.ts` (the saving topic).
 
 ## Stages
 1. **R1, state-sync and statenet**: the pending request in the authority (`StoredNamespace.requests`, limits,

@@ -43,7 +43,7 @@ Built 2026-11-22: a `scene3d` saves what it draws as a GLB file when `exportRequ
 Built 2026-11-23: move, rotate and scale gizmos on 3D nodes, written once on release
 ([design/stateui-3d-gizmo.md](design/stateui-3d-gizmo.md)).
 
-In progress 2026-11-23: R2's runtime half of requests that wait for the owner
+Built 2026-11-23: R2's runtime half of requests that wait for the owner
 ([design/statenet-requests.md](design/statenet-requests.md)): stateui-app's `$.runtime.requests`, the three
 `request.*` commands and the `sync.requested` notice, the toast's text, and the view host in stateui-mcp. The tower's
 half of R2 (`PgEpochStorage`, the stateui-pg migration) stays the tower's.
@@ -74,9 +74,8 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): R1 built
    2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), not deployed. A change from someone with
    `request` and not `write` waits on the owner's node until the owner or a holder of read and write decides it. R2
-   adds Postgres (`PgEpochStorage` with the serial and requests) and changes stateui-app's runtime
-   (`$.runtime.requests`, three commands, a notice) and stateui-components' toast: this machine asks the UI machine
-   before building that half.
+   adds Postgres (`PgEpochStorage` with the serial and requests), still to build here; its runtime half
+   (`$.runtime.requests`, three commands, a notice, the toast, the view host) was built on the UI machine 2026-11-23.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.
 
