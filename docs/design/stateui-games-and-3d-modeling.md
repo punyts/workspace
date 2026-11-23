@@ -54,8 +54,9 @@ expressions (`random` included) and tables, and anything iterative needs an effe
 - **Data-driven scenes.** Every value is state: form fields link to positions and materials, and `repeat3d` draws a
   mesh or a `group3d` of meshes per record as instanced meshes (at most 20,000 records, 16 meshes a record), so a
   scene can be a list of records a user edits.
-- **Interaction.** Interactive nodes raise `press` and `hover`, and a `draggable` one moves on its ground and raises
-  `dragEnd`; `orbit` and `pan` controls write the camera back to state.
+- **Interaction.** Interactive nodes raise `press` and `hover`, a `draggable` one moves on its ground, and a `gizmo`
+  moves, turns or scales one with handles ([stateui-3d-gizmo.md](stateui-3d-gizmo.md)), each raising `dragEnd`; `orbit`
+  and `pan` controls write the camera back to state.
 - **Export.** A set `exportRequest` saves what the scene draws as a GLB file in the app's files
   ([stateui-3d-glb-export.md](stateui-3d-glb-export.md)).
 
@@ -66,7 +67,6 @@ from primitives, like Ridgeline's.
 | Gap | Why | What would close it | Size |
 |---|---|---|---|
 | No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state | Large, a project of its own |
-| No gizmos | A part drags on its ground only; lifting, turning or scaling it needs fields or buttons beside the scene | A move and rotate gizmo for the picked node | Medium |
 
 ---
 
