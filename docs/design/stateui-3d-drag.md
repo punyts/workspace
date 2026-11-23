@@ -53,7 +53,7 @@ drag turns the camera).
 - `repeat3d` copies drag as designed in [stateui-3d-drag-copies.md](stateui-3d-drag-copies.md): the write goes to the
   record field the row's `position` links.
 - A key the scene used on a proxy button stops there, so an arrow that moves a node does not also pan the camera.
-- No vertical drag and no rotation; both belong to the gizmo the modeling gap names.
+- No vertical drag and no rotation; both are the gizmo's ([stateui-3d-gizmo.md](stateui-3d-gizmo.md)).
 - `bounds` holds the position, not the node's box: a 3D box depends on rotation and scale, and boards place pieces by
   their centre.
 - The drag code is in the runtime chunk (`@punyts/stateui-3d`), which had about 4.8 KB left under its gzip gate.

@@ -40,6 +40,9 @@ Built 2026-11-22: dragging `repeat3d` copies, each drop written to the record
 Built 2026-11-22: a `scene3d` saves what it draws as a GLB file when `exportRequest` changes
 ([design/stateui-3d-glb-export.md](design/stateui-3d-glb-export.md)).
 
+Built 2026-11-23: move, rotate and scale gizmos on 3D nodes, written once on release
+([design/stateui-3d-gizmo.md](design/stateui-3d-gizmo.md)).
+
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
