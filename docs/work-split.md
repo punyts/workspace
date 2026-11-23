@@ -28,6 +28,9 @@ panel for alt text, caption and width; drawn from the `/paths` URL.
 Built 2026-11-22: the small game gaps, a seeded `random(seed, n)` and keys on `scene3d`
 ([design/stateui-game-input.md](design/stateui-game-input.md)).
 
+Built 2026-11-22: dragging a 3D node on its ground, written once on release
+([design/stateui-3d-drag.md](design/stateui-3d-drag.md)).
+
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower

@@ -12,7 +12,8 @@ game) is the worked example.
 
 ### What fits
 - **Boards and pieces.** A `drawing` gives 2D shapes that can be pressed and dragged; a `scene3d` gives meshes, groups and
-  `repeat3d` copies that can be pressed and hovered. A board is records in `$.data`, so a `repeat3d` or `drawRepeat`
+  `repeat3d` copies that can be pressed and hovered, and a mesh or group can be dragged on its ground (`draggable`, kept
+  in `bounds`, snapped to `step`), written once on release ([stateui-3d-drag.md](stateui-3d-drag.md)). A board is records in `$.data`, so a `repeat3d` or `drawRepeat`
   draws one tile or piece per record.
 - **Rules.** A machine holds the phase (whose turn, playing, won). Guards refuse illegal moves. Lookup tables cover
   scoring and "who wins this combination", and `SUI-LOGIC-GAP` proves every combination has an answer. Rules turn a
@@ -37,7 +38,6 @@ with a countdown, card and tile games.
 | Gap | Why | What would close it | Size |
 |---|---|---|---|
 | No frame loop | Logic runs on state changes, not per frame; a chain stops at depth 8 and every move is a store (and sync) write | A per-frame logic timer kept in the browser, or a game-loop component that owns its own motion and writes state only at rest | Medium |
-| No dragging in 3D | `draggable` exists for 2D shapes only; 3D nodes press and hover | Drag on a ground plane for an interactive mesh or group, written once on release like 2D | Medium |
 
 An app built only through the MCP has no host code, so it has no registered functions: its rules must fit in
 expressions (`random` included) and tables, and anything iterative needs an effect the agent answers.
@@ -53,7 +53,8 @@ expressions (`random` included) and tables, and anything iterative needs an effe
 - **Imported models.** `model` shows an uploaded GLB (at most 10 MiB) and plays its clips.
 - **Data-driven scenes.** Every value is state: form fields link to positions and materials, and `repeat3d` draws one
   instanced mesh per record (at most 20,000), so a scene can be a list of records a user edits.
-- **Interaction.** Interactive nodes raise `press` and `hover`; `orbit` and `pan` controls write the camera back to state.
+- **Interaction.** Interactive nodes raise `press` and `hover`, and a `draggable` one moves on its ground and raises
+  `dragEnd`; `orbit` and `pan` controls write the camera back to state.
 
 Good fits: product configurators, room and warehouse layouts, a block (voxel) builder, 3D data views, and pieces built
 from primitives, like Ridgeline's.
@@ -62,7 +63,7 @@ from primitives, like Ridgeline's.
 | Gap | Why | What would close it | Size |
 |---|---|---|---|
 | No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state | Large, a project of its own |
-| No gizmos or 3D dragging | Moving a part needs fields, buttons or a 2D plan beside the scene | 3D dragging (above) plus a move and rotate gizmo for the picked node | Medium |
+| No gizmos | A part drags on its ground only; lifting, turning or scaling it needs fields or buttons beside the scene, and a `repeat3d` copy does not drag | A move and rotate gizmo for the picked node, and dragging of `repeat3d` copies | Medium |
 | No export | A scene is JSON state | An effect function that builds a GLB (or STL) file from the scene state and stores it as a file | Small to medium |
 | `repeat3d` copies are one mesh | Records may differ only in position, rotation, scale, visibility and colour | A repeat of a `group3d` row (several meshes per record) | Medium |
 
@@ -91,6 +92,5 @@ Its rules are in the example README and in `example/src/ridgeline.ts`.
 - A `scene3d` takes its height from its `theme` (`{ "scene3d": { "height": "520px" } }`), not from the host element's
   size.
 
-**Next steps, in order of value:** a seeded `random` expression function (dice and shuffles without host code), 3D
-dragging on a ground plane, repeats of a `group3d` row, and a GLB export effect. Real-time games and mesh modeling are
+**Next steps, in order of value:** repeats of a `group3d` row, dragging `repeat3d` copies, and a GLB export effect. Real-time games and mesh modeling are
 separate projects.
