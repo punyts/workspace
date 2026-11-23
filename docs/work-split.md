@@ -4,7 +4,7 @@ Two machines build in this workspace: this one (the UI machine) and the tower (s
 each is working on, so neither starts the other's work. Update it when work starts or lands, and pull before starting
 anything.
 
-Updated 2026-11-22.
+Updated 2026-11-23.
 
 ## This machine
 
@@ -52,6 +52,10 @@ Built 2026-11-23: the game loop ([design/stateui-game-loop.md](design/stateui-ga
 F2, bodies a `scene3d` moves by speed, held keys and collisions, `repeat3d` copies among them, in stateui-components;
 F3, the `scene3d-play` guide topic and `ui_interact`'s held key in stateui-mcp, browser logic hearing `$.raised` in
 stateui-app, and the Orchard game in the example.
+
+Designed 2026-11-23, not built: the mesh editor ([design/stateui-mesh-editor.md](design/stateui-mesh-editor.md)),
+geometry kept in state and shaped in the scene, in four stages (V1 to V4) in stateui-3d, stateui-components,
+stateui-app, stateui-mcp and the example. Nothing in it touches the tower's packages.
 
 Real tiles in the example and the showcase wait for the tower's tiles.
 
