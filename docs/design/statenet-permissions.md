@@ -1,6 +1,6 @@
 # Statenet permissions: one table of path patterns per owner
 
-Status: designed 2026-11-22, to be confirmed by the owner (see "Decisions"). Nothing built. Statenet milestone S14.
+Status: designed 2026-11-22; S14a built 2026-11-22, S14b and S14c to build. Statenet milestone S14.
 
 Asked for on 2026-11-22: "Yes, design it", to the recommendation to design the direction's open item "the permission
 schema, sharing and revocation" ([statenet-direction.md](statenet-direction.md), "Permissions").
@@ -163,7 +163,7 @@ Each stage is one commit per repo and leaves every test passing; S14b changes no
 - One pattern syntax and one matcher, in `@punyts/state`.
 
 ## Decisions
-To be confirmed by the owner:
+Confirmed by the owner ("Yes, build S14a", owner, 2026-11-22):
 - **One table replaces all five mechanisms** (app access, links, state grants, dataset shares, the `/paths` grant),
   with no old API kept beside it.
 - **An app is not a subject**: it acts as the person using it. The alternative, rights given to an app, would let an
@@ -175,7 +175,23 @@ Made in this design:
 - The matcher moves to `@punyts/state`, the lowest library that state-sync, statenet and stateui-app share.
 - The `/paths` grant becomes a signed token, so there is one token format.
 - `write` does not include `read`, as today's grants: a form may send without seeing what others sent.
+- A read of a path above a grant's pattern is allowed and cut to what the pattern matches; a write there is refused.
+  Above a match, `delete` passes, `set` and `replace` pass the picked value (a delete when nothing is picked), and
+  `merge` keeps the picked keys, with `{}` for a key that has nothing matched under it.
+- Until S14b, Magnetic's `state_grant` rows sign tokens: the row's id is the token's `entry`, its address and prefix
+  its owner and pattern.
 
 ## As built
 
-Nothing yet.
+S14a (2026-11-22):
+- `state/src/Pattern.ts`: `compilePattern`, `matchPattern`, `patternCovers`, `patternContains`, `mayTouch` and
+  their helpers, moved from stateui-app's `src/core/logic/pattern.ts` (deleted; `writeSteps` and `expressionPaths`
+  stay in `src/core/logic/writtenPaths.ts`). Tests: `state/src/Pattern.test.ts`.
+- `state-sync/src/authority/Grants.ts`: claims `entry`, `owner`, `pattern`; `addressPath`, `grantPattern`,
+  `patternReach`; `checkAccess` answers `cut` for a read above the pattern. `Cut.ts` (`cutTo`) cuts a listener's
+  snapshot and changes in `Relay.ts`; `Relay.revoke(entry, expires)`. `Authority.ts` reads its handlers and
+  ephemeral paths with the shared matcher; `Patterns.ts` is deleted. Tests: `src/authority/Grants.test.ts`.
+- statenet: `{ type: 'revoked', entry, expires }` (`src/mesh/protocol.ts`, `serving.ts`, `linkClient.ts`,
+  `MeshUpstream.ts`, `OwnerMesh.ts`). Test: `src/mesh/mesh.test.ts`.
+- Magnetic `src/grants/StateGrants.ts` signs owner and pattern; stateui-mcp's `HttpServer.ts` imports the matcher
+  from `@punyts/state`.
