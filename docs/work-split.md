@@ -48,6 +48,9 @@ Built 2026-11-23: R2's runtime half of requests that wait for the owner
 `request.*` commands and the `sync.requested` notice, the toast's text, and the view host in stateui-mcp. The tower's
 half of R2 (`PgEpochStorage`, the stateui-pg migration) was built there the same day.
 
+Designing 2026-11-23: the game loop, bodies a scene moves by speed, held keys and collisions
+([design/stateui-game-loop.md](design/stateui-game-loop.md)), in stateui-components, stateui-3d and stateui-mcp.
+
 Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
