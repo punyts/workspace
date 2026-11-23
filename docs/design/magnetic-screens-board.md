@@ -299,7 +299,7 @@ B3c:
 - `stateui-components`: `board` sets its column lists' cap (`--sui-list-max`, `recordList`'s `100dvh` by default) to
   `none`, so a board taller than the window draws every card. Test: `test/composites/board.browser.test.ts` ("should
   fill a column taller than the window with its list, so no card below the window is cut off").
-- `magnetic/migrations/0023_editor_view_screens.sql`: `editor_view` keeps the `screens` view. Test:
+- `magnetic/migrations/0001_baseline.sql`: `editor_view` keeps the `screens` view. Test:
   `src/editor/EditorViews.test.ts` ("should keep the screens board's view apart from Statenet's").
 - `magnetic/src/http/screens.ts`: `magneticScreens.liveApp`, `cards` and `panBy`. `src/http/inspect.ts`: the
   overlay and shield in `.inspect-layer`, following the live app's element; the Move tool pans the board through

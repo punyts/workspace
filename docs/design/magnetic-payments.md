@@ -58,7 +58,7 @@ Status: built (see "As built"). Follows M8's "Not in M8": "Paying for more agent
 ## As built
 - `magnetic/src/billing/Stripe.ts`: the checkout session and the webhook's events, with the signature check
   (`signatureOf` makes one, for tests and the stand-in).
-- `magnetic/src/billing/Credits.ts` and migration `0008_payments.sql`: the ledger.
+- `magnetic/src/billing/Credits.ts` and `agent_credit` in `magnetic/migrations/0001_baseline.sql`: the ledger.
 - `magnetic/src/agent/Budgets.ts`: `spent()` has `bought`; `check()` adds it to the allowance and lets paid use past
   the daily and monthly limits.
 - `magnetic/src/server/billingRoutes.ts`, `src/http/billingPage.ts`, `src/http/billingText.ts`: the page and the

@@ -82,6 +82,11 @@ These pieces are new:
   `magnetic/migrations/` for Magnetic's. A small Node migrator applies them in order in one transaction each, and
   records them in `schema_migration`. Plain Node, so it runs from cmd, PowerShell and bash like the workspace scripts.
 - `magnetic migrate` applies both sets. The server refuses to start on a database that is behind.
+- **Magnetic's schema is one baseline while it has no users.** On 2026-11-22 the owner said "We can stop doing
+  migrations right now. There are no users" and chose "Fold into a baseline": Magnetic's migrations 0001–0024 became
+  `magnetic/migrations/0001_baseline.sql`. A database already migrated through 0024 has the same schema and records
+  version 1, so it needed no reset. Until there are users, a schema change edits the baseline and the databases are
+  reset.
 
 ### `createServices` takes storage instead of a folder
 - `ServicesOptions` gets `storage?: ServicesStorage`. With it, `createServices` uses the given adapters. Without it,
@@ -402,7 +407,7 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   `assertMigrated` refuses a database that is behind) and `createTestDatabase` (a schema per test file). The tests use
   `PUNYTS_TEST_DATABASE_URL`, or the database `npm run magnetic:db` starts (port 5433).
 - Magnetic: users, identities, sessions, links, the spend ledger (`agent_request`), chats, preferences and the stamps
-  of Magnetic's own apps in `migrations/0001_people.sql`; the JSON stores are gone. Commands `serve`, `migrate`,
+  of Magnetic's own apps in `migrations/0001_baseline.sql`; the JSON stores are gone. Commands `serve`, `migrate`,
   `import` (from an earlier file data folder, idempotent) and `--migrate` for development.
 
 ### P2: workspace state
@@ -416,11 +421,11 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   needed: the quota is summed under the app's advisory lock.
 
 ### P3: orgs, roles and access
-- `migrations/0002_orgs.sql`; `Orgs` (members and roles, groups, invites, the audit log), `AppAccess` (permissions,
-  access lists, open to the org, where an app is) and `moveAppToOrg`. JSON routes under `/orgs`, `/invites` and
-  `/apps/<id>/move` (listed in Magnetic's README). Pages, the editor, agent turns, shares and view sockets all ask
-  `AppAccess`; members use org apps with persona = their user id; losing an app closes its views. Your apps lists the
-  org apps a person may open.
+- The org tables in `migrations/0001_baseline.sql`; `Orgs` (members and roles, groups, invites, the audit log),
+  `AppAccess` (permissions, access lists, open to the org, where an app is) and `moveAppToOrg`. JSON routes under
+  `/orgs`, `/invites` and `/apps/<id>/move` (listed in Magnetic's README). Pages, the editor, agent turns, shares and
+  view sockets all ask `AppAccess`; members use org apps with persona = their user id; losing an app closes its views.
+  Your apps lists the org apps a person may open.
 - Changed from the design: no `app_directory`. An app's workspace is found by looking in the person's own workspace,
   then their orgs' (`AppAccess.locate`), so the table had nothing to add. A moved app's reached parts are copied, and
   the person's own workspace keeps its copies, so nothing there breaks; a later clean-up can drop the ones no app uses.
@@ -438,7 +443,7 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
   admin's browser.
 
 ### P4: enterprise controls (15 November 2026)
-- `migrations/0003_enterprise.sql`: `org_domain`, `org_sso`, `org_policy`, `identity.org_id`, and triggers that make
+- `migrations/0001_baseline.sql`: `org_domain`, `org_sso`, `org_policy`, `identity.org_id`, and triggers that make
   `audit_event` append only for every role (the database raises on update, delete and truncate).
 - `OrgDomains` (claim, verify by a TXT record at `_magnetic-challenge.<domain>`, a domain belongs to one org), `OrgSso`
   (an org's OIDC provider, its secret sealed with AES-256-GCM under `MAGNETIC_SECRET_KEY`), `OrgPolicies` (the seven

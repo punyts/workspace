@@ -53,9 +53,9 @@ Draft and Publish, not live edits (owner, 2026-11-18).
   `/edit/<draft id>`: the editor's canvas is the preview.
 - **Publish** checks the draft with `ui_validate` and the contract, and refuses it with the reasons. Then it drops the
   translations of texts whose English changed, writes Magnetic's own translations again, and stores the draft in
-  `magnetic_page` (migration `0011_pages.sql`: `name`, `stamp`, `base`, `document json`, `icons json`, `parts json`,
-  `english json`, `published_by`, `published_at`; `json`, not `jsonb`, as key order matters). The stamp is new on each
-  publish, so every person's untouched copy is made again from it.
+  `magnetic_page` (`magnetic/migrations/0001_baseline.sql`: `name`, `stamp`, `base`, `document json`, `icons json`,
+  `parts json`, `english json`, `published_by`, `published_at`; `json`, not `jsonb`, as key order matters). The stamp is
+  new on each publish, so every person's untouched copy is made again from it.
 - **Reset** deletes the published row, so Magnetic's own is served at once, and makes the draft again from the code.
 
 ### The page contract: data in, emits out
@@ -152,7 +152,7 @@ Built 2026-11-18.
 - `magnetic/src/pages/SitePages.ts`: drafts, publish, reset, status, the served document; `englishOf`.
 - `magnetic/src/pages/PersonPages.ts`: a person's copy, kept when changed, made again when untouched, and reset;
   `HomeApps` (`src/home/HomeApp.ts`, spec `HOME`) and `EditorApps` (`src/editor/EditorApp.ts`, spec `EDITOR`) extend it.
-- `magnetic/migrations/0011_pages.sql`: `magnetic_page`. `PAGES_WORKSPACE_ID` in `src/inspector/constants.ts`.
+- `magnetic/migrations/0001_baseline.sql`: `magnetic_page`. `PAGES_WORKSPACE_ID` in `src/inspector/constants.ts`.
 - `magnetic/src/server/adminRoutes.ts` and `src/http/adminPage.ts`: `/admin/pages` and its Edit, Publish and Reset.
 - `magnetic/src/server/startMagnetic.ts`: the sign-in and link pages served from `SitePages` with `?page=default`;
   `reach` for admins' drafts; `POST /home` and `/home/reset`; `/assets/editor.json?editor=default|code`; Your apps

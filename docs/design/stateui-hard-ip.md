@@ -214,9 +214,6 @@ Built 2026-11-19, steps 1 to 6 of the build order except Statenet on `treeDiagra
   `e2e/views.spec.ts`. Copies pass the server's functions to `copyAppParts`: publishing a page is refused for a
   function the server does not run, a move into an org answers and audits `missingFunctions`, a remix logs them
   (`src/pages/SitePages.ts`, `src/orgs/AppAccess.ts`, `src/server/startMagnetic.ts`). Test: `orgs/orgs.test.ts`.
-  Migration `migrations/0013_effect_function_paths.sql` moves stored effects from `run: "http"` to
-  `$.functions.host.http`, in logic modules and in apps' own logic, keeping key order. Test:
-  `src/storage/effectFunctionPaths.test.ts`.
 
 Not yet done:
 - A node written after the mount that names a function the mount did not load calls nothing until the app mounts

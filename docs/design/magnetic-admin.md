@@ -29,7 +29,7 @@ the top: Overview, Feedback, People, Your apps.
 
 ## Giving agent use
 - Up to $500 at a time, in cents, more than 0; a leading `$` is fine. A note says why.
-- It is a row in the ledger `agent_credit` of kind `gift` (migration 0010), with the note and the admin who gave it,
+- It is a row in the ledger `agent_credit` of kind `gift`, with the note and the admin who gave it,
   so Budgets count it the same as a payment: it lets a person past the daily limit and the monthly budget while they
   spend it.
 - The person sees it on Agent use as **Given by Magnetic**.
@@ -43,6 +43,6 @@ the top: Overview, Feedback, People, Your apps.
 ## As built
 - `magnetic/src/admin/Admin.ts`: `AdminList` (who is an admin) and `Admin` (the numbers, people, feedback, gifts).
 - `magnetic/src/server/adminRoutes.ts`: the routes; `magnetic/src/http/adminPage.ts`: the pages.
-- `magnetic/migrations/0010_admin.sql`: feedback's status, the `gift` kind, the note and who gave it.
+- `magnetic/migrations/0001_baseline.sql`: feedback's status, the `gift` kind, the note and who gave it.
 - `MAGNETIC_ADMIN_EMAILS` in `magnetic/src/server/options.ts`; `infra/aws/host-deploy.sh` sets it.
 - Tests: `src/server/admin.test.ts`, `e2e/admin.spec.ts`.

@@ -189,8 +189,9 @@ magnetic:
 - `src/http/views.ts`: the Statenet section (mount, records with their padding, emits, the kept view, the inset, one
   `/graph` load per revision); the DOM graph is gone.
 - `src/server/viewRoutes.ts`: `graph()` reads its parts in parallel.
-- `migrations/0014_editor_views.sql`, `src/editor/EditorViews.ts` and the `kept` routes in `src/server/viewRoutes.ts`:
-  where the person left the view. Tests: `src/editor/EditorViews.test.ts`, `src/server/viewRoutes.test.ts`.
+- `editor_view` in `migrations/0001_baseline.sql`, `src/editor/EditorViews.ts` and the `kept` routes in
+  `src/server/viewRoutes.ts`: where the person left the view. Tests: `src/editor/EditorViews.test.ts`,
+  `src/server/viewRoutes.test.ts`.
 - `src/http/shell.ts`: `canvas.drive`, `showZoom` and `freeArea`.
 - `src/http/text.ts`: `statenet.canvas`.
 - `e2e/views.spec.ts`: the Statenet tests read the cards in the frame (`#statenet iframe`, `treeitem`s by `data-id`), at
