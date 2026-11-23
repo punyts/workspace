@@ -98,6 +98,24 @@ authority) is always on; the person who owns the namespace, and who decides, may
   namespace counts every saved change (`serial`), and storages and the aggregate skip a save as one sent again only
   when its revision, then its serial, is no higher than what landed.
 
+### The runtime (R2's half on the UI machine)
+Asked for on 2026-11-23: "let's continue", then "Requests R2, runtime" as this machine's next work.
+- **`$.runtime.requests`.** The view host writes the client's requests there on every `onRequests`, keyed by id:
+  `{ id, path, op, value?, at, until, status, mine, by, decidedAt?, code?, note? }` (`base` stays in the client). The
+  runtime takes the write as it takes `$.runtime.sync`; `$.runtime` never syncs, so the values stay in the session that
+  was sent them.
+- **The notice.** When the host first sees one of its own requests pending, it raises the app event `sync.requested`
+  with `{ id, path }`. The root node's `on` entry for it runs; without one, an app with toasts shows the built-in
+  notice `syncRequested` (`SYNC_NOTICES.requested`), an info toast whose text is the `toastRegion`'s
+  `_requestedText` ("Sent for approval.").
+- **The commands.** `request.approve`, `request.reject` and `request.withdraw` are system commands of `on` entries.
+  Their argument is the request's id, in `value` (`"$row.id"` reads it in a row over `$.runtime.requests`) or `from`;
+  `request.reject` also takes `{ id, note }`, the note at most 500 characters. The dispatcher hands the decision to
+  the host (`DispatchHooks.decide`); the runtime posts `decide { action, id, note? }`, and the view host calls the
+  client's `approve`, `reject` or `withdraw`. The command fails when the app has no host that decides
+  (a preview without sync), and does nothing visible offline: the authority's `decided`, not the command, changes
+  `$.runtime.requests`.
+
 ### Magnetic
 - The share dialog and the Data page offer "can suggest changes" (`request`) beside read and write.
 - A **Requests** page (`/requests`) lists what waits for the person to decide, from `pending_request`, with the app,

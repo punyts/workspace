@@ -43,7 +43,12 @@ Built 2026-11-22: a `scene3d` saves what it draws as a GLB file when `exportRequ
 Built 2026-11-23: move, rotate and scale gizmos on 3D nodes, written once on release
 ([design/stateui-3d-gizmo.md](design/stateui-3d-gizmo.md)).
 
-Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
+In progress 2026-11-23: R2's runtime half of requests that wait for the owner
+([design/statenet-requests.md](design/statenet-requests.md)): stateui-app's `$.runtime.requests`, the three
+`request.*` commands and the `sync.requested` notice, the toast's text, and the view host in stateui-mcp. The tower's
+half of R2 (`PgEpochStorage`, the stateui-pg migration) stays the tower's.
+
+Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
 
