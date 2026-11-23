@@ -50,8 +50,8 @@ drag turns the camera).
 
 ## Decisions
 
-- `repeat3d` copies are not dragged yet: a copy is an instance of one mesh, and its position lives in a record the row
-  links. `draggable` on a row template is ignored. Dragging copies is the next step when a builder needs it.
+- `repeat3d` copies drag as designed in [stateui-3d-drag-copies.md](stateui-3d-drag-copies.md): the write goes to the
+  record field the row's `position` links.
 - A key the scene used on a proxy button stops there, so an arrow that moves a node does not also pan the camera.
 - No vertical drag and no rotation; both belong to the gizmo the modeling gap names.
 - `bounds` holds the position, not the node's box: a 3D box depends on rotation and scale, and boards place pieces by

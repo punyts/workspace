@@ -34,6 +34,9 @@ Built 2026-11-22: dragging a 3D node on its ground, written once on release
 Built 2026-11-22: repeats of a `group3d` row, each mesh of a piece drawn as one instanced mesh
 ([design/stateui-3d-group-rows.md](design/stateui-3d-group-rows.md)).
 
+Built 2026-11-22: dragging `repeat3d` copies, each drop written to the record
+([design/stateui-3d-drag-copies.md](design/stateui-3d-drag-copies.md)).
+
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
