@@ -37,6 +37,9 @@ Built 2026-11-22: repeats of a `group3d` row, each mesh of a piece drawn as one 
 Built 2026-11-22: dragging `repeat3d` copies, each drop written to the record
 ([design/stateui-3d-drag-copies.md](design/stateui-3d-drag-copies.md)).
 
+Built 2026-11-22: a `scene3d` saves what it draws as a GLB file when `exportRequest` changes
+([design/stateui-3d-glb-export.md](design/stateui-3d-glb-export.md)).
+
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower

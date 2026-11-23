@@ -56,6 +56,8 @@ expressions (`random` included) and tables, and anything iterative needs an effe
   scene can be a list of records a user edits.
 - **Interaction.** Interactive nodes raise `press` and `hover`, and a `draggable` one moves on its ground and raises
   `dragEnd`; `orbit` and `pan` controls write the camera back to state.
+- **Export.** A set `exportRequest` saves what the scene draws as a GLB file in the app's files
+  ([stateui-3d-glb-export.md](stateui-3d-glb-export.md)).
 
 Good fits: product configurators, room and warehouse layouts, a block (voxel) builder, 3D data views, and pieces built
 from primitives, like Ridgeline's.
@@ -65,7 +67,6 @@ from primitives, like Ridgeline's.
 |---|---|---|---|
 | No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state | Large, a project of its own |
 | No gizmos | A part drags on its ground only; lifting, turning or scaling it needs fields or buttons beside the scene | A move and rotate gizmo for the picked node | Medium |
-| No export | A scene is JSON state | An effect function that builds a GLB (or STL) file from the scene state and stores it as a file | Small to medium |
 
 ---
 
@@ -92,5 +93,4 @@ Its rules are in the example README and in `example/src/ridgeline.ts`.
 - A `scene3d` takes its height from its `theme` (`{ "scene3d": { "height": "520px" } }`), not from the host element's
   size.
 
-**Next steps, in order of value:** a GLB export effect. Real-time games and mesh
-modeling are separate projects.
+**Next steps:** none left from this analysis. Real-time games and mesh modeling are separate projects.
