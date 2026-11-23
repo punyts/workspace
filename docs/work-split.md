@@ -43,9 +43,13 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
    - a restarted aggregate forgets what landed, so a save sent again is written again;
    - only one relay between a node and the aggregate is routed.
-3. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the permission
-   schema, sharing and revocation; requests that wait for an offline owner; the binary wire format; WebRTC, then
-   WebTransport.
+3. **Permissions, S14** ([design/statenet-permissions.md](design/statenet-permissions.md)): built 2026-11-22
+   (S14a to S14c). One table of path patterns per owner replaces app access, links, state grants, dataset
+   shares and the `/paths` grant. The matcher is in `@punyts/state`, Magnetic keeps every right in
+   `permission`, and `/paths` reads with signed tokens. The `request` right waits for "requests that wait for an
+   offline owner" below.
+4. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): requests that wait
+   for an offline owner; the binary wire format; WebRTC, then WebTransport.
 
 The tower owns `statenet`, `state-sync`, the mesh and Magnetic's `src/statenet`. Work here that needs a change there
 asks first, in this file.

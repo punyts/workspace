@@ -58,7 +58,8 @@ Four parts of the system are the same thing, a table from path patterns to somet
 One fast matcher on integer paths (with wildcards and captures) serves all four.
 
 ### Permissions
-- Permissions are on paths and may use wildcards. **Later:** the schema, sharing and revocation.
+- Permissions are on paths and may use wildcards. The schema, sharing and revocation are designed in
+  [statenet-permissions.md](statenet-permissions.md).
 - **Three levels.** Read (listen to the value), request (propose a change without write permission; it waits for the owner) and write (relayed to the owner's authority, which can still reject it).
 - **Requests wait.** A request that needs the owner's approval while the owner is offline stays pending on the owner's edge (`requested → approved | rejected | expired`). **Later:** what the requester sees meanwhile, expiry, and approving a request whose value has since changed (decided by the owner's logic, like a stale change today).
 - Read access is a key: granting read on a path pattern hands out that pattern's key, and revoking it rotates the key, so a revoked reader gets nothing new. What a reader already saw cannot be taken back.
@@ -132,7 +133,6 @@ Browsers cannot open raw UDP sockets. Their only UDP options are WebRTC data cha
 ---
 
 ## Open Questions
-- The permission schema, sharing and revocation.
 - Who runs data migrations, and when.
 - Machines on models, and how they combine with app machines.
 - Splitting packets across storage providers.
