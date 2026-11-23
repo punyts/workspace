@@ -83,7 +83,7 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    on the UI machine 2026-11-23. R3's write path is decided (owner, 2026-11-23). R3a is built: a dataset's records live
    in its namespace `<owner>/data/<dataset>` (stateui-mcp, stateui-pg, Magnetic; databases are reset, not moved). R3b
    is built: an instance's binding is a session with the dataset as the person, whose access the dataset's authority
-   checks; the bindings' requests reach `$.runtime.requests`. R3c (pages) is next.
+   checks; the bindings' requests reach `$.runtime.requests`. R3c (pages, all the tower's) is designed: a per-dataset setting for app users, a Requests page and a home alert.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.
 

@@ -1,7 +1,7 @@
 # Requests that wait for the owner
 
 Status: R1 (state-sync, statenet), R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
-R3a and R3b (stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; R3c not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+R3a and R3b (stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; R3c designed 2026-11-23, not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -234,14 +234,62 @@ namespace and always allows it, and a request kept there would be decided by its
 - **Shares.** `datasetAddress` (`<workspace id>/data/<dataset>`) is turned into the namespace's address at
   `StateGrants`' edge (the owner's id to its number), so shares already name the namespace.
 
-### Magnetic: pages
-- The share dialog and the Data page offer "can suggest changes" (`request`) beside read and write.
-- A **Requests** page (`/requests`) lists what waits for the person to decide, from `pending_request`, with the
-  dataset, who asked and when. Opening one loads it from the dataset's authority, as the owner, and shows the record
-  as it is and as asked, with Approve and Reject; the values are shown to the decider only, never stored outside the
-  namespace.
-- The person is told of a new request the way Magnetic tells of a share today (the home page's notice); e-mail is
-  not part of this design.
+### Magnetic: pages (R3c)
+Asked for on 2026-11-23: "Design R3c".
+
+What is there to build on: Magnetic has no dataset share dialog. Datasets are shared on the Data page
+(`/settings/data`, server HTML), whose form gives another workspace `read` (kind `share`); `StateGrants.issue`
+takes read and write only. Everyone who runs an app writes the datasets it binds through a `bound` entry, read and
+write, which no page shows. Magnetic reads `pending_request` nowhere, and nothing in Magnetic opens a session with a
+dataset's authority except the hub.
+
+- **A request lives as long as the entry says, not the token.** R1's authority ends a request at
+  `min(at + lifeMs, grant expiry)`, and Magnetic's tokens live 4 hours, so a request made in Magnetic would expire
+  within 4 hours. `GrantClaims` gains two optional claims (state-sync): `requestMs`, the life of a request made
+  with the grant (1 to 30 days), and `lasts`, when the entry itself ends (absent for a standing entry). The
+  authority ends a request at `min(at + (requestMs ?? lifeMs), lasts ?? ∞)` over the chain, so a token's
+  short life only bounds how long it may be used to send. Revocation still ends a request at once (its chain).
+  `StateGrants.tokenFor` writes both from the entry.
+- **The owner chooses per dataset what people using their apps may do.** The Data page shows under each of the
+  workspace's datasets "Changes from people using your apps": **Saved at once** (the default, as today) or **Wait
+  for your approval**, and with the second, "Requests last" 1 to 30 days (7 by default). It is kept in a new table,
+  `dataset_setting (workspace_id, part_id, bound_rights, request_days)`, keyed by the data part's id so a rename
+  keeps it (`migrations/0001_baseline.sql`; databases are reset). `StateGrants.boundAccess` makes a person's
+  `bound` entry with `read, write` or `read, request` from it, and the entry keeps `request_days` (a new
+  column of `permission`, read by `tokenFor`).
+- **Changing the setting takes effect at once.** Saving it revokes the dataset's live `bound` entries; each person
+  gets a new one with the new rights the next time their session connects. A `DatasetSession` whose change is
+  refused for access reconnects with a fresh access once (stateui-mcp), and so does one told its access ended, so a
+  running instance moves to the new rights without a restart. Raising the dataset to Saved at once ends the waiting
+  requests of those entries as `revoked`; the page says how many wait before it saves.
+- **The share form** stays read only. A share gives another workspace `$.external`, and writing `$.external` is
+  refused until a later design says where an app writes it, so offering "can suggest changes" there would give a
+  right nothing can use. It is added with that design.
+- **A Requests page** (`/requests`, server HTML like the Data page, linked from the profile menu beside Data) lists
+  the pending requests of every workspace the person manages (their own, and an org's they own or administer), read
+  from `pending_request` in a transaction scoped to those workspaces: dataset, who asked (their name), when, and
+  until when it waits. Values are not in that table, so the list shows none.
+- **Opening a request** (`/requests/<workspace>/<dataset>/<id>`) asks the dataset's authority for it: the server
+  opens a `DatasetSession` as the decider, waits for its first records and lists its requests (the welcome brings the
+  ones the decider may decide), shows the record as it is and as asked (each field that differs, a removal as
+  "Remove the record", a whole-map write as the keys it adds, changes and removes), and closes the session. Approve
+  and Reject (with an optional note, at most 500 characters) post back; the server opens a session again, sends the
+  decision with `decide`, and waits for `decided` or an `error`. An approval the dataset's logic or model refuses
+  ends `rejected` with its code, which the page shows. The values reach only the decider's page; they are not stored
+  or logged outside the namespace.
+- **The decider's access** is `StateGrants.deciderAccess(userId, workspaceId)`: the owner itself for the person's
+  own workspace; for an org's, a token for the org's `admins` entry (read, write and share on `$`), which R1's
+  rule accepts as a decider. Holders of read and write through other entries may decide in the protocol; Magnetic
+  lists requests only to the people who manage the workspace.
+- **Services gain `datasetRequests`** (stateui-mcp): `list(dataset, access)` gives the dataset's records and the
+  requests the access may decide; `decide(dataset, access, action, id, note?)` sends one decision and resolves with
+  its outcome. Both open a session here or through the placement, as the hub does, and close it after.
+- **Home tells of waiting requests** as it tells of invites: an info alert above the apps, "N changes wait for your
+  approval", linking to `/requests`, shown while the count from `pending_request` is above zero
+  (`HomeApp` flags `noRequests` and `requestCount`). The Data page shows the count per dataset beside the
+  setting. E-mail is not part of this design.
+- **Text** for the Requests page goes in `src/http/requestsText.ts`, and the Data page's and home's new keys in
+  `dataText.ts` and `text.ts`, each in English, German, French and Spanish.
 
 ## Rules and Constraints
 - A request is never applied without a decision by someone who may decide, and is applied only through the
@@ -363,8 +411,13 @@ R3b (2026-11-23):
      `datasetAddress` becomes the namespace's address; `DatasetHub` bindings become sessions with the person's access; Magnetic's access
      context from the permission table; `tokenFor` keeps `request`; `use` entries give `write` on bound datasets;
      the instance passes its binding sessions' requests to `$.runtime.requests` (with R2's runtime).
-   - **R3c, pages**: the `request` right in the share dialog and the Data page, `requestDays`, the Requests page and
-     the home notice.
+   - **R3c, pages** (the tower; nothing in stateui-app or stateui-components): state-sync's `requestMs` and `lasts`
+     claims; stateui-mcp's `datasetRequests` and the session's reconnect on lost access; Magnetic's
+     `dataset_setting` and `request_days`, `boundAccess` from the setting, `deciderAccess`, the Data page's
+     setting, the Requests page and the home alert. Tests: state-sync (a request outlives its token and ends at
+     `requestMs`); stateui-mcp (`datasetRequests` lists and approves one; a session refused for access reconnects
+     with the new rights); Magnetic (the setting gives `request`, changing it revokes and remakes `bound` entries,
+     the page lists and decides, the alert counts).
 
    Checks: a person with `request` on a shared dataset suggests a record, the owner approves it on
    the Requests page, the requester sees it applied; one left alone expires; one approved after the value changed is
@@ -393,6 +446,14 @@ Made with the owner on 2026-11-23 ("Yes, build R3a"), as proposed:
   `request`. The alternative, `use` as `read` only (S14's table read strictly), would stop every shared app's users
   from saving until the owner gives them more.
 - **A shared dataset may be written from another workspace** once the owner gives `request` or `write`.
+
+Proposed with R3c's design (2026-11-23), for the owner:
+- **The setting is per dataset, for everyone using the owner's apps**, not per person: a `bound` entry is made by
+  running an app, so the person is often not known to the owner beforehand. Per-person rights for app users can be
+  added on the same page later.
+- **The share form stays read only** until `$.external` can be written.
+- **Deciders listed are the people who manage the workspace** (owner and org admins).
+- **Raising a dataset to Saved at once drops its waiting requests** (`revoked`), after the page says how many.
 
 Made while building R3b:
 - **A binding connects with a `bound` entry**, one per person and dataset, made the first time they bind it, rather
