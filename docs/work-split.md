@@ -21,6 +21,10 @@ Built 2026-11-22: the frame's side of `/paths` ([design/statenet-paths-route.md]
 host gives the runtime frame the files URL and the grant and forwards each new grant; `mediaPlayer` plays a stored
 `file`.
 
+Built 2026-11-22: images as app files in `richTextField` and `richText` (T7 of
+[design/stateui-text-editor.md](design/stateui-text-editor.md)). Uploads by tool, `/image`, paste and drop; an image
+panel for alt text, caption and width; drawn from the `/paths` URL.
+
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
