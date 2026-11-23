@@ -51,8 +51,9 @@ expressions (`random` included) and tables, and anything iterative needs an effe
   scale together), `label3d`, `camera`, `light` and the `environment` presets. Materials take a colour, metalness,
   roughness, opacity, `emissive` and an image `map`.
 - **Imported models.** `model` shows an uploaded GLB (at most 10 MiB) and plays its clips.
-- **Data-driven scenes.** Every value is state: form fields link to positions and materials, and `repeat3d` draws one
-  instanced mesh per record (at most 20,000), so a scene can be a list of records a user edits.
+- **Data-driven scenes.** Every value is state: form fields link to positions and materials, and `repeat3d` draws a
+  mesh or a `group3d` of meshes per record as instanced meshes (at most 20,000 records, 16 meshes a record), so a
+  scene can be a list of records a user edits.
 - **Interaction.** Interactive nodes raise `press` and `hover`, and a `draggable` one moves on its ground and raises
   `dragEnd`; `orbit` and `pan` controls write the camera back to state.
 
@@ -65,7 +66,6 @@ from primitives, like Ridgeline's.
 | No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state | Large, a project of its own |
 | No gizmos | A part drags on its ground only; lifting, turning or scaling it needs fields or buttons beside the scene, and a `repeat3d` copy does not drag | A move and rotate gizmo for the picked node, and dragging of `repeat3d` copies | Medium |
 | No export | A scene is JSON state | An effect function that builds a GLB (or STL) file from the scene state and stores it as a file | Small to medium |
-| `repeat3d` copies are one mesh | Records may differ only in position, rotation, scale, visibility and colour | A repeat of a `group3d` row (several meshes per record) | Medium |
 
 ---
 
@@ -92,5 +92,5 @@ Its rules are in the example README and in `example/src/ridgeline.ts`.
 - A `scene3d` takes its height from its `theme` (`{ "scene3d": { "height": "520px" } }`), not from the host element's
   size.
 
-**Next steps, in order of value:** repeats of a `group3d` row, dragging `repeat3d` copies, and a GLB export effect. Real-time games and mesh modeling are
-separate projects.
+**Next steps, in order of value:** dragging `repeat3d` copies and a GLB export effect. Real-time games and mesh
+modeling are separate projects.
