@@ -1,6 +1,6 @@
 # The mesh editor: geometry kept in state, shaped in the scene
 
-Status: designed 2026-11-23; V1 built 2026-11-23; V2 to V4 not built.
+Status: designed 2026-11-23; V1 and V2 built 2026-11-23; V3 and V4 not built.
 
 Asked for on 2026-11-23: "Design the mesh editor", the gap the games and 3D analysis
 ([stateui-games-and-3d-modeling.md](stateui-games-and-3d-modeling.md)) leaves: "No mesh editing | Geometry is a
@@ -46,13 +46,14 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
 ### Picking in the scene (V2)
 - `mesh` gains `edit`: `{ mode, picked }`. `mode` is `none` (the default), `vertex`, `edge` or `face`; `picked` is the
   list of picked vertex indices, edges as `[a, b]` pairs (a smaller index first), or face indices.
-- A custom mesh whose `edit.mode` is not `none`, that is `interactive` in a scene with a feeder (`onMove`), is in edit
-  mode. It draws its vertices as dots and its edges as lines over its faces; picked ones are drawn in the pick colour.
+- A custom mesh whose `edit.mode` is not `none`, that is `interactive` and shown in a scene whose feeder writes picks
+  (`onPick`), is in edit mode. A `repeat3d` copy never is. It draws its vertices as dots and its edges as lines over its faces; picked ones are drawn in the pick colour.
   The colours are fixed, as the gizmo's are (`EDIT_COLORS`): they mark the tool, not the theme.
 - A press on the mesh picks the nearest element of the mode under the pointer: a vertex within 10 CSS pixels of where it
   is drawn, an edge within 8, or the face hit. Only elements in front can be picked; turning the camera reaches the
   others. A press replaces the pick; Shift and a press add the element or take it out. A press beside the mesh clears
-  the pick. Each press writes `edit.picked` once.
+  the pick (with Shift it keeps it). Each press writes `edit.picked` once, and only when it changed.
+- Face indices are places in `faces`: a face the renderer cannot draw keeps its place, drawn as nothing.
 - In edit mode a press of the mesh does not raise `press`, and the mesh is not dragged by `draggable`.
 - An app shows mode buttons by linking `edit`, such as `"<-edit": "$.data.workshop.edit"`, and a button writes
   `$.data.workshop.edit.mode`.
@@ -154,6 +155,20 @@ V1, 2026-11-23:
 - stateui-mcp: the 3D guide topic names custom geometry, so an agent can write one before V4's `scene3d-modeling` topic.
 - The runtime chunk grew by 648 bytes gzipped (194,515 of the 195,269 the gate allows), so V1 needed no raise; 754 bytes
   are left for V2 and V3.
+
+V2, 2026-11-23:
+- stateui-3d: `src/edit.ts` (`editModeOf`, `meshEdges`, `readPicked`, `togglePick`, `nearPoints`, `segmentDistance`,
+  `EDIT_COLORS`, `VERTEX_PICK_PIXELS`, `EDGE_PICK_PIXELS`, and `EditOverlay`, a scene of its own drawn after the main one
+  with the depth kept, the picked marks at render order 1 so they cover the wire). `src/scene3d.ts`: the `onPick` option
+  and `MeshPick`, `pickEdit` on a press, `inFront` (a ray through the element: nothing of the mesh nearer), no press or
+  drag for a mesh in edit mode, `info().editing`. `customGeometry` keeps a bad face as an empty one and records the face
+  of each triangle (`userData.faceOf`). Tests: `src/edit.test.ts`, `test/edit.browser.test.ts` (each mode, Shift, a
+  hidden vertex, a press beside, no drag or press, no edit mode without `onPick`), `src/geometries.test.ts`.
+- stateui-components: `edit` in `mesh.state.json` and `NODE3D_PROPERTIES`; `onPick` and `MeshPick` in
+  `src/shared/scene3d/tree.ts`; the controller writes `<path>.edit.picked`. Tests: `test/graphics3d.test.ts`,
+  `test/composites/scene3d-events.browser.test.ts` (a face picked and cleared; a vertex through `<-edit`).
+- The runtime chunk is 196,447 bytes gzipped, 1,932 more than after V1. The gate was raised by those 1,932 bytes to
+  197,201 (`MESH_PICK_GZIP_BYTES` in `runtime-chunk/build.test.ts`; owner, 2026-11-23), keeping the 754 bytes left after V1.
 
 ## Rules and Constraints
 - Nothing is written while a handle is held; one `geometry` write per edit, on release or per operation.
