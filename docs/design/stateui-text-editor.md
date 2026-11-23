@@ -2,8 +2,8 @@
 
 Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 built (2026-11-21): the
 `richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 built (2026-11-21): paste and drop of Markdown and
-HTML, and the link panel. T4 built (2026-11-21): the `/` command menu, mentions and tables. T6, comments anchored to
-text, designed 2026-11-22 and building on this machine.
+HTML, and the link panel. T4 built (2026-11-21): the `/` command menu, mentions and tables. T6 built (2026-11-22): comments
+anchored to text, tested in Chromium.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
 editor". On 2026-11-21: "Build T4", with T4 chosen as "/ command menu, Mentions, Tables".
@@ -164,13 +164,14 @@ threads into a map the app links, and that resolving keeps the anchor and hides 
   `{ author, text, at }` shown in time order. Comment text is plain, at most 2000 characters; a thread keeps at most
   100 replies, and a field at most 500 threads. Each thread and each reply is its own path, so two people replying, or
   commenting on different text, never write the same path.
-- **`commentAuthor`** (`{ id, label }`, the app binds it to the person) is who writes. Without it, or without a linked
-  `comments` map, the field shows no comment tool and no highlights.
+- **`commentAuthor`** (`{ id, label }`, the app binds it to the person) is who writes. Without it the field shows no
+  comment tool and no highlights. A `comments` map that is not linked keeps its threads in the node only.
 - **Adding.** The `comment` tool (full and compact toolbars) and Ctrl+Alt+M on a selection open the comment panel, a
   popover anchored under the block like the link panel, with a text box. Saving writes the thread, then puts its id on
   the selected runs as one undo step. Undoing takes the anchor off and leaves the thread, which then shows nowhere. A
-  selection that reaches into a table takes the whole table, as a mark does. A `readonly` or `disabled` field cannot
-  add a comment, since an anchor is a write of the value; it can still reply and resolve.
+  selection that reaches into a table takes the whole table, as a mark does. A `readonly` field cannot add a
+  comment, since an anchor is a write of the value; it can still reply and resolve. A `disabled` or locked field does
+  neither.
 - **Reading.** Text under an open (not resolved) thread is drawn as `span.commented`, with the tokens
   `comment.background` and `comment.active` for the thread the panel shows. Pressing commented text, or the tool or
   Ctrl+Alt+M with the caret in it, opens the panel on the threads there: each with its author, time, text and replies,
@@ -179,7 +180,8 @@ threads into a map the app links, and that resolving keeps the anchor and hides 
 - **Resolving** sets `resolved: true`. The ids stay on the runs and the highlight goes; Reopen brings it back.
   **Deleting** a thread removes it from the map and takes its id off every block that carries it.
 - **Events.** After each write the field raises `comment` with `{ thread, kind }`, `kind` one of `add`, `reply`,
-  `resolve`, `reopen` and `delete`, so an app can notify people. It never carries the text.
+  `resolve`, `reopen` and `delete` (deleting a reply adds its key as `reply`), so an app can notify people. It never
+  carries the text.
 - **Elsewhere.** `richText` draws no comments. `toMarkdown` drops them and `fromMarkdown` makes none. A paste never
   carries comment ids. A thread whose text was deleted stays in the map; the app may list or remove it.
 
@@ -338,3 +340,23 @@ T4, in stateui-components:
   `mentionQuery`).
 - `components/atoms/rich-text/`: table and mention styles, tokens `mention.color`, `mention.background` and
   `table.header`.
+
+T6, in stateui-components:
+- `src/shared/richtext/model.ts`: the run's `comments` (`MAX_RUN_COMMENTS` 8, `MAX_THREAD_ID` 32, `isThreadId`,
+  `readComments`, `sameComments`); runs join only when their threads match, and a code block keeps comments.
+- `src/shared/richtext/runs.ts`: `styleAt` returns the threads shared by both sides (`Style`, `styledRun`),
+  `commentRuns`, `uncommentRuns` and `commentsIn`; marks and links keep comments.
+- `src/shared/richtext/edit.ts`: `commentSelection` (a table reached into takes every cell), `removeComment` and
+  `commentsAt`; typed and composed text takes its threads from `styleAt`.
+- `src/shared/richtext/editorView.ts`: `span.commented` (`.active`) for the threads `shownComments` gives, part of a
+  block's signature so a resolve redraws it.
+- `components/molecules/rich-text-field/`: properties `comments` and `commentAuthor`, runtime `comment`, event
+  `comment`, the `comment` tool and Ctrl+Alt+M, the comment panel (`#commentPanel`, built with `createElement`),
+  eleven `_tools` names in every locale, tokens `comment.background` and `comment.active`, and the `message-plus` icon
+  in the core set.
+- Tests: `src/shared/richtext/comments.test.ts`; `test/molecules/rich-text-field.browser.test.ts` ("richTextField
+  comments in Chromium": adding through linked maps and undoing the anchor, reply, resolve and reopen from pressed
+  text, deleting only one's own, no tool without an author, a readonly field replying).
+- The example's "Handover" field has a thread on "partial". In Northwind Ops a press on it opened the panel under the
+  block, a reply was written, and Ctrl+Alt+M on a selected word added a second thread. stateui-mcp's showcase, rebuilt,
+  did not change.
