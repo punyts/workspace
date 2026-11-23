@@ -350,7 +350,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 ## As built
 
 ### S7: link rules, sealed links and certificate renewal (19 November 2026)
-- **statenet** `src/mesh/`, mesh protocol 2 (a node of protocol 1 is refused, so servers and relays are upgraded
+- **statenet** `src/mesh/`, mesh protocol 2, 3 since relays under relays (a node of an older protocol is refused, so servers and relays are upgraded
   together):
   - `mayLink(dialler, server)` (`certificates.ts`) is the table of who links to whom. The server end refuses a
     hello whose certificate's role may not link to its own, or names another role than the hello; the dialling end
@@ -422,8 +422,11 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     told so. Relays still get state from the nodes, until S9.
   - **No `statenet-aggregate` command**: statenet has no database driver, so a process with Postgres is Magnetic's
     to start (S11). A file-backed one has no command: a local Magnetic keeps the aggregate in its process (S10).
-  - **A restarted aggregate forgets what landed**, so a save sent again after its restart is written once more with
-    the same content. The storage's fence still holds.
+  - **What landed is kept by the storage, not only the aggregate** (22 November 2026): a save at or below the
+    revision stored under its epoch writes nothing (`EpochStorage`; `createMemoryEpochStorage`, `createFileEpochStorage`
+    with the revision in `epoch.json`, `PgEpochStorage` by `namespace_head`), so a save sent again after an aggregate
+    restarted is answered as saved without a write, and an older one cannot take the state back. Tests: statenet
+    `src/mesh/aggregate.test.ts`, stateui-pg `src/state/directory.test.ts`.
   - **The limit of held changes is counted per namespace** (22 November 2026): state-sync's authority takes
     `maxUnsaved` (10000 by default), the changes it holds that no landed save covers. A node with no link holds its
     save in `MeshUpstream` until the link is back, so its changes count up; past the limit a client change is rejected
@@ -478,8 +481,9 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     servers today. It goes when Magnetic moves (S11).
   - **Relays are still not in the directory by themselves**: the tests list them by hand. An aggregate with the
     database is the one to register the relays linked to it; built as S13.
-  - **Only one relay between a node and the aggregate is routed.** A relay under another relay does not pass an
-    ask it has no way for up to its parent.
+  - **Only one relay between a node and the aggregate was routed**: a relay under another relay was not listed.
+    Every relay of the tree is listed with its parent since 2026-11-22
+    ([statenet-relay-chains.md](statenet-relay-chains.md)), at mesh protocol 3.
   - **What a relay asks of a node ends with the link**: a subscription the relay made down a node's link is
     closed when the link drops, and whoever asked subscribes again; the owner mesh's placed upstream does.
 
