@@ -14,7 +14,11 @@ Magnetic's agent has `ui_preview`, `ui_screenshot` and `ui_interact` through one
 Built 2026-11-22: `window` resizes from every edge and snaps when dragged to an edge
 ([design/stateui-desktop-stage-2.md](design/stateui-desktop-stage-2.md)).
 
-Nothing in progress. After the tower's `/paths` route lands:
+In progress: comments anchored to text in `richTextField` (T6 of
+[design/stateui-text-editor.md](design/stateui-text-editor.md)). Touches stateui-components' `src/shared/richtext` and
+`components/molecules/rich-text-field`, the example and stateui-mcp's showcase.
+
+After the tower's `/paths` route lands:
 
 1. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
    its `/paths` URL for `mediaPlayer`, the read grant in the runtime frame and its image and media policy, real tiles in
@@ -54,6 +58,6 @@ These wait until users ask for them or the load needs them:
 - More than one Magnetic server: sessions, live views and authorities still assume one process.
 - Object storage for file bytes, and ADR-0017's open questions (malware scanning, a workspace quota, backing up the
   files folder).
-- The rich-text editor's later items: images as app files (after `/paths`), comments anchored to text, character-level
-  merging.
+- The rich-text editor's later items: images as app files (after `/paths`), character-level merging (with the
+  statenet direction).
 - Vector map tiles (a WebGL chunk), and SCIM's extras (roles from the provider, more attributes, bulk requests).

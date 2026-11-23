@@ -2,7 +2,8 @@
 
 Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 built (2026-11-21): the
 `richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 built (2026-11-21): paste and drop of Markdown and
-HTML, and the link panel. T4 built (2026-11-21): the `/` command menu, mentions and tables.
+HTML, and the link panel. T4 built (2026-11-21): the `/` command menu, mentions and tables. T6, comments anchored to
+text, designed 2026-11-22 and building on this machine.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
 editor". On 2026-11-21: "Build T4", with T4 chosen as "/ command menu, Mentions, Tables".
@@ -146,6 +147,42 @@ A block is the unit of a write and of a conflict. Every edit writes the blocks i
   `data-align`, and a mention as `span.mention`. `fromMarkdown` reads a GFM table as a table block and `toMarkdown`
   writes one (a pipe in a cell is escaped); a mention is written as its text.
 
+### Comments anchored to text (T6)
+
+Asked for on 2026-11-22, as the next item on this machine: "let's continue". The owner chose that the field writes the
+threads into a map the app links, and that resolving keeps the anchor and hides it.
+
+- **An anchor is on the runs.** A run gains `comments`: the ids of the threads on its text, sorted, at most 8. A thread
+  id starts with a letter and is at most 32 characters. Comments may overlap, so a run can carry several. Adjacent runs
+  join only when their comments are the same, and a mention can carry comments too. An anchor moves with its text, is
+  split and joined with it, and conflicts per block like every other edit.
+- **Typing inside a commented range carries its comments; typing at either end does not.** This is the rule a link
+  follows (`styleAt`): the style of the text before and after the caret must share the id.
+- **The threads live in `comments`**, a keyed map property the app links to its data
+  (`"<-comments": "$.data.notes.comments"`). Each thread is
+  `{ author: { id, label }, text, at, resolved?, replies? }`, where `at` is an ISO time and `replies` is a keyed map of
+  `{ author, text, at }` shown in time order. Comment text is plain, at most 2000 characters; a thread keeps at most
+  100 replies, and a field at most 500 threads. Each thread and each reply is its own path, so two people replying, or
+  commenting on different text, never write the same path.
+- **`commentAuthor`** (`{ id, label }`, the app binds it to the person) is who writes. Without it, or without a linked
+  `comments` map, the field shows no comment tool and no highlights.
+- **Adding.** The `comment` tool (full and compact toolbars) and Ctrl+Alt+M on a selection open the comment panel, a
+  popover anchored under the block like the link panel, with a text box. Saving writes the thread, then puts its id on
+  the selected runs as one undo step. Undoing takes the anchor off and leaves the thread, which then shows nowhere. A
+  selection that reaches into a table takes the whole table, as a mark does. A `readonly` or `disabled` field cannot
+  add a comment, since an anchor is a write of the value; it can still reply and resolve.
+- **Reading.** Text under an open (not resolved) thread is drawn as `span.commented`, with the tokens
+  `comment.background` and `comment.active` for the thread the panel shows. Pressing commented text, or the tool or
+  Ctrl+Alt+M with the caret in it, opens the panel on the threads there: each with its author, time, text and replies,
+  a reply box, Resolve, and Delete on the author's own thread or reply. Resolved threads at the caret are listed under
+  "Resolved" with Reopen.
+- **Resolving** sets `resolved: true`. The ids stay on the runs and the highlight goes; Reopen brings it back.
+  **Deleting** a thread removes it from the map and takes its id off every block that carries it.
+- **Events.** After each write the field raises `comment` with `{ thread, kind }`, `kind` one of `add`, `reply`,
+  `resolve`, `reopen` and `delete`, so an app can notify people. It never carries the text.
+- **Elsewhere.** `richText` draws no comments. `toMarkdown` drops them and `fromMarkdown` makes none. A paste never
+  carries comment ids. A thread whose text was deleted stays in the map; the app may list or remove it.
+
 ### Paste and drop
 
 - **Plain text** becomes one paragraph per line. If it reads as Markdown (headings, list markers, fences), it goes
@@ -188,8 +225,9 @@ new text. Merging characters within one block needs a sequence CRDT. That belong
    `table` block with its editing, display and Markdown.
 5. **Later:**
    - images as app files
-   - comments anchored to text
    - character-level merging (T5, with the statenet direction)
+6. **T6, comments anchored to text** (2026-11-22): anchors on runs, threads in a linked map the field writes, the
+   comment tool and panel.
 
 Each stage follows the component checklist in `CLAUDE.md`. T2 is the largest. Its browser tests drive real key
 presses, paste and composition events in Chromium. Safari and Android keyboards differ in their `beforeinput` events,
@@ -214,6 +252,11 @@ so T2 also includes a manual check on both before it is called done.
   old label until the mention is put in again.
 - A table is one block with its cells inside, not a block per cell, so it moves, copies and undoes as one; two people
   typing in two cells of one table conflict, as two people typing in one paragraph do.
+- A comment anchor is a list of thread ids on a run, as a mention is a field of a run: it moves with its text and
+  every run function keeps working. The threads are a separate map, so a reply never rewrites a block (2026-11-22).
+- The field writes the threads itself into the map the app links, so comments work with no app logic (owner,
+  2026-11-22).
+- Resolving keeps the anchor and hides it, so a thread can be reopened where it was (owner, 2026-11-22).
 - An edit in a cell runs the paragraph edit on the cell as a one-block document and writes the result back, so cells
   share every rule of typing, marks, links and limits with paragraphs.
 
