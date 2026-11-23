@@ -215,6 +215,10 @@ namespace and always allows it, and a request kept there would be decided by its
   for the person's standing `bound` entry on `$.data.<dataset>`, read and write, made the first time they bind it
   (permission kind `bound`, not listed under Shared by me). So everyone who runs an instance of an app writes the
   datasets it binds, as with `use` today; R3c lets the owner lower an entry to `request`.
+- **Renewal.** A session reads its access again on every connection. One made with a grant closes itself 10 minutes
+  before the grant expires (`RENEW_BEFORE_MS`, at least a second after connecting), so the sync client reconnects
+  with a fresh token and sends its unanswered changes again; an instance that runs longer than a token's 4 hours keeps
+  writing. A connection without a grant (the owner) is not renewed.
 - **Writes.** The hub still checks an instance's own writes against the model synchronously (a client change through
   the instance's `onChange`, a logic or tool write through the data gate), then sends the records they touched
   through the session; a record the session already shows is not sent. `durable` waits until the session's changes
@@ -326,14 +330,15 @@ R3a (2026-11-23):
 R3b (2026-11-23):
 - **stateui-mcp**: `src/infrastructure/sync/DatasetModels.ts` (`recordsReason`, models read for synchronous checks);
   `DatasetNamespaces.ts` (the model check as the authority's change handler, `context` and `requests` options,
-  `syncNamespaceOf`); `DatasetSession.ts` (`sessionTransport`, a binding's sync client as a person);
+  `syncNamespaceOf`); `DatasetSession.ts` (`sessionTransport`, a binding's sync client as a person, renewed before its grant expires);
   `DatasetHub.ts` (bindings as sessions, `sync.requests` and `sync.decide`); `AuthorityInstanceStates.ts` (attach as
   the instance's persona); `src/config/createServices.ts` (`datasetAccess`, sessions here or through the placement);
   `src/browser/host.ts` and `requestsView.ts` (the bindings' requests in `$.runtime.requests`, decisions sent on).
 - **Magnetic**: `migrations/0001_baseline.sql` (permission kind `bound`); `src/grants/StateGrants.ts`
   (`boundAccess`, `accessContext`, `refreshRevoked`, `tokenFor` keeps `request`); `src/server/startMagnetic.ts`
   (`datasetAccess` for each workspace, revocations read every 5 seconds).
-- Tests: stateui-mcp `src/config/datasetHub.test.ts` (a change without access taken out and reported; one with a
+- Tests: stateui-mcp `src/infrastructure/sync/DatasetSession.test.ts` (a session reconnects with a fresh grant before
+  the first expires and a later write is applied; one without a grant keeps its connection); `src/config/datasetHub.test.ts` (a change without access taken out and reported; one with a
   write grant applied; one with `request` kept, listed to both instances and applied on approval; the list sent
   again on `sync.requests`; a refused shared record gives a `save-data` its reason; the model check, derived
   values and Full mode as before); Magnetic `src/server/grants.test.ts` (one standing `bound` entry per person and
@@ -414,8 +419,6 @@ Made while building R1:
 - A tool's or the Data page's write of a dataset still claims its namespace for the server it runs on; instances
   reach it where it is.
 - A `bound` entry outlives the person's access to the app; it is used only while they can open an instance of it.
-- A binding's session keeps the token it connected with, which lives 4 hours; an instance running longer has its
-  writes refused until its session reconnects. The session should fetch a fresh access before the token expires.
 - A revocation made on the other server reaches this one's dataset authorities within 5 seconds.
 - The statenet view path (`StatenetViews`) does not pass an instance's emits on, so a view there gets no
   `sync.requests`.
