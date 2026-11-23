@@ -1,6 +1,6 @@
 # The mesh editor: geometry kept in state, shaped in the scene
 
-Status: designed 2026-11-23; V1 and V2 built 2026-11-23; V3 and V4 not built.
+Status: designed 2026-11-23; V1 to V3 built 2026-11-23; V4 not built.
 
 Asked for on 2026-11-23: "Design the mesh editor", the gap the games and 3D analysis
 ([stateui-games-and-3d-modeling.md](stateui-games-and-3d-modeling.md)) leaves: "No mesh editing | Geometry is a
@@ -59,13 +59,13 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
   `$.data.workshop.edit.mode`.
 
 ### Moving the pick (V3)
-- In edit mode with a pick, the mesh's `gizmo` (`move`, `rotate`, `scale`) acts on the picked elements instead of the
-  node: the handles sit at the centre of the picked vertices, along the mesh's own axes, and move, turn or scale those
+- In edit mode with a pick, in a scene whose feeder writes geometry (`onGeometry`), the mesh's `gizmo` (`move`,
+  `rotate`, `scale`) acts on the picked elements instead of the node: the handles sit at the centre of the picked vertices, along the mesh's own axes, and move, turn or scale those
   vertices about that centre, with the gizmo's `snap` steps.
 - The vertices change in the renderer only while the handle is held. On release the scene writes `geometry` once, with
   the moved vertices; Escape or a pointer cancel puts them back and writes nothing.
-- **Undo.** The `scene3d` controller keeps each edit mesh's history (`MESH_HISTORY_LIMIT`, 100 entries): the
-  `geometry` before and after every edit the person made in this page. Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) undo and
+- **Undo.** The `scene3d` controller keeps the scene's history (`MESH_HISTORY_LIMIT`, the last 100 edits over its
+  meshes): the `geometry` before and after every edit the person made in this page. Ctrl+Z and Ctrl+Shift+Z (Cmd on macOS) undo and
   redo while the scene has focus, and `editRequest` `undo` and `redo` (V4) do the same. An undo whose mesh someone else
   changed since (its `geometry` is no longer that entry's after) is skipped, so it never takes back another person's
   work. The history lives in the page and is not written to state.
@@ -169,6 +169,19 @@ V2, 2026-11-23:
   `test/composites/scene3d-events.browser.test.ts` (a face picked and cleared; a vertex through `<-edit`).
 - The runtime chunk is 196,447 bytes gzipped, 1,932 more than after V1. The gate was raised by those 1,932 bytes to
   197,201 (`MESH_PICK_GZIP_BYTES` in `runtime-chunk/build.test.ts`; owner, 2026-11-23), keeping the 754 bytes left after V1.
+
+V3, 2026-11-23:
+- stateui-3d: `pickedVertices`, `centreOf`, `reshapeVertices` and `PickChange` in `src/edit.ts`, and `EditOverlay.show`
+  (the overlay over moved vertices). `src/scene3d.ts`: the `onGeometry` option and `MeshGeometry`; `pickOf`,
+  `pickPlace`, `pickChange` and `showPick`; a held handle of a pick draws the mesh from a geometry made of the moved
+  vertices and puts the old one back on Escape; on release `onGeometry` gets the whole geometry and no `dragEnd` is
+  raised. Tests: `src/edit.test.ts`, `test/edit.browser.test.ts` (moved while held and written once, Escape, the node
+  moved with no pick).
+- stateui-components: `MeshHistory`, `historyKey` and `MESH_HISTORY_LIMIT` (`src/shared/scene3d/history.ts`); the
+  controller's `onGeometry`, the undo keys, and the scene box focusable while a mesh is in edit mode. Tests:
+  `src/shared/scene3d/history.test.ts`, `test/composites/scene3d-events.browser.test.ts` (a moved pick undone and redone).
+- The runtime chunk is 197,461 bytes gzipped, 1,014 more than after V2. The gate was raised by those 1,014 bytes to
+  198,215 (`MESH_MOVE_GZIP_BYTES` in `runtime-chunk/build.test.ts`; owner, 2026-11-23), keeping the 754 bytes left after V1.
 
 ## Rules and Constraints
 - Nothing is written while a handle is held; one `geometry` write per edit, on release or per operation.
