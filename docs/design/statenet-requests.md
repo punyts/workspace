@@ -1,7 +1,7 @@
 # Requests that wait for the owner
 
-Status: R1 built 2026-11-23 in state-sync and statenet, not deployed; R2's runtime half built 2026-11-23 in
-stateui-app, stateui-components and stateui-mcp, not deployed; R2's storage half and R3 not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+Status: R1 (state-sync, statenet) and R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
+built 2026-11-23, not deployed; R3 not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -77,9 +77,11 @@ authority) is always on; the person who owns the namespace, and who decides, may
 - In the namespace's stored state, beside `applied`: `StoredNamespace.requests`. They are saved with the namespace,
   through the aggregate, and fenced by the epoch with it, so a request survives a restart, a handoff to another node
   and a move. They are never in `state`, so no reader of the namespace sees them, and never in the change log.
-- Postgres: `namespace_head.requests` (`json`), written by `PgEpochStorage.save` with `applied`. An index of pending
-  requests without values, `pending_request (address, id, owner, subject, until)`, is kept in the same transaction, so
-  Magnetic can list a person's waiting requests across namespaces without loading them.
+- Postgres: `namespace_head.requests` (`json`) and `namespace_head.serial`, written by `PgEpochStorage.save` with
+  `applied`. An index of pending requests without values, `pending_request (address, id, workspace_id, owner, subject,
+  at, until)`, is kept in the same transaction, so Magnetic can list a person's waiting requests across namespaces
+  without loading them. `owner` is the address's first segment. It is a state table: the aggregate writes it, an app
+  server reads it.
 - Files and memory: in the stored namespace as it is.
 
 ### The protocol
@@ -163,6 +165,14 @@ R1 (2026-11-23):
   across groups": a write from a node of another group kept as a request and approved by the owner) and
   `src/mesh/aggregate.test.ts` (a save that takes no revision written by its serial, in memory and in files).
 
+R2's storage (2026-11-23):
+- **stateui-pg**: `migrations/0010_requests.sql` (`namespace_head.serial` and `requests`, `pending_request` with
+  row-level security by workspace); `src/state/PgDirectory.ts` (`PgEpochStorage` loads and saves both, skips a save by
+  `isResave`, keeps `pending_request` in the save's transaction and clears it with the namespace);
+  `src/db/migrate.ts` (`STATE_TABLES` lists `pending_request`, so an app server only reads it).
+- Test: `src/state/directory.test.ts` ("should keep the serial and requests on the head, list the pending ones
+  without values, and write a save that takes no revision").
+
 R2's runtime half (2026-11-23):
 - **stateui-app**: `src/core/types.ts` (`APP_EVENTS` with `sync.requested`, `SYNC_NOTICES.requested`);
   `src/core/on/types.ts` (`REQUEST_COMMANDS`, `MAX_REQUEST_NOTE`, `MAX_REQUEST_ID`, `RequestDecision`, in
@@ -186,12 +196,12 @@ R2's runtime half (2026-11-23):
 ## Stages
 1. **R1, state-sync and statenet**: the pending request in the authority (`StoredNamespace.requests`, limits,
    expiry), sync protocol 3, `GrantRight` `request`, the client's list and its events, `WriteOutcome` `requested`,
-   mesh protocol 4 with `decide` and `decided`, `FileEpochStorage`. Tests in state-sync (`Authority.test.ts`,
-   `Client.test.ts`) and statenet (`groups.test.ts`: a request from a node of another group decided by the owner).
+   mesh protocol 4 with access on writes, `FileEpochStorage`. Tests in state-sync (`Requests.test.ts`) and statenet
+   (`groups.test.ts`: a request from a node of another group decided by the owner).
 2. **R2, storage and the runtime**: `PgEpochStorage` with `namespace_head.requests`, the serial and `pending_request` (stateui-pg
-   migration, Magnetic's baseline edited and databases reset); stateui-app `$.runtime.requests`, the three commands
-   and the `syncRequested` notice; stateui-components' toast for it. stateui-app and stateui-components are the UI
-   machine's, so R2's runtime half is asked for in [work-split.md](../work-split.md) first.
+   migration 0010, applied by `migrate`; no reset); stateui-app `$.runtime.requests`, the three commands
+   and the `syncRequested` notice; stateui-components' toast for it. The runtime half was built on the UI
+   machine, which owns stateui-app and stateui-components.
 3. **R3, Magnetic**: the `request` right in the share dialog and the Data page, `requestDays`, the Requests page and
    the home notice. Checks: a person with `request` on a shared dataset suggests a record, the owner approves it on
    the Requests page, the requester sees it applied; one left alone expires; one approved after the value changed is
@@ -228,4 +238,3 @@ Made while building R1:
   request was approved when its change arrives.
 - Magnetic's authorities (`AppAuthorities`) and the statenet's (`Statenet.ts`) check no access today (who connects is
   decided before the session); requests need `AuthorityOptions.access`, which R3 wires.
-- `PgEpochStorage` keeps no serial until R2: it skips a save at the same revision, a request among them.

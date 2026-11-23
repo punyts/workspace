@@ -46,7 +46,7 @@ Built 2026-11-23: move, rotate and scale gizmos on 3D nodes, written once on rel
 Built 2026-11-23: R2's runtime half of requests that wait for the owner
 ([design/statenet-requests.md](design/statenet-requests.md)): stateui-app's `$.runtime.requests`, the three
 `request.*` commands and the `sync.requested` notice, the toast's text, and the view host in stateui-mcp. The tower's
-half of R2 (`PgEpochStorage`, the stateui-pg migration) stays the tower's.
+half of R2 (`PgEpochStorage`, the stateui-pg migration) was built there the same day.
 
 Real tiles in the example and the showcase wait for the tower's tiles.
 
@@ -72,10 +72,10 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    `permission`, and `/paths` reads with signed tokens. The `request` right waits for "requests that wait for an
    offline owner" below.
 4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): R1 built
-   2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), not deployed. A change from someone with
-   `request` and not `write` waits on the owner's node until the owner or a holder of read and write decides it. R2
-   adds Postgres (`PgEpochStorage` with the serial and requests), still to build here; its runtime half
-   (`$.runtime.requests`, three commands, a notice, the toast, the view host) was built on the UI machine 2026-11-23.
+   2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), and R2's storage in stateui-pg (migration
+   0010: the serial, the requests and `pending_request`), not deployed. A change from someone with `request` and not
+   `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime half was built
+   on the UI machine 2026-11-23. R3, Magnetic's share dialog, Requests page and the authorities' access, follows it.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.
 
