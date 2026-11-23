@@ -3,8 +3,8 @@
 ## Summary
 What the StateUI tool set (documents, logic, `scene3d`, the MCP tools) can build today in two areas, games and 3D
 modeling, where it stops, and what would close each gap. The short answer: **turn-based games and 3D scene
-composition fit well; real-time games and mesh modeling do not.** The example app's **Ridgeline** section (a 3D board
-game) is the worked example.
+composition fit well, and so do short real-time games on the game loop; mesh modeling does not yet.** The example
+app's **Ridgeline** section (a 3D board game) is the worked example, and its **Orchard** section a real-time one.
 
 ---
 
@@ -28,6 +28,9 @@ game) is the worked example.
   is a slow tick. `debounce` waits for a quiet input.
 - **Feel.** `transition` eases a piece to its new tile; `animate` (`spin`, `bob`, `pulse`) marks a selection or a win;
   `emissive` materials glow.
+- **Real time.** A `scene3d` that `play`s moves its bodies itself, by `velocity`, held keys and gravity, collides them,
+  and writes state only when they meet, rest or the game stops; a rule on `contact` scores or removes
+  ([stateui-game-loop.md](stateui-game-loop.md)).
 - **Multiplayer.** In Full mode the logic runs on the app server's authority and the state syncs, so two browsers share
   one game, and guards on the server keep it honest.
 
@@ -35,9 +38,7 @@ Good fits: board games (two players, or one against an effect), puzzles (sliding
 with a countdown, card and tile games.
 
 ### Where it stops
-| Gap | Why | What would close it | Size |
-|---|---|---|---|
-| No frame loop | Logic runs on state changes, not per frame; a chain stops at depth 8 and every move is a store (and sync) write | A per-frame logic timer kept in the browser, or a game-loop component that owns its own motion and writes state only at rest | Medium |
+One player's browser runs a real-time game; two people steering the same bodies at once is not supported.
 
 An app built only through the MCP has no host code, so it has no registered functions: its rules must fit in
 expressions (`random` included) and tables, and anything iterative needs an effect the agent answers.
@@ -66,7 +67,7 @@ from primitives, like Ridgeline's.
 ### Where it stops
 | Gap | Why | What would close it | Size |
 |---|---|---|---|
-| No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state | Large, a project of its own |
+| No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state: designed in [stateui-mesh-editor.md](stateui-mesh-editor.md) | Large, a project of its own |
 
 ---
 
@@ -93,4 +94,5 @@ Its rules are in the example README and in `example/src/ridgeline.ts`.
 - A `scene3d` takes its height from its `theme` (`{ "scene3d": { "height": "520px" } }`), not from the host element's
   size.
 
-**Next steps:** none left from this analysis. Real-time games and mesh modeling are separate projects.
+**Next steps:** none left from this analysis. Mesh modeling is a project of its own
+([stateui-mesh-editor.md](stateui-mesh-editor.md)).
