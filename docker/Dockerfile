@@ -14,6 +14,11 @@ RUN node bin/workspace.mjs run build core expression state state-sync statenet s
 
 FROM node:22-bookworm-slim
 ENV NODE_ENV=production
+# The agent's headless browser (docs/design/magnetic-agent-browser.md): Chromium's headless shell and the system
+# libraries it needs, at the root's pinned Playwright, before the code so the layer is kept between builds. Playwright
+# starts it without the sandbox, which needs a user namespace the container does not have
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN npx -y playwright@1.61.1 install --with-deps --only-shell chromium     && rm -rf /var/lib/apt/lists/* /root/.npm
 WORKDIR /punyts
 COPY --from=build /punyts /punyts
 # Pages, the runtime origin, and the mesh the other servers and relays link to

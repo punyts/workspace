@@ -8,16 +8,16 @@ Updated 2026-11-22.
 
 ## This machine
 
-In progress:
+Built 2026-11-22, not deployed: the agent sees the page ([design/magnetic-agent-browser.md](design/magnetic-agent-browser.md)).
+Magnetic's agent has `ui_preview`, `ui_screenshot` and `ui_interact` through one shared headless Chromium per server.
 
-1. **The agent sees the page.** Magnetic's agent gets `ui_preview`, `ui_screenshot` and `ui_interact` back: one shared
-   headless Chromium per server, a browser context per workspace, and a short-lived agent session so the headless page
-   can sign in to its own workspace's view. Design: [design/magnetic-agent-browser.md](design/magnetic-agent-browser.md).
-   Touches `magnetic/src/agent`, `magnetic/src/server`, `magnetic/src/auth`, stateui-mcp's
-   `src/infrastructure/preview/BrowserPreview.ts` and `docker/Dockerfile` (Chromium in the image).
-Ready now that the files of `/paths` are built (the page has `data-paths` and keeps the current grant in `data-grant`):
+Built 2026-11-22: `window` resizes from every edge and snaps when dragged to an edge
+([design/stateui-desktop-stage-2.md](design/stateui-desktop-stage-2.md)).
 
-2. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
+Nothing in progress. Ready now that the files of `/paths` are built (the page has `data-paths` and keeps the current
+grant in `data-grant`):
+
+1. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
    its `/paths` URL for `mediaPlayer`, the host passing the grant to the runtime frame and the frame appending it
    (`?g=`). Real tiles in the example and the showcase wait for the tiles.
 
@@ -43,7 +43,8 @@ asks first, in this file.
 
 ## The owner
 
-- Deploys (`node infra/aws/deploy.mjs`, with Docker Desktop running), stack changes and SSO.
+- Deploys (`node infra/aws/deploy.mjs`, with Docker Desktop running), stack changes and SSO. The next deploy carries
+  Chromium (about 920 MB more image): check the t3.small's memory with an agent turn running.
 - The MapTiler template and key: `/magnetic/map-tiles-url` and `/magnetic/map-tiles-key` in SSM (us-east-1), and
   `MAP_TILES_URL` and `MAP_TILES_KEY` in `.env`. Whether MapTiler's terms allow our proxy and disk cache.
 - The manual checks on Safari and an Android keyboard (the rich-text editor, the composer, the map's touch drag):
@@ -58,5 +59,4 @@ These wait until users ask for them or the load needs them:
   files folder).
 - The rich-text editor's later items: images as app files (after `/paths`), comments anchored to text, character-level
   merging.
-- Vector map tiles (a WebGL chunk), resizing a window from its left or top edge and snapping to edges, and SCIM's
-  extras (roles from the provider, more attributes, bulk requests).
+- Vector map tiles (a WebGL chunk), and SCIM's extras (roles from the provider, more attributes, bulk requests).
