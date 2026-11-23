@@ -1,7 +1,9 @@
 # Requests that wait for the owner
 
 Status: R1 (state-sync, statenet), R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
-R3a, R3b and R3c (state-sync, stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+R3a, R3b and R3c (state-sync, stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; the follow-ups
+(shared reads by namespace, `bound` entries ending with access, requests through a relay and through statenet
+views) built the same day. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -283,9 +285,11 @@ Asked for on 2026-11-23: "Design R3c".
   used only after Magnetic finds that the person manages the workspace (their own, or an org's they own or
   administer); anyone else gets 403. Holders of read and write through other entries may decide in the protocol;
   Magnetic lists requests only to the people who manage the workspace.
-- **Services gain `datasetRequests`** (stateui-mcp): `list(dataset, access)` gives the dataset's records and the
+- **Services gain `datasetSessions`** (stateui-mcp): `list(dataset, access)` gives the dataset's records and the
   requests the access may decide; `decide(dataset, access, action, id, note?)` sends one decision and resolves with
-  its outcome. Both open a session here or through the placement, as the hub does, and close it after.
+  its outcome. Both open a session here or through the placement, as the hub does, and close it after. The list
+  shown after a decision leaves the decided request out: `pending_request` is written by the save that follows the
+  decision's answer.
 - **Home tells of waiting requests** as it tells of invites: a warning alert above the apps, "N changes people asked
   for wait for your approval", with Review them (the emit `requests`, to `/requests`), shown while the count from
   `pending_request` over the workspaces the person manages is above zero (`HomeApp`'s `noRequests` and
@@ -400,8 +404,8 @@ R3c (2026-11-23):
 - **state-sync**: `src/authority/Grants.ts` (`GrantClaims.lasts` and `requestMs`, `MAX_REQUEST_MS`, both
   returned by `verifyGrant` and `checkAccess`); `Authority.ts` (a request's `until` from them); `Relay.ts`.
 - **stateui-mcp**: `src/infrastructure/sync/DatasetSession.ts` (access read on every connection; reconnect on an
-  `access` refusal, `ACCESS_RETRY_MS`); `DatasetRequests.ts` (`list`, `decide`, `ANSWER_MS`);
-  `src/config/createServices.ts` (`Services.datasetRequests`); `src/index.ts`.
+  `access` refusal, `ACCESS_RETRY_MS`); `DatasetSessions.ts` (`list`, `decide`, `ANSWER_MS`);
+  `src/config/createServices.ts` (`Services.datasetSessions`); `src/index.ts`.
 - **Magnetic**: `migrations/0001_baseline.sql` (`dataset_setting` with row-level security, `permission.request_days`);
   `src/permissions/Permissions.ts` (`requestDays`); `src/grants/StateGrants.ts` (`DatasetSetting`,
   `DEFAULT_DATASET_SETTING`, `datasetSetting(s)`, `setDatasetSetting`, `boundAccess` from the setting, `tokenFor`
@@ -412,12 +416,51 @@ R3c (2026-11-23):
   `src/server/startMagnetic.ts` (wiring, the count for Your apps).
 - Tests: state-sync `src/authority/Requests.test.ts` ("should keep a request past its token's expiry for the grant's
   requestMs, within the entry's lasts"); stateui-mcp `src/infrastructure/sync/DatasetSession.test.ts` (a session
-  refused for access reconnects with the new rights; `DatasetRequests` lists and approves a request, a missing
+  refused for access reconnects with the new rights; `DatasetSessions` lists and approves a request, a missing
   dataset or request gives undefined); Magnetic `src/server/requests.test.ts` (the setting gives read and request with
   its days and revokes the old entry; a change Bob asks for is listed, shown beside the record and saved on approval;
   a rejection with a note, and 403 for someone who does not manage the workspace; the Data page's count,
-  `PendingRequests.count`, and saving at once again revokes the entries and drops the request). The home alert's
-  rendering has no test of its own.
+  `PendingRequests.count`, and saving at once again revokes the entries and drops the request); Magnetic
+  `e2e/requests.spec.ts` (through a real app at desktop and phone sizes: Bob's change is sent for approval, Your apps
+  shows the alert, Alice opens the request beside the record and approves it, and Bob's app shows the new value; a
+  rejection with a note is not saved and is no longer waiting), with `seedDataApp` in `e2e/server.mjs` and
+  `fixtures.ts`.
+
+Follow-ups (2026-11-23):
+- **Shared reads follow the namespace.** stateui-mcp's `DatasetSessions.follow(dataset, access, listener)` keeps a
+  session open with the dataset's authority, here or through the placement, and passes the records on once it has
+  them and after every change, until closed. Magnetic's `SharedData` follows a shared dataset that way as the owner
+  workspace (`boundAccess('default', …)`) instead of the owner's part changes, so a write wherever the namespace is
+  held reaches the reading apps at once; every delivery still checks the share.
+- **`bound` entries end with access.** `Permissions.revoke` ends a person's `bound` entries under an owner
+  (`endBound`) when it revokes their `opened` or `access.*` entry there and they hold no other: revoking a link
+  (which revokes the `opened` entries under it), a person rejecting a share, and an org taking app access away all
+  go through it. `dropMember` calls `endBound` for the org, since membership gives its apps without an entry.
+  Dataset authorities see the revocation within 5 seconds (`refreshRevoked`).
+- **Requests through a relay.** state-sync's protocol 3 `hello` takes `requests: true`: the session's welcome
+  carries its requests and no state (`changes: []`), and it gets `requested` and `decided` but no `changes`,
+  `durable` or watermark. statenet's `ClientServer` opens one to the owner's authority (option `open`;
+  `RelayNode` passes `MeshUpstream.open`, a tunnelled session) for each protocol 3 browser, as the browser's
+  access: the subscription's welcome waits for it (at most `requestsWaitMs`, 5 seconds) and carries its requests,
+  `requested` and `decided` follow, and the browser's `approve`, `reject` and `withdraw` go to it. The plain
+  host of an owner node names an authority by the address with `/` as `.`, as every client says hello.
+- **Requests through statenet views.** stateui-mcp's `StatenetViews` bridge passes the instance's emits to the
+  pages (`sync.requests`), and a page's `sync.decide` and `sync.requests` without a value (a page asking) to
+  the instance's authority.
+- Files: state-sync `src/Messages.ts`, `src/Validate.ts`, `src/authority/Authority.ts` (`requestsOnly`),
+  `src/authority/Ownership.ts`; statenet `src/mesh/ClientServer.ts`, `RelayNode.ts`; stateui-mcp
+  `src/infrastructure/sync/DatasetSessions.ts` (`follow`), `src/infrastructure/statenet/StatenetViews.ts`;
+  Magnetic `src/sharing/SharedData.ts`, `src/permissions/Permissions.ts` (`endBound`), `src/orgs/Orgs.ts`,
+  `src/server/requestsRoutes.ts`.
+- Tests: state-sync `src/authority/Requests.test.ts` ("should welcome a session that asked for requests only with
+  its requests, and send it no changes or watermark"); statenet `src/mesh/clientServer.test.ts` (a browser that may
+  only request hears of its request and the decision, and a second browser gets the waiting request in its
+  welcome; a browser's rejection reaches the owner's authority); stateui-mcp
+  `src/infrastructure/sync/DatasetSession.test.ts` ("should follow a dataset's records from the authority, and stop
+  when closed") and `test/statenetBridge.test.ts` (a page's `sync.requests` is answered through the statenet);
+  Magnetic `src/sharing/sharedData.test.ts` (a write to the namespace itself reaches the reading app) and
+  `src/permissions/Permissions.test.ts` (the last link revoked ends the `bound` entry, another person's stays; a
+  member leaving an org ends theirs).
 
 ## Stages
 1. **R1, state-sync and statenet**: the pending request in the authority (`StoredNamespace.requests`, limits,
@@ -481,6 +524,14 @@ Made with the owner on 2026-11-23 ("Yes, build R3c"), as proposed:
 - **Deciders listed are the people who manage the workspace** (owner and org admins).
 - **Raising a dataset to Saved at once drops its waiting requests** (`revoked`), after the page says how many.
 
+Made while building the follow-ups:
+- **A requests-only session** for the relay, rather than a second full session per browser: the relay serves state
+  from its cache, and a full session would carry every change over the mesh twice.
+- **The relay's welcome waits for the requests**, because the sync client replaces its list on every welcome; after
+  5 seconds without them it goes without, and the requests arrive as they are made or decided.
+- **`bound` entries end in `Permissions.revoke`**, the one place every way of losing an app goes through, rather
+  than in each caller.
+
 Made while building R3c:
 - **The decider is the workspace itself** once Magnetic has checked that the person manages it, rather than a token
   for an org's `admins` entry: the check is Magnetic's either way, and the workspace's own access needs no entry.
@@ -506,18 +557,10 @@ Made while building R1:
   ordering session per authority without access.
 
 ## Open items
-- A shared read (`SharedData`) and the Data page follow a dataset by the part changes of the server they run on. A
-  dataset's records no longer touch its part row, so a write made while the dataset is held by the other server
-  reaches them at the next read, not at once. They should follow the namespace as the hub's sessions do.
+- The Data page shows a dataset's records as they are when it loads, and does not follow them.
 - A tool's or the Data page's write of a dataset still claims its namespace for the server it runs on; instances
   reach it where it is.
-- A `bound` entry outlives the person's access to the app; it is used only while they can open an instance of it.
 - A revocation made on the other server reaches this one's dataset authorities within 5 seconds.
-- The statenet view path (`StatenetViews`) does not pass an instance's emits on, so a view there gets no
-  `sync.requests`.
-- A relay's browser server (`ClientServer`) acks a request `requested` but sends no `requested`, `decided` or
-  `welcome.requests`: it serves a subscription, not a session with the authority. A requester there learns that a
-  request was approved when its change arrives.
 - Magnetic's authorities (`AppAuthorities`) and the statenet's (`Statenet.ts`) check no access today (who connects is
   decided before the session). R3 gives access only to the dataset namespaces; app instances stay as they are, each
   owned by the person it runs for.
