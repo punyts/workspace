@@ -1,7 +1,7 @@
 # Requests that wait for the owner
 
 Status: R1 (state-sync, statenet), R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
-R3a and R3b (stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; R3c designed 2026-11-23, not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+R3a, R3b and R3c (state-sync, stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -237,19 +237,15 @@ namespace and always allows it, and a request kept there would be decided by its
 ### Magnetic: pages (R3c)
 Asked for on 2026-11-23: "Design R3c".
 
-What is there to build on: Magnetic has no dataset share dialog. Datasets are shared on the Data page
-(`/settings/data`, server HTML), whose form gives another workspace `read` (kind `share`); `StateGrants.issue`
-takes read and write only. Everyone who runs an app writes the datasets it binds through a `bound` entry, read and
-write, which no page shows. Magnetic reads `pending_request` nowhere, and nothing in Magnetic opens a session with a
-dataset's authority except the hub.
-
 - **A request lives as long as the entry says, not the token.** R1's authority ends a request at
   `min(at + lifeMs, grant expiry)`, and Magnetic's tokens live 4 hours, so a request made in Magnetic would expire
   within 4 hours. `GrantClaims` gains two optional claims (state-sync): `requestMs`, the life of a request made
-  with the grant (1 to 30 days), and `lasts`, when the entry itself ends (absent for a standing entry). The
-  authority ends a request at `min(at + (requestMs ?? lifeMs), lasts ?? ∞)` over the chain, so a token's
-  short life only bounds how long it may be used to send. Revocation still ends a request at once (its chain).
-  `StateGrants.tokenFor` writes both from the entry.
+  with the grant (at most `MAX_REQUEST_MS`, 30 days), and `lasts`, when the entry itself ends. `verifyGrant`
+  takes the smallest of each over the chain (`lasts` defaults to the token's expiry), and the authority ends a
+  request at `min(at + (requestMs ?? lifeMs), lasts)`, so a token's short life only bounds how long it may be used
+  to send. Revocation still ends a request at once (its chain). `StateGrants.tokenFor` writes both for an entry with
+  `request`: `lasts` is the entry's end, or 30 days from signing for a standing entry, and `requestMs` its
+  `request_days`.
 - **The owner chooses per dataset what people using their apps may do.** The Data page shows under each of the
   workspace's datasets "Changes from people using your apps": **Saved at once** (the default, as today) or **Wait
   for your approval**, and with the second, "Requests last" 1 to 30 days (7 by default). It is kept in a new table,
@@ -259,35 +255,42 @@ dataset's authority except the hub.
   column of `permission`, read by `tokenFor`).
 - **Changing the setting takes effect at once.** Saving it revokes the dataset's live `bound` entries; each person
   gets a new one with the new rights the next time their session connects. A `DatasetSession` whose change is
-  refused for access reconnects with a fresh access once (stateui-mcp), and so does one told its access ended, so a
-  running instance moves to the new rights without a restart. Raising the dataset to Saved at once ends the waiting
-  requests of those entries as `revoked`; the page says how many wait before it saves.
+  refused for access (code `access`) closes its connection and reconnects with a fresh access, at most once a
+  minute (`ACCESS_RETRY_MS`, stateui-mcp), so a running instance moves to the new rights without a restart. Changing
+  only the days updates `request_days` on the live entries, which their next token carries. Raising the dataset to
+  Saved at once ends the waiting requests of those entries as `revoked` at the authority's next sweep (every minute,
+  and on every session's hello); while requests wait, the Data page says how many and that saving at once drops them.
 - **The share form** stays read only. A share gives another workspace `$.external`, and writing `$.external` is
   refused until a later design says where an app writes it, so offering "can suggest changes" there would give a
   right nothing can use. It is added with that design.
 - **A Requests page** (`/requests`, server HTML like the Data page, linked from the profile menu beside Data) lists
   the pending requests of every workspace the person manages (their own, and an org's they own or administer), read
   from `pending_request` in a transaction scoped to those workspaces: dataset, who asked (their name), when, and
-  until when it waits. Values are not in that table, so the list shows none.
+  until when it waits, with the workspace's name when it lists more than one. Who asked is the request's subject (an
+  owner number) turned into the person's or org's name, or "someone". Values are not in that table, so the list shows
+  none.
 - **Opening a request** (`/requests/<workspace>/<dataset>/<id>`) asks the dataset's authority for it: the server
   opens a `DatasetSession` as the decider, waits for its first records and lists its requests (the welcome brings the
-  ones the decider may decide), shows the record as it is and as asked (each field that differs, a removal as
-  "Remove the record", a whole-map write as the keys it adds, changes and removes), and closes the session. Approve
-  and Reject (with an optional note, at most 500 characters) post back; the server opens a session again, sends the
-  decision with `decide`, and waits for `decided` or an `error`. An approval the dataset's logic or model refuses
-  ends `rejected` with its code, which the page shows. The values reach only the decider's page; they are not stored
-  or logged outside the namespace.
-- **The decider's access** is `StateGrants.deciderAccess(userId, workspaceId)`: the owner itself for the person's
-  own workspace; for an org's, a token for the org's `admins` entry (read, write and share on `$`), which R1's
-  rule accepts as a decider. Holders of read and write through other entries may decide in the protocol; Magnetic
-  lists requests only to the people who manage the workspace.
+  ones the decider may decide), shows the record as it is and as asked (each field that differs, with a `merge`
+  laid over the record; a removal as "Remove the record" with its fields; a whole-map write as the keys it adds,
+  changes and removes; a deeper path as its one value), and closes the session. A request no longer pending answers
+  404 with "That request is no longer waiting". Approve and Reject (with an optional note, at most 500 characters)
+  post back; the server opens a session again, sends the decision with `decide`, and waits up to 5 seconds
+  (`ANSWER_MS`) for the request to leave `pending`, then shows the list with the outcome: saved, rejected, refused
+  with the code when an approval the dataset's logic or model refuses ends `rejected` with one, or "did not answer".
+  The values reach only the decider's page; they are not stored or logged outside the namespace.
+- **The decider's access** is the workspace itself (`StateGrants.boundAccess('default', workspaceId, dataset)`),
+  used only after Magnetic finds that the person manages the workspace (their own, or an org's they own or
+  administer); anyone else gets 403. Holders of read and write through other entries may decide in the protocol;
+  Magnetic lists requests only to the people who manage the workspace.
 - **Services gain `datasetRequests`** (stateui-mcp): `list(dataset, access)` gives the dataset's records and the
   requests the access may decide; `decide(dataset, access, action, id, note?)` sends one decision and resolves with
   its outcome. Both open a session here or through the placement, as the hub does, and close it after.
-- **Home tells of waiting requests** as it tells of invites: an info alert above the apps, "N changes wait for your
-  approval", linking to `/requests`, shown while the count from `pending_request` is above zero
-  (`HomeApp` flags `noRequests` and `requestCount`). The Data page shows the count per dataset beside the
-  setting. E-mail is not part of this design.
+- **Home tells of waiting requests** as it tells of invites: a warning alert above the apps, "N changes people asked
+  for wait for your approval", with Review them (the emit `requests`, to `/requests`), shown while the count from
+  `pending_request` over the workspaces the person manages is above zero (`HomeApp`'s `noRequests` and
+  `requestsLine`, written when Your apps loads). The profile tab links Requests beside Data. The Data page shows the
+  count per dataset beside the setting. E-mail is not part of this design.
 - **Text** for the Requests page goes in `src/http/requestsText.ts`, and the Data page's and home's new keys in
   `dataText.ts` and `text.ts`, each in English, German, French and Spanish.
 
@@ -393,6 +396,29 @@ R3b (2026-11-23):
   dataset, the owner without a grant, refused once revoked, here and after `refreshRevoked`). The view host's relay
   of requests has no test of its own.
 
+R3c (2026-11-23):
+- **state-sync**: `src/authority/Grants.ts` (`GrantClaims.lasts` and `requestMs`, `MAX_REQUEST_MS`, both
+  returned by `verifyGrant` and `checkAccess`); `Authority.ts` (a request's `until` from them); `Relay.ts`.
+- **stateui-mcp**: `src/infrastructure/sync/DatasetSession.ts` (access read on every connection; reconnect on an
+  `access` refusal, `ACCESS_RETRY_MS`); `DatasetRequests.ts` (`list`, `decide`, `ANSWER_MS`);
+  `src/config/createServices.ts` (`Services.datasetRequests`); `src/index.ts`.
+- **Magnetic**: `migrations/0001_baseline.sql` (`dataset_setting` with row-level security, `permission.request_days`);
+  `src/permissions/Permissions.ts` (`requestDays`); `src/grants/StateGrants.ts` (`DatasetSetting`,
+  `DEFAULT_DATASET_SETTING`, `datasetSetting(s)`, `setDatasetSetting`, `boundAccess` from the setting, `tokenFor`
+  with `lasts` and `requestMs`); `src/requests/PendingRequests.ts` (`of`, `count`); `src/http/dataPage.ts`,
+  `dataText.ts` and `src/server/dataRoutes.ts` (the setting, the waiting count, `managedWorkspaces`);
+  `src/http/requestsPage.ts` (`changeOf`), `requestsText.ts` and `src/server/requestsRoutes.ts`;
+  `src/home/HomeApp.ts`, `src/http/home.ts` and `text.ts` (the alert and the Requests link);
+  `src/server/startMagnetic.ts` (wiring, the count for Your apps).
+- Tests: state-sync `src/authority/Requests.test.ts` ("should keep a request past its token's expiry for the grant's
+  requestMs, within the entry's lasts"); stateui-mcp `src/infrastructure/sync/DatasetSession.test.ts` (a session
+  refused for access reconnects with the new rights; `DatasetRequests` lists and approves a request, a missing
+  dataset or request gives undefined); Magnetic `src/server/requests.test.ts` (the setting gives read and request with
+  its days and revokes the old entry; a change Bob asks for is listed, shown beside the record and saved on approval;
+  a rejection with a note, and 403 for someone who does not manage the workspace; the Data page's count,
+  `PendingRequests.count`, and saving at once again revokes the entries and drops the request). The home alert's
+  rendering has no test of its own.
+
 ## Stages
 1. **R1, state-sync and statenet**: the pending request in the authority (`StoredNamespace.requests`, limits,
    expiry), sync protocol 3, `GrantRight` `request`, the client's list and its events, `WriteOutcome` `requested`,
@@ -413,8 +439,8 @@ R3b (2026-11-23):
      the instance passes its binding sessions' requests to `$.runtime.requests` (with R2's runtime).
    - **R3c, pages** (the tower; nothing in stateui-app or stateui-components): state-sync's `requestMs` and `lasts`
      claims; stateui-mcp's `datasetRequests` and the session's reconnect on lost access; Magnetic's
-     `dataset_setting` and `request_days`, `boundAccess` from the setting, `deciderAccess`, the Data page's
-     setting, the Requests page and the home alert. Tests: state-sync (a request outlives its token and ends at
+     `dataset_setting` and `request_days`, `boundAccess` from the setting, the Data page's setting, the Requests
+     page and the home alert. Tests: state-sync (a request outlives its token and ends at
      `requestMs`); stateui-mcp (`datasetRequests` lists and approves one; a session refused for access reconnects
      with the new rights); Magnetic (the setting gives `request`, changing it revokes and remakes `bound` entries,
      the page lists and decides, the alert counts).
@@ -447,13 +473,19 @@ Made with the owner on 2026-11-23 ("Yes, build R3a"), as proposed:
   from saving until the owner gives them more.
 - **A shared dataset may be written from another workspace** once the owner gives `request` or `write`.
 
-Proposed with R3c's design (2026-11-23), for the owner:
+Made with the owner on 2026-11-23 ("Yes, build R3c"), as proposed:
 - **The setting is per dataset, for everyone using the owner's apps**, not per person: a `bound` entry is made by
   running an app, so the person is often not known to the owner beforehand. Per-person rights for app users can be
   added on the same page later.
 - **The share form stays read only** until `$.external` can be written.
 - **Deciders listed are the people who manage the workspace** (owner and org admins).
 - **Raising a dataset to Saved at once drops its waiting requests** (`revoked`), after the page says how many.
+
+Made while building R3c:
+- **The decider is the workspace itself** once Magnetic has checked that the person manages it, rather than a token
+  for an org's `admins` entry: the check is Magnetic's either way, and the workspace's own access needs no entry.
+- **A standing entry's `lasts` is 30 days from signing**, so a request made with it lives its `request_days` and
+  the grant needs no claim the authority would read as "forever".
 
 Made while building R3b:
 - **A binding connects with a `bound` entry**, one per person and dataset, made the first time they bind it, rather
