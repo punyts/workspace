@@ -1,6 +1,6 @@
 # Statenet permissions: one table of path patterns per owner
 
-Status: designed 2026-11-22; S14a built 2026-11-22, S14b and S14c to build. Statenet milestone S14.
+Status: designed 2026-11-22; S14a and S14b built 2026-11-22, S14c to build. Statenet milestone S14.
 
 Asked for on 2026-11-22: "Yes, design it", to the recommendation to design the direction's open item "the permission
 schema, sharing and revocation" ([statenet-direction.md](statenet-direction.md), "Permissions").
@@ -119,8 +119,8 @@ the `/paths` sources table already uses it.
 
 ### Storage
 - **Magnetic**: one table, `permission` (the fields above; `owner` as `numeric(20)`, `pattern` as `text`, `rights` as
-  `text[]`), indexed by `(owner, subject)` and `(parent)`, with row-level security by owner as the other workspace
-  tables. A migration moves `app_access`, `app_setting.open_to_org`, `link_grant`, `link_grant_member` and
+  `text[]`), and `kind`, indexed by `(owner, subject)`, `(parent)` and
+  `(pattern)`, without row-level security, as the tables it replaced (see Decisions). A migration moves `app_access`, `app_setting.open_to_org`, `link_grant`, `link_grant_member` and
   `state_grant` into it and drops them. The audit is unchanged: every made and revoked entry is an `audit_event`.
 - **stateui-mcp alone**: a `PermissionStore` port, with a file store (one JSON file per owner) for the local server,
   which has one owner and today no sharing.
@@ -178,8 +178,27 @@ Made in this design:
 - A read of a path above a grant's pattern is allowed and cut to what the pattern matches; a write there is refused.
   Above a match, `delete` passes, `set` and `replace` pass the picked value (a delete when nothing is picked), and
   `merge` keeps the picked keys, with `{}` for a key that has nothing matched under it.
-- Until S14b, Magnetic's `state_grant` rows sign tokens: the row's id is the token's `entry`, its address and prefix
-  its owner and pattern.
+- Tokens name an entry: its id is the token's `entry`, its owner and pattern the token's.
+
+Made building S14b:
+- **No row-level security on `permission`.** The five tables it replaced had none: they are read across owners (a
+  link opened by someone else, an org's members), and the check runs as the server. Only stateui-pg's workspace
+  tables have it.
+- **A `kind` column** names what made an entry (`access.view|use|edit|manage`, `open`, `creator`, `admins`,
+  `link.view|use|remix`, `opened`, `share`, `passed`, `org-read`). Pages read it; `allows` never does.
+- **App levels map to rights**: view and use are `read`, edit adds `write`, manage adds `share`; an entry's level is
+  read back from its rights, with its kind telling view from use. App access counts only `access.*`, `open`,
+  `creator` and `admins` entries, so a state share never opens an app's editor.
+- **An org acts as `members:<org>.admin`**: an `admins` entry on `$` of each org gives its owners and admins the
+  whole tree; an org's org-read entry stays `$.apps.*` under the member's number with that subject. A subject
+  `owner:<org>` counts only outside the org's own tree.
+- **Passing on does not need `share`** yet: the grants people passed on before S14b did not, and a link's `opened`
+  entries are passed on from it. A passed-on entry is still never wider than its parent.
+- **Rejecting a shared app revokes the person's `opened` entries** with the person as revoker; Shared by me and the
+  link's members ignore those, and the link stays live for others.
+- **The migration names moved rows with `md5(...)::uuid`** (an `opened` entry from its link and person), the one place
+  ids come from SQL: a migration has no code to call `randomUUID()`, and the ids are stable if it is run again on a
+  copy.
 
 ## As built
 
@@ -195,3 +214,17 @@ S14a (2026-11-22):
   `MeshUpstream.ts`, `OwnerMesh.ts`). Test: `src/mesh/mesh.test.ts`.
 - Magnetic `src/grants/StateGrants.ts` signs owner and pattern; stateui-mcp's `HttpServer.ts` imports the matcher
   from `@punyts/state`.
+
+S14b (2026-11-22):
+- Magnetic `migrations/0024_permission.sql`: the `permission` table, the moved rows, the `admins` entries, and the
+  old tables dropped. Test: `src/storage/permissionTable.test.ts`.
+- `src/permissions/Permissions.ts`: `make` (parent live, same owner, `patternContains`, rights a subset, `until` cut,
+  `MAX_DEPTH` 8), `revoke` (with everything passed on), `holder` (a person's subjects: number, org members and roles,
+  groups, `everyone`), `allows`. Test: `src/permissions/Permissions.test.ts`.
+- Over it: `src/orgs/AppAccess.ts`, `Orgs.ts` (admins entry, a leaving member's entries revoked), `Scim.ts`,
+  `Lifecycle.ts` (export `magnetic-org-export/3`), `src/sharing/Grants.ts` (links, `opened` entries),
+  `ShareAnswers.ts`, `src/grants/StateGrants.ts` (shares, passed-on, dataset shares, org-read, tokens),
+  `src/storage/importFiles.ts`. Tests: `src/sharing/Grants.test.ts`, `src/server/grants.test.ts`,
+  `src/server/scim.test.ts`, `src/sharing/sharedData.test.ts`.
+- Shared by me: `src/http/orgSettings.ts` (`sharedPage` over entries), `src/http/orgText.ts`,
+  `src/server/grantRoutes.ts` (`namesOf`).
