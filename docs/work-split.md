@@ -49,9 +49,9 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
    - built 2026-11-22: what landed is kept by the storage, so a save sent again after an aggregate restarted writes
      nothing;
-   - relays under relays ([design/statenet-relay-chains.md](design/statenet-relay-chains.md)): designed 2026-11-22,
-     waiting for the owner. Every relay of the tree is listed with its parent, so routing reaches the nodes below a
-     nested relay.
+   - built 2026-11-22, not deployed: relays under relays
+     ([design/statenet-relay-chains.md](design/statenet-relay-chains.md)). Every relay of the tree is listed with its
+     parent, so routing reaches the nodes below a nested relay. Mesh protocol 3: every node deploys together.
 3. **Permissions, S14** ([design/statenet-permissions.md](design/statenet-permissions.md)): built 2026-11-22
    (S14a to S14c). One table of path patterns per owner replaces app access, links, state grants, dataset
    shares and the `/paths` grant. The matcher is in `@punyts/state`, Magnetic keeps every right in
