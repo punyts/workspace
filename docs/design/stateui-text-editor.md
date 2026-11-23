@@ -3,7 +3,8 @@
 Status: T1 built (2026-11-21): the model, the Markdown converters and the `richText` atom. T2 built (2026-11-21): the
 `richTextField` editor, tested in Chromium; the manual check on Safari and an Android keyboard is not done. T3 built (2026-11-21): paste and drop of Markdown and
 HTML, and the link panel. T4 built (2026-11-21): the `/` command menu, mentions and tables. T6 built (2026-11-22): comments
-anchored to text, tested in Chromium.
+anchored to text, tested in Chromium. T7 built (2026-11-22): images as
+app files, tested in Chromium.
 
 Asked for on 2026-11-21: "Then let's talk about text editor". Then, on the value format: "Block JSON for the text
 editor". On 2026-11-21: "Build T4", with T4 chosen as "/ command menu, Mentions, Tables".
@@ -185,6 +186,44 @@ threads into a map the app links, and that resolving keeps the anchor and hides 
 - **Elsewhere.** `richText` draws no comments. `toMarkdown` drops them and `fromMarkdown` makes none. A paste never
   carries comment ids. A thread whose text was deleted stays in the map; the app may list or remove it.
 
+### Images as app files (T7)
+
+Asked for on 2026-11-22, as the next item on this machine once `/paths` serves files: "let's continue". The owner chose
+that pasted images from other sites are dropped ("Drop them") and that an image has a size and a caption ("Size and
+caption").
+
+- **An image is a block.** `{ order, type: "image", file, alt?, caption?, width? }`, with no runs. `file` is the
+  stored file's reference (`{ id, name, size, type }`, as `fileField` writes it) and must be a PNG, JPEG, GIF or WebP;
+  a block with any other `file` is dropped when read. `alt` and `caption` are plain one-line text of at most 300
+  characters each, and `width` is `small`, `medium` or `full` (the default, left out). An image is drawn at that
+  share of the text's width (a third, two thirds, all of it) and never wider than its own pixels. Like a divider, the
+  caret does not type into it. A field holds at most 20 images.
+- **Only app files.** Every image is an upload to the app, read from its `/paths` URL with the frame's grant
+  ([statenet-paths-route.md](statenet-paths-route.md), "The frame's side"; the runtime's `fileUrl` hook through
+  `ui-file-url`). The browser never loads an image from another host. Pasted HTML keeps no `img`; its `alt` text
+  stays as text. A paste that brings text or HTML beside files (a copy from a document carries a picture of itself)
+  pastes the text. A file the host has no URL for is drawn as a box with its alt text (or its name).
+- **Adding.** The `image` tool (full toolbar), the `/image` command, pasting image files (a screenshot from the
+  clipboard) and dropping image files all hand each file to the host with `ui-file-transfer`, as `fileField` does,
+  at most 5 at a time and each at most 10 MiB. While a file uploads the field shows its name and progress under the
+  toolbar, a runtime property that never syncs. When the upload ends the image block goes in after the block the caret
+  was in when it started (at the end when that block is gone), as one undo step, and the caret moves after it; the
+  files of one paste or drop keep their order. A file of another type, too large or past the limits is refused before
+  upload, and a refusal or a failed upload shows a notice naming the file there for 4 seconds.
+- **Editing.** Pressing an image, Backspace after it or Delete before it selects it (the caret on the block) and
+  opens the image panel, a popover anchored under the block like the link panel: alt text, caption, the three widths
+  and Remove. Each change writes the block, one undo step per field left or button pressed. A browser cannot hold a
+  caret in a block that is not editable (Chromium moves it into the text beside it), so while an image is selected the
+  page holds no range and the field takes the keys: Backspace and Delete remove the image, Enter puts a paragraph after
+  it, the arrows leave it and a typed character starts a paragraph after it. A caret the browser puts back on its own
+  is ignored until the editor is pressed or another key is. Removing never releases the file: undo can bring the block back, and the server's sweep
+  removes files nothing references.
+- **`blocks`** gains `image`. A field that leaves it out shows no tool or command and refuses image files.
+  `readonly`, `disabled` and locked fields draw images and open no panel.
+- **Elsewhere.** `richText` draws an image as a `figure` with its `img` and `figcaption`, from the same hook.
+  `toMarkdown` writes `![alt](file:<id>)` with the caption as an italic line under it, so a reader of the Markdown
+  sees where an image was; `fromMarkdown` makes no images, since text cannot carry a stored file.
+
 ### Paste and drop
 
 - **Plain text** becomes one paragraph per line. If it reads as Markdown (headings, list markers, fences), it goes
@@ -225,11 +264,11 @@ new text. Merging characters within one block needs a sequence CRDT. That belong
 3. **T3, paste and links.** Add paste and drop of plain text, Markdown and HTML, and the link popover.
 4. **T4, commands, mentions and tables** (owner, 2026-11-21). The `/` menu, mentions with `mentionQuery`, and the
    `table` block with its editing, display and Markdown.
-5. **Later:**
-   - images as app files
-   - character-level merging (T5, with the statenet direction)
+5. **Later:** character-level merging (T5, with the statenet direction).
 6. **T6, comments anchored to text** (2026-11-22): anchors on runs, threads in a linked map the field writes, the
    comment tool and panel.
+7. **T7, images as app files** (2026-11-22): the `image` block, uploads by tool, command, paste and drop, the image
+   panel, and drawing from the `/paths` URL.
 
 Each stage follows the component checklist in `CLAUDE.md`. T2 is the largest. Its browser tests drive real key
 presses, paste and composition events in Chromium. Safari and Android keyboards differ in their `beforeinput` events,
@@ -259,6 +298,11 @@ so T2 also includes a manual check on both before it is called done.
 - The field writes the threads itself into the map the app links, so comments work with no app logic (owner,
   2026-11-22).
 - Resolving keeps the anchor and hides it, so a thread can be reopened where it was (owner, 2026-11-22).
+- An image is a block that holds a stored file's reference, never a URL: the URL carries a grant that expires, and
+  the file's path is the app's ([statenet-paths-route.md](statenet-paths-route.md)). Images from other hosts are
+  dropped on paste (owner, 2026-11-22).
+- An image has alt text, a caption and one of three widths (owner, 2026-11-22). Fixed widths, not a drag handle,
+  since the editor reads no layout.
 - An edit in a cell runs the paragraph edit on the cell as a one-block document and writes the result back, so cells
   share every rule of typing, marks, links and limits with paragraphs.
 
@@ -360,3 +404,23 @@ T6, in stateui-components:
 - The example's "Handover" field has a thread on "partial". In Northwind Ops a press on it opened the panel under the
   block, a reply was written, and Ctrl+Alt+M on a selected word added a second thread. stateui-mcp's showcase, rebuilt,
   did not change.
+
+T7, in stateui-components:
+- `src/shared/richtext/model.ts`: the `image` block (`file`, `alt`, `caption`, `width`; `MAX_IMAGE_TEXT` 300,
+  `MAX_IMAGES` 20, `IMAGE_WIDTHS`, `imageFile`, `imageText`), atomic like a divider. Test: `model.test.ts` ("images").
+- `src/shared/richtext/edit.ts`: `insertImage`, `setImage`, `removeBlock` and `imageCount`; Backspace after an image
+  and Delete before one select it. Test: `edit.test.ts` ("images").
+- `src/shared/richtext/render.ts` and `editorView.ts`: `imageFigure` from a `fileUrl` hook, with the `.missing` box;
+  the view holds no range on a selected image.
+- `src/shared/richtext/markdown.ts` and `paste.ts`: `![alt](file:<id>)` and the caption out; an `img`'s alt text in.
+  Tests: `markdown.test.ts` ("images in Markdown"), `paste.test.ts`.
+- `components/molecules/rich-text-field/`: the `image` tool and `/image`, the hidden file chooser, paste and drop of
+  files, uploads through `ui-file-transfer` (5 at a time), runtime `image`, `imageWidth`, `upload` and
+  `uploadFailed`, the image panel (`#imagePanel`), twelve `_tools` names in every locale, tokens `image.selected` and
+  `image.missing`, and the `photo` icon in the core set. Test: `test/molecules/rich-text-field.browser.test.ts`
+  ("richTextField images in Chromium": drawing from the host's URL and without one, a chosen upload with progress and
+  undo, a pasted screenshot and dropped files in order beside a copy that pastes its text, a refused file and a field
+  without images, the panel's alt text, width and Remove with undo, Backspace selecting then removing, readonly).
+- `components/atoms/rich-text/`: images from the same hook, token `image.missing`. Test:
+  `test/atoms/rich-text.browser.test.ts` ("richText images in Chromium").
+- `test/bundleSize.test.ts`: the measure is 323,941 bytes.
