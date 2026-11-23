@@ -1,6 +1,6 @@
 # Bytes by statenet path: the `/paths` route
 
-Status: designed 2026-11-22; the files part designed in detail 2026-11-22. The route is built on the tower (the owner's other machine, where statenet networking is
+Status: designed 2026-11-22; the files part built 2026-11-22, tiles not yet. The route is built on the tower (the owner's other machine, where statenet networking is
 built), not in this workspace. The clients are built here: `map` takes a `tiles` template that is a path of the app's
 own origin, `mediaPlayer` takes a `src` of the app's own origin, and uploads accept audio and video
 ([stateui-component-gaps.md](stateui-component-gaps.md), C7).
@@ -145,8 +145,7 @@ over, and the policies. The UI machine builds the frame's side: keeping the gran
 - Every segment is checked before it reaches a file system path or an upstream URL: an owner number, UUIDs for an app
   and a file, integers for `z`, `x` and `y`. A file name is never part of a path.
 - A grant reaches one app's files for at most 15 minutes, and only a view whose session is live receives a new one.
-- A grant, a key and a file's bytes are never logged; the route logs the source, the owner and app ids, the status and
-  the byte count.
+- A grant, a key and a file's bytes are never logged; a read is reported with the app and file ids and the byte count.
 - One path pattern matcher serves sources and permissions, the same one the direction names.
 - The runtime frame's policy allows `img-src` and `media-src` of the app's origin for `/paths`; nothing else of the
   network opens.
@@ -162,11 +161,32 @@ over, and the policies. The UI machine builds the frame's side: keeping the gran
 - The frame reads with a short-lived signed grant in the query, because its sandboxed requests carry no cookie.
 - Files are built first; tiles wait for MapTiler's terms (owner, 2026-11-22: "Yes, files first").
 - A file's path is its app's, `[owner].apps.<app>.files.<id>`, not a persona's: files are stored, counted and released
-  per app. To be confirmed by the owner.
+  per app (owner, 2026-11-22: "Yes, build it").
 - Whoever may open an app may read its files, until the permissions table exists.
 - A grant covers one app for 15 minutes, renewed every 10 through the view's event stream.
 - `/paths` replaces `GET /apps/<app>/files/<id>`; upload and release stay on the app's routes.
 
 ## As built
 
-Nothing of the route yet. Its clients are listed in [stateui-component-gaps.md](stateui-component-gaps.md), C7.
+Files, 2026-11-22. Tiles are not built; the clients are listed in [stateui-component-gaps.md](stateui-component-gaps.md),
+C7, and the frame's use of the grant is the UI machine's ([../work-split.md](../work-split.md)).
+
+- **stateui-mcp**: the route, its sources table and `fileSource` in `src/infrastructure/http/HttpServer.ts`
+  (`pathsRoute`, `readerOf`, `appPaths`, options `ownerTenant` and `pathGrantKey`); the grants in
+  `src/infrastructure/http/PathGrants.ts`; `Range` in `src/infrastructure/http/byteRange.ts`; `ByteRange` and
+  `UiFileStore.open` (`src/application/ports/UiFileStore.ts`, `src/infrastructure/storage/FsUiFileStore.ts`); `PickBytes`
+  in `src/application/use-cases/ReadFile.ts`; `InstanceViews.owner`; the `grant` view message
+  (`src/infrastructure/preview/PreviewHub.ts`), `data-paths` and `data-grant` (`src/infrastructure/http/pages.ts`), kept
+  by the host (`src/browser/host.ts`); `readStoredFile` and `directChannel` on the files URL (`src/browser/fileRead.ts`,
+  `src/browser/viewChannel.ts`); the policies in `src/infrastructure/http/security.ts`. The statenet views keep their
+  relayed file requests (`StatenetViews`), which are not HTTP. Tests: `test/http.test.ts` ("GET
+  /paths/<owner>/apps/:appId/files/:fileId"), `src/infrastructure/http/PathGrants.test.ts`,
+  `src/infrastructure/http/byteRange.test.ts`, `src/infrastructure/http/security.test.ts`, `test/hostFileRead.test.ts`,
+  `test/fileSweep.test.ts`.
+- **stateui-pg**: `PgUiFileStore.open` with a range (`src/workspace/PgUiFileStore.ts`). Test:
+  `src/workspace/workspaceStorage.test.ts` ("should open a range of a file, cut in the database, and the whole file
+  without one").
+- **Magnetic**: `APP_PATH` takes `/paths/<owner>/apps/<id>/…`, and `startHttpServer` gets `ownerTenant` (the
+  workspace of an owner number) and `pathGrantKey` from `secretKey` (`src/server/startMagnetic.ts`). Tests:
+  `src/server/sharing.test.ts` ("should let whoever may open an app read its files by /paths, with the session or the
+  page's grant, and no one else"), `src/server/startMagnetic.test.ts`.

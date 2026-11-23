@@ -15,21 +15,22 @@ In progress:
    can sign in to its own workspace's view. Design: [design/magnetic-agent-browser.md](design/magnetic-agent-browser.md).
    Touches `magnetic/src/agent`, `magnetic/src/server`, `magnetic/src/auth`, stateui-mcp's
    `src/infrastructure/preview/BrowserPreview.ts` and `docker/Dockerfile` (Chromium in the image).
-After the tower's `/paths` route lands:
+Ready now that the files of `/paths` are built (the page has `data-paths` and keeps the current grant in `data-grant`):
 
 2. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
-   its `/paths` URL for `mediaPlayer`, the read grant in the runtime frame and its image and media policy, real tiles in
-   the example and the showcase.
+   its `/paths` URL for `mediaPlayer`, the host passing the grant to the runtime frame and the frame appending it
+   (`?g=`). Real tiles in the example and the showcase wait for the tiles.
 
 ## The tower
 
 Built 2026-11-22: what sharing leaves behind ([design/magnetic-sharing-leftovers.md](design/magnetic-sharing-leftovers.md));
 the limit of held changes on a node with no link and the notice of a refused change
 ([design/statenet-network.md](design/statenet-network.md)); relays in the directory, S13
-([design/statenet-relay-directory.md](design/statenet-relay-directory.md)).
+([design/statenet-relay-directory.md](design/statenet-relay-directory.md)); the files of the `/paths` route, with byte
+ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-route.md)).
 
-1. **The `/paths` route** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): the sources table, the
-   MapTiler tile cache, files with byte ranges, the read grants.
+1. **The `/paths` tiles** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): the MapTiler tile cache, a
+   row of the sources table, once the owner confirms MapTiler's terms.
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
    - a restarted aggregate forgets what landed, so a save sent again is written again;
    - only one relay between a node and the aggregate is routed.
