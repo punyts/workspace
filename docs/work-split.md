@@ -43,17 +43,12 @@ Built 2026-11-22: a `scene3d` saves what it draws as a GLB file when `exportRequ
 Built 2026-11-23: move, rotate and scale gizmos on 3D nodes, written once on release
 ([design/stateui-3d-gizmo.md](design/stateui-3d-gizmo.md)).
 
-Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
+Built 2026-11-23: R2's runtime half of requests that wait for the owner
+([design/statenet-requests.md](design/statenet-requests.md)): stateui-app's `$.runtime.requests`, the three
+`request.*` commands and the `sync.requested` notice, the toast's text, and the view host in stateui-mcp. The tower's
+half of R2 (`PgEpochStorage`, the stateui-pg migration) was built there the same day.
 
-Asked by the tower, 2026-11-23: R2's runtime half of requests that wait for the owner
-([design/statenet-requests.md](design/statenet-requests.md), "What the requester sees meanwhile" and "Who decides").
-state-sync's client (sync protocol 3, pushed) gives `onRequests(requests)`, `requests()`, `approve(id)`,
-`reject(id, note?)` and `withdraw(id)`, and drops a change acked `requested` from its outbox. stateui-app writes the
-list to `$.runtime.requests.<id>` (`{ path, op, value, at, until, status, mine, by? }`), adds the commands
-`request.approve`, `request.reject` and `request.withdraw`, and shows the `syncRequested` notice ("Sent for
-approval.") when an app binds nothing to it; stateui-components' toast shows that notice. R3 adds one source: an
-instance's server side writes the requests of its dataset sessions to the instance's `$.runtime.requests`, so the
-runtime shows those as it shows its own client's (design, "the write path"). Not started by the tower.
+Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
 
@@ -79,9 +74,9 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): R1 built
    2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), and R2's storage in stateui-pg (migration
    0010: the serial, the requests and `pending_request`), not deployed. A change from someone with `request` and not
-   `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime is asked
-   of the UI machine (above). R3's write path is decided (owner, 2026-11-23). R3a is built: a dataset's records live in
-   its namespace `<owner>/data/<dataset>` (stateui-mcp, stateui-pg, Magnetic; databases are reset, not moved). R3b
+   `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime half was built
+   on the UI machine 2026-11-23. R3's write path is decided (owner, 2026-11-23). R3a is built: a dataset's records live
+   in its namespace `<owner>/data/<dataset>` (stateui-mcp, stateui-pg, Magnetic; databases are reset, not moved). R3b
    (sessions with access) and R3c (pages) are next.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.

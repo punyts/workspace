@@ -1,7 +1,7 @@
 # Requests that wait for the owner
 
-Status: R1 (state-sync, statenet), R2's storage (stateui-pg) and R3a (stateui-mcp, stateui-pg, Magnetic) built
-2026-11-23, not deployed; R2's runtime asked of the UI machine; R3b and R3c not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+Status: R1 (state-sync, statenet), R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
+and R3a (stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; R3b and R3c not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -100,6 +100,25 @@ authority) is always on; the person who owns the namespace, and who decides, may
 - **Saves**: a request changes what is saved without taking a revision, as a `$.server` write does. The stored
   namespace counts every saved change (`serial`), and storages and the aggregate skip a save as one sent again only
   when its revision, then its serial, is no higher than what landed.
+
+### The runtime (R2's half on the UI machine)
+Asked for on 2026-11-23: "let's continue", then "Requests R2, runtime" as this machine's next work.
+- **`$.runtime.requests`.** The view host writes the client's requests there on every `onRequests`, keyed by id:
+  `{ id, path, op, value?, at, until, status, mine, by, decidedAt?, code?, note? }` (`base` stays in the client). The
+  runtime takes the write as it takes `$.runtime.sync`; `$.runtime` never syncs, so the values stay in the session that
+  was sent them.
+- **The notice.** When the host first sees one of its own requests pending, it raises the app event `sync.requested`
+  with `{ id, path }`. The root node's `on` entry for it runs; without one, an app with toasts shows the built-in
+  notice `syncRequested` (`SYNC_NOTICES.requested`), an info toast whose text is the `toastRegion`'s
+  `_requestedText` ("Sent for approval.").
+- **The commands.** `request.approve`, `request.reject` and `request.withdraw` are system commands of `on` entries.
+  Their argument is the request's id, in `value` (`"$row.id"` reads it in a row over `$.runtime.requests`) or `from`;
+  `request.reject` also takes `{ id, note }`, the note at most 500 characters. The dispatcher hands the decision to
+  the host (`DispatchHooks.decide`); the runtime posts `decide { action, id, note? }`, and the view host calls the
+  client's `approve`, `reject` or `withdraw`. A mount with no `decide` hook (an app mounted outside a runtime frame)
+  fails the command; a frame always posts it, and a host without a sync client ignores it. Nothing visible changes
+  until the authority answers: its `decided`, not the command, changes `$.runtime.requests`. The runtime's `command`
+  message refuses the three commands, as it refuses `set`, `toggle` and `emit`: the minion does not decide requests.
 
 ### Magnetic: how a change reaches the owner's data today
 Asked for on 2026-11-23: "Design R3's write path".
@@ -236,6 +255,26 @@ R2's storage (2026-11-23):
 - Test: `src/state/directory.test.ts` ("should keep the serial and requests on the head, list the pending ones
   without values, and write a save that takes no revision").
 
+R2's runtime half (2026-11-23):
+- **stateui-app**: `src/core/types.ts` (`APP_EVENTS` with `sync.requested`, `SYNC_NOTICES.requested`);
+  `src/core/on/types.ts` (`REQUEST_COMMANDS`, `MAX_REQUEST_NOTE`, `MAX_REQUEST_ID`, `RequestDecision`, in
+  `SYSTEM_COMMANDS`); `src/core/on/validateOn.ts` (a request command with a target or no id is `SUI-ON-SHAPE`);
+  `src/dom/on/commands.ts` (`requestDecision`, `CommandContext.decide`); `src/dom/on/types.ts`
+  (`DispatchHooks.decide`); `src/dom/on/dispatcher.ts` (the `syncRequested` notice); `src/runtime/messages.ts`,
+  `validate.ts` and `limits.ts` (the outbound `decide`, writes to `$.runtime.requests`); `src/runtime/createRuntime.ts`
+  (the hook posts `decide`); `src/dom/mount/mountApp.ts` (`$.runtime.requests` starts empty);
+  `src/core/links/extractLinks.ts` and `runtimePath.ts` (a link to `$.runtime.requests`).
+- **stateui-components**: `toastRegion`'s `_requestedText` and its locales; the controller shows `syncRequested` as an
+  info toast.
+- **stateui-mcp**: `src/browser/requestsView.ts` (`requestEntries`, `newRequests`); `src/browser/host.ts` (writes
+  `$.runtime.requests`, raises `sync.requested`, answers `decide`); the guide's `saving` topic.
+- Tests: stateui-app `src/core/on/on.test.ts` (the request commands' shapes), `src/runtime/validate.test.ts` (the
+  `decide` message, writes to `$.runtime.requests`), `src/runtime/startRuntime.browser.test.ts` (a request command
+  posts `decide`, one with no id is a runtime error; a row command reads the id from the requests the host wrote);
+  stateui-components `test/composites/toast-region.browser.test.ts` (the built-in notices with `syncRequested`);
+  stateui-mcp `src/browser/requestsView.test.ts` (entries without `base`; each own pending request announced once,
+  none from a welcome) and `src/infrastructure/mcp/guide.test.ts` (the saving topic).
+
 R3a (2026-11-23):
 - **stateui-mcp**: `src/domain/StateAddress.ts` (`datasetStateAddress`, `datasetOfAddress`);
   `src/infrastructure/sync/DatasetNamespaces.ts` (an authority per dataset, claimed by placement; `RECORDS_PATH`,
@@ -262,8 +301,8 @@ R3a (2026-11-23):
    (`groups.test.ts`: a request from a node of another group decided by the owner).
 2. **R2, storage and the runtime**: `PgEpochStorage` with `namespace_head.requests`, the serial and `pending_request` (stateui-pg
    migration 0010, applied by `migrate`; no reset); stateui-app `$.runtime.requests`, the three commands
-   and the `syncRequested` notice; stateui-components' toast for it. stateui-app and stateui-components are the UI
-   machine's, so R2's runtime half is asked for in [work-split.md](../work-split.md) first.
+   and the `syncRequested` notice; stateui-components' toast for it. The runtime half was built on the UI
+   machine, which owns stateui-app and stateui-components.
 3. **R3, Magnetic**, in three steps:
    - **R3a, datasets as namespaces** (stateui-mcp, stateui-pg, Magnetic): `<owner>/data/<dataset>` held by the owner's
      node; `WriteData`, the agent's data tools and the Data page read and write
