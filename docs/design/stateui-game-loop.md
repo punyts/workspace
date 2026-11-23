@@ -1,13 +1,13 @@
 # The game loop: bodies that move on their own
 
-Status: F1 (the step, one body per node, held keys, contacts, writes at rest, contact and stop) built 2026-11-23 in
-stateui-components; F2 and F3 not built.
+Status: F1 (the step, one body per node, held keys, contacts, writes at rest, contact and stop) and F2 (`repeat3d`
+copies as bodies, spheres, the grid) built 2026-11-23 in stateui-components; F3 not built.
 
 Asked for on 2026-11-23: "Design the frame loop", to the choice between the two gaps the games analysis
 ([stateui-games-and-3d-modeling.md](stateui-games-and-3d-modeling.md)) leaves open. That analysis names the gap:
 "No frame loop. Logic runs on state changes, not per frame; a chain stops at depth 8 and every move is a store (and
 sync) write", and two ways to close it: "A per-frame logic timer kept in the browser, or a game-loop component that
-owns its own motion and writes state only at rest". Then, the same day: "Yes, build F1".
+owns its own motion and writes state only at rest". Then, the same day: "Yes, build F1", and "Yes, build F2".
 
 ## Why
 
@@ -37,13 +37,15 @@ rest, and which bodies met.
 
 ### Bodies
 - Every 3D node has `velocity` (units per second, default `[0, 0, 0]`) and `body`, both in the `interaction3d`
-  partial. A `mesh`, `group3d` or `model` with a `body` is a body. `velocity` is state: logic sets it (a jump, a serve,
+  partial. A `mesh`, `group3d` or `model` with a `body` is a body, and so is each copy of a `repeat3d` whose row has a
+  `body` (Copies below). `velocity` is state: logic sets it (a jump, a serve,
   a reversal) and the loop writes it back at a contact, at rest and when the game stops. `body` holds:
   - `control`: key names (from `keys`' closed list, `SCENE_KEYS`) to a velocity each adds while held:
     `{ "ArrowLeft": [-6, 0, 0], "ArrowRight": [6, 0, 0] }`. A name outside the list is reported once as `SUI-RUN-3D`.
   - `falls`: true to take the scene's `gravity`. A falling solid that rests on another solid's top is held up.
   - `solid`: true to collide. Its shape is a box: a mesh's from its geometry (the renderer's defaults), scale and
-    rotation; a group's or model's as the scene draws it (`boundsOf`).
+    rotation (degrees); a group's or model's as the scene draws it (`boundsOf`). A sphere mesh scaled the same on every
+    axis is a sphere of its radius times its scale, and meets a box where its surface reaches the box's nearest point.
   - `onContact`: what the body does when it meets a solid or its `bounds`: `stop` (default; its velocity toward what
     it met becomes zero), `bounce` (that velocity turns), or `pass` (it keeps going, and the contact is still told).
 - Solids collide with the solids of the same parent (a `group3d`'s children with each other), in the parent's space.
@@ -54,10 +56,23 @@ rest, and which bodies met.
 - A body moves one axis at a time in sub-steps no longer than its smallest half size (at most 32), so a fast body
   meets a thin wall.
 
+### Copies
+- A copy of a `repeat3d` whose row has a `body` is a body keyed by its record key. The loop writes its `position` and
+  `velocity` to the record fields its `"<-position": "$row.<field>"` and `<-velocity` links name, as a drag writes a
+  copy. An unlinked `velocity` is not written (the game keeps its value until it stops). A copy that may move (a
+  `velocity` other than zero, `falls` or a `control`) with no `$row` link for its `position` has nowhere to keep where it
+  went: it is drawn without `body`, and the repeat is reported once as `SUI-RUN-DRAW`. A copy that stands still needs no
+  link.
+- Only the copy itself is a body, not the nodes of a `group3d` row below it.
+- Copies collide with the bodies beside the repeat while the repeat is not moved, turned or scaled (their positions are
+  then in the same space); otherwise only with each other.
+- The row's `on.contact` runs with `$row` at the record, as its `on.press` does.
+
 ### What the loop tells state and logic
 - **Contacts.** When two solids begin to touch, or a body reaches a side of its bounds, each body raises `contact` with
-  `{ shape, key, with, side }`: its path, its node key, the other's node key (or `bounds`), and the side of the body
-  that touched (`left`, `right`, `bottom`, `top`, `back`, `front`). The dispatcher writes the payload to
+  `{ shape, key, with, repeat?, side }`: its path, its node key (a copy's record key), the other's key (or `bounds`),
+  `repeat`, the key of the other's `repeat3d` when it is a copy (`{ with: "coin-7", repeat: "coins" }`), and the side of
+  the body that touched (`left`, `right`, `bottom`, `top`, `back`, `front`). The dispatcher writes the payload to
   `$.raised.<node path>.contact` as for every event, so a rule there adds to a score, removes a node, or ends the game.
   A pair raises one contact when it begins to touch, not again while it touches, and what touches when the game
   starts raises none.
@@ -65,7 +80,7 @@ rest, and which bodies met.
   that reads them sees where it happened.
 - **Rest.** A body that stops moving (its speed falls to zero at a `stop`, its key comes up, logic sets its velocity to
   zero) writes its `position` and `velocity` once.
-- Writes go through the node's links (`repeats.writeTarget`), as a drag's do.
+- Writes go through the node's links (`repeats.writeTarget`), as a drag's do; a copy's go to its record.
 - Between those moments, positions live only in the scene. A synced app sends a change at a rest, a contact or a stop,
   never per frame.
 
@@ -83,8 +98,10 @@ rest, and which bodies met.
 
 ### Where it runs
 - The step is pure code in stateui-components (`src/shared/play/play.ts`, `PlayWorld`): bodies, held keys and a time
-  step in, positions, speeds, contacts and rests out. No rotation from collisions, no friction, no stacking beyond
-  resting on a top: bodies move, stop, bounce or pass.
+  step in, positions, speeds, contacts and rests out. No rotation from collisions, no friction, no rolling, no stacking
+  beyond resting on a top: bodies move, stop, bounce or pass. Only the bodies that may move are stepped; the solids that
+  stand still sit in a uniform grid per parent (cells about the median size of those solids), so a moving body checks
+  only those near it and pairs of still solids are never checked.
 - `SceneLoop` (`src/shared/play/loop.ts`) runs it for the `scene3d` controller: it reads the bodies from the node tree
   on every draw, steps on the animation frame, and gives the renderer each frame's tree through the renderer's own
   `update`, with each body at its position in the game. stateui-3d and its runtime chunk are unchanged.
@@ -105,9 +122,8 @@ rest, and which bodies met.
 ## Stages
 1. **F1, the step and one body** (built): `src/shared/play/` with its tests; `play` on `scene3d`, `velocity` and `body`
    on the 3D nodes; held keys; contacts with node keys; writes at rest, contact and stop.
-2. **F2, copies**: `repeat3d` copies as bodies, through their `<-position` and `<-velocity` links, and contacts that name
-   the record and the repeat (`{ with: "coin-7", repeat: "coins" }`); sphere shapes; a uniform grid, so a board of many
-   standing copies costs little.
+2. **F2, copies** (built): `repeat3d` copies as bodies, through their `<-position` and `<-velocity` links, and contacts
+   that name the record and the repeat; sphere shapes; a uniform grid, so a board of many standing copies costs little.
 3. **F3, the tools and the example**: the guide topic, `ui_interact`'s held key, the example game.
 
 ## Decisions
@@ -121,7 +137,12 @@ rest, and which bodies met.
   the tree it is given, so the loop hands it the tree with the game's positions, and the runtime chunk keeps its room.
 - **`velocity` is a node property**, beside `position`, rather than a field of `body`, so a `<-velocity` link and a
   logic `set` address it as they address `position`.
-- **Boxes only in F1**; spheres come with F2. A sphere mesh collides as its box.
+- **Spheres only when scaled evenly.** A sphere mesh scaled unevenly is an ellipsoid; it collides as its box rather
+  than as a shape the step does not have.
+- **A moving copy needs a `$row` position.** Without one the game could move it but never keep where it went, so it is
+  not a body, and the repeat says so; a still copy (a wall, a coin) needs no link.
+- **Copies of a placed repeat collide only with each other**, rather than converting between the repeat's space and its
+  parent's at every step.
 - **Limits report `SUI-RUN-3D`**, the 3D runtime's code, rather than `SUI-STATE-INVALID`: the document is valid, the
   scene cannot play it.
 
@@ -133,14 +154,18 @@ rest, and which bodies met.
 
 ## As built
 - stateui-components:
-  - `src/shared/play/play.ts`: `PlayWorld` (`step`, `settle`, `anyMoves`), `readBody`, `readBounds`, `geometryHalf`,
-    `turnedHalf`, the limits and vocabularies.
+  - `src/shared/play/play.ts`: `PlayWorld` (`step`, `settle`, `anyMoves`), its `Grid` and `reach` (box and sphere
+    shapes), `readBody`, `readBounds`, `geometryHalf`, `turnedHalf`, `sphereRadius`, the limits and vocabularies.
+  - `src/shared/scene3d/repeat.ts`: copies with a `body` (`bodyCopy`), their record targets, `stuck`,
+    `Repeat3dFeeder.writesNowhere`; `velocity` and `body` in `INSTANCE_PROPERTIES`.
   - `src/shared/play/loop.ts`: `SceneLoop`.
   - `src/shared/shape/interaction3d.json`: `velocity`, `body`, the event `contact`; `src/shared/scene3d/tree.ts` lists
     them in `SHARED_PROPERTIES`.
   - `components/composites/scene3d/scene3d.state.json`: `play`; `scene3d.controller.ts` runs the loop, takes the
     control keys, raises `contact`.
 - Tests: `src/shared/play/play.test.ts` (the step, landing, bounce and pass, bounds, a thin wall at speed, parents,
-  settling), `test/composites/scene3d-play.browser.test.ts` (with the real chunk: a fall that lands and raises
-  `contact` for an `on` entry, a held key, a velocity logic sets and a stop, a bad control key),
+  settling; spheres, copies and the grid), `src/shared/scene3d/repeat.test.ts` ("copies as bodies of the game loop"),
+  `test/composites/scene3d-play.browser.test.ts` (with the real chunk: a fall that lands and raises `contact` for an
+  `on` entry, a held key, a velocity logic sets and a stop, copies that land and write their records, a bad control
+  key),
   `test/graphics3d.test.ts`; stateui-mcp's `test/tools.test.ts` pins the nodes' events.
