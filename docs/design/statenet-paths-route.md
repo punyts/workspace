@@ -1,6 +1,6 @@
 # Bytes by statenet path: the `/paths` route
 
-Status: designed 2026-11-22; the files part built 2026-11-22, tiles not yet. The route is built on the tower (the owner's other machine, where statenet networking is
+Status: designed 2026-11-22; the files part and the frame's side built 2026-11-22, tiles not yet. The route is built on the tower (the owner's other machine, where statenet networking is
 built), not in this workspace. The clients are built here: `map` takes a `tiles` template that is a path of the app's
 own origin, `mediaPlayer` takes a `src` of the app's own origin, and uploads accept audio and video
 ([stateui-component-gaps.md](stateui-component-gaps.md), C7).
@@ -126,6 +126,26 @@ where they are: they change an app, and `/paths` only reads.
 the main origin (`hostOrigin`), so a `/paths` URL also loads over `http://localhost` in development. The frame builds
 absolute URLs from the main origin it is given; its own opaque origin cannot resolve a relative one.
 
+**The frame's side.** Asked for on 2026-11-22: "let's continue", the next item of the work split.
+
+- The host's `load` gains `files: { url, grant? }`: `url` is the absolute URL of the app's files, the main origin
+  and `data-paths` with `/files` (`https://host/paths/<owner>/apps/<app>/files`), and `grant` is the page's
+  `data-grant`. A page without `data-paths` sends no `files`. The runtime takes a `url` only when it is `https:` or
+  `http:` with no credentials, query or fragment, and a `grant` only of the grant's shape (two base64url parts, at
+  most 4096 characters, a signed grant token); anything else fails the message.
+- A new message `grant { grant }` replaces the grant the runtime holds. The host forwards each `grant` view message
+  of the event stream to the frame.
+- The runtime's hook `fileUrl(id)` gives `<url>/<id>?g=<grant>` (no `?g=` without a grant) for a file id that is a
+  UUID, else nothing; with no `files` it gives nothing. Components ask for it with the event `ui-file-url`
+  (`{ id, respond(url) }`, answered synchronously), as they ask for `readFile` with `ui-file-read`. The page surface
+  runs the same runtime and the same hook; its requests also carry the cookie.
+- `mediaPlayer` gains `file`, a file reference as `fileField` writes it. A `file` wins over `src`; its source is the
+  hook's URL, and without a hook the player plays nothing. The URL is taken when the file is set, not at each
+  renewal, since a new `src` would restart the media. When the media fails while it plays a file (a seek after its
+  grant ran out), the player asks for the URL again and, when it changed, sets it and goes back to the time it was
+  at; a second failure with the same URL shows the failure.
+- `drawing`, `paintField` and `scene3d` keep reading bytes with `readFile`: they draw the bytes themselves.
+
 **Who builds what.** The tower builds the route, the sources table, the grant (signing, checking, the page's first
 grant and the renewal message), ranges in both file stores, the removal of the download route with `fileRead` moved
 over, and the policies. The UI machine builds the frame's side: keeping the grant, appending it to the URLs it sets, and
@@ -169,8 +189,8 @@ over, and the policies. The UI machine builds the frame's side: keeping the gran
 
 ## As built
 
-Files, 2026-11-22. Tiles are not built; the clients are listed in [stateui-component-gaps.md](stateui-component-gaps.md),
-C7, and the frame's use of the grant is the UI machine's ([../work-split.md](../work-split.md)).
+Files, 2026-11-22. Tiles are not built; their client, `map`, is listed in
+[stateui-component-gaps.md](stateui-component-gaps.md), C7.
 
 - **stateui-mcp**: the route, its sources table and `fileSource` in `src/infrastructure/http/HttpServer.ts`
   (`pathsRoute`, `readerOf`, `appPaths`, options `ownerTenant` and `grantKeys`); the tokens in
@@ -191,3 +211,14 @@ C7, and the frame's use of the grant is the UI machine's ([../work-split.md](../
   workspace of an owner number) and `grantKeys` (`pathTokenKeys`, `src/server/startMagnetic.ts`). Tests:
   `src/server/sharing.test.ts` ("should let whoever may open an app read its files by /paths, with the session or the
   page's token, and no one else once the link is revoked"), `src/server/startMagnetic.test.ts`.
+
+The frame's side, 2026-11-22, on the UI machine:
+
+- **stateui-app**: `src/runtime/fileUrl.ts` (`createFileUrls`, `isFilesSource`, `isGrant`); `load`'s `files` and the
+  `grant` message (`src/runtime/messages.ts`, `validate.ts`, `limits.ts`); the `fileUrl` hook and `ui-file-url`
+  (`src/dom/on/types.ts`, `dispatcher.ts`, `src/runtime/createRuntime.ts`). Tests: `src/runtime/validate.test.ts`,
+  `src/runtime/fileUrl.browser.test.ts`.
+- **stateui-mcp**: `src/browser/filesSource.ts` and the host's `load` and forwarded `grant` (`src/browser/host.ts`).
+  Test: `test/hostFilesSource.test.ts`.
+- **stateui-components**: `storedFileUrl` (`src/shared/field/files.ts`) and `mediaPlayer`'s `file`
+  (`components/molecules/media-player/`). Test: `test/molecules/media-player.browser.test.ts`.

@@ -14,16 +14,14 @@ Magnetic's agent has `ui_preview`, `ui_screenshot` and `ui_interact` through one
 Built 2026-11-22: `window` resizes from every edge and snaps when dragged to an edge
 ([design/stateui-desktop-stage-2.md](design/stateui-desktop-stage-2.md)).
 
-In progress: comments anchored to text in `richTextField` (T6 of
-[design/stateui-text-editor.md](design/stateui-text-editor.md)). Touches stateui-components' `src/shared/richtext` and
-`components/molecules/rich-text-field`, the example and stateui-mcp's showcase.
+Built 2026-11-22: comments anchored to text in `richTextField` (T6 of
+[design/stateui-text-editor.md](design/stateui-text-editor.md)).
 
-Ready now that the files of `/paths` are built (the page has `data-paths` and keeps the current grant in
-`data-grant`):
+Built 2026-11-22: the frame's side of `/paths` ([design/statenet-paths-route.md](design/statenet-paths-route.md)). The
+host gives the runtime frame the files URL and the grant and forwards each new grant; `mediaPlayer` plays a stored
+`file`.
 
-1. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
-   its `/paths` URL for `mediaPlayer`, the host passing the grant to the runtime frame and the frame appending it
-   (`?g=`). Real tiles in the example and the showcase wait for the tiles.
+Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
 

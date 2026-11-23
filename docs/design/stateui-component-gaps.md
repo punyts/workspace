@@ -181,7 +181,8 @@ same statenet path pattern?" Tiles and files are addressed by statenet path and 
   `tree` popup behind a select-only combobox button. Hierarchical pickers (regions, departments, categories) were
   asked for with the map.
 - **Audio and video uploads**: ADR-0017's list gains MP3, M4A, Ogg, WAV, MP4 and WebM under the 10 MiB limit, so a
-  `fileField` can take a short clip for a `mediaPlayer`. It plays once the `/paths` route serves files.
+  `fileField` can take a short clip for a `mediaPlayer`, whose `file` plays it from the `/paths` route with the frame's
+  read grant ([statenet-paths-route.md](statenet-paths-route.md), "The frame's side").
 
 ## Rules and Constraints
 
@@ -268,10 +269,9 @@ same statenet path pattern?" Tiles and files are addressed by statenet path and 
   `light`.
 - `lightbox` takes a keyed map or a list of records, so it binds to a dataset as well as to literal pictures. Its
   pictures are https or `data:` PNG, JPEG, GIF or WebP; SVG is refused, as the URL rule refuses it for `image`.
-- `mediaPlayer` plays https URLs and paths of the app's own origin only. The URL rule allows `data:` only for
-  pictures, the runtime frame allows no `blob:`, and uploaded files have no URL, so playing uploaded media waits for the
-  `/paths` route (C7). stateui-mcp's runtime frame and app pages allow `media-src https:`, as
-  their `img-src` allows https pictures.
+- `mediaPlayer` plays https URLs, paths of the app's own origin and stored files only. The URL rule allows `data:`
+  only for pictures and the runtime frame allows no `blob:`, so an uploaded file plays from its `/paths` URL (`file`).
+  stateui-mcp's runtime frame and app pages allow `media-src https:` and the host's origin, as their `img-src` does.
 - The crop step is part of `fileField` (`crop`), not an `imageField` of its own: the transfer, the rules and the
   field contract stay one component's. The picture is decoded with `createImageBitmap` and drawn on a canvas, so no
   URL of it is made and no byte reaches the store; the framed part is re-encoded in its own type (a GIF as a PNG) and
@@ -419,4 +419,6 @@ same statenet path pattern?" Tiles and files are addressed by statenet path and 
 - Example: the Deliveries screen's side card has a `map` of four depots over sample graticule tiles
   (`scripts/map-tiles.ts`, `npm run tiles`, written to `public/map-tiles`); the general settings have a home depot
   `treeSelectField` of regions and cities bound to `$.data.prefs.region`.
-- Not built: the `/paths` route, its tile cache and read grants (on the tower).
+- `mediaPlayer`'s `file` and the runtime's `fileUrl` hook, with the `/paths` route's files and read grants
+  ([statenet-paths-route.md](statenet-paths-route.md), "As built").
+- Not built: the tile cache of `/paths` (on the tower).
