@@ -1,6 +1,6 @@
 # The mesh editor: geometry kept in state, shaped in the scene
 
-Status: designed 2026-11-23; not built.
+Status: designed 2026-11-23; V1 built 2026-11-23; V2 to V4 not built.
 
 Asked for on 2026-11-23: "Design the mesh editor", the gap the games and 3D analysis
 ([stateui-games-and-3d-modeling.md](stateui-games-and-3d-modeling.md)) leaves: "No mesh editing | Geometry is a
@@ -38,8 +38,8 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
   drawn as its fan gives. There are no texture coordinates; a `material.map` on a custom geometry is not drawn and is
   reported once as `SUI-RUN-3D`.
 - A custom mesh is a mesh everywhere else: `material`, shadows, `transition`, `animate`, `interactive`, `draggable`,
-  `gizmo`, the game loop's `body` (its box is the box of its vertices, whose centre may be off the node's origin), a
-  `repeat3d` row (all copies share the one geometry) and the GLB export.
+  `gizmo`, the game loop's `body` (its box is the box about the node's origin that holds every vertex, as the loop's
+  boxes are centred on their node), a `repeat3d` row (all copies share the one geometry) and the GLB export.
 - An agent shapes a mesh by writing `geometry` (`ui_nodes_write`, or `ui_data_write` when `<-geometry` links it to a
   record). A box is the custom geometry an agent or the example starts from.
 
@@ -137,6 +137,23 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
   outside the chunk. To confirm with the owner when V1 is built, with the measured size.
 - **Pointer picking only**: as with the gizmo, a keyboard user edits through fields beside the scene or the
   operations' buttons; vertices have no proxy buttons.
+
+## As built
+V1, 2026-11-23:
+- stateui-app: the `polyMesh` validator and `MAX_EDIT_VERTICES`, `MAX_EDIT_FACES` and `MAX_FACE_SIDES` (`src/core/shape/types.ts`,
+  `validators.ts`). Tests: `src/core/shape/validators.test.ts` ("polyMesh"), `src/core/shape/shape.test.ts`.
+- stateui-3d: `custom` in `src/geometries.ts` (`CustomParams`, the same three limits, `SHADINGS`), drawn by
+  `createGeometry`; the `geometry` kind of `Scene3dIssue` (`bad_face: <index>`, `no_uvs`) told by `SceneGraph` for a mesh
+  and by `RepeatInstances` for a `repeat3d` (`src/scene.ts`, `src/instances.ts`). A custom mesh's map is not read. Tests:
+  `src/geometries.test.ts` ("custom geometry"), `src/scene3d.browser.test.ts` (drawn, hit and bounded; the issues told
+  once), `src/glbWriter.test.ts` (exported flat and smooth).
+- stateui-components: `mesh.state.json` (`custom`, `vertices`, `faces`, `shading`, `polyMesh`); `geometryHalf` of
+  `src/shared/play/play.ts` for the game loop; `Scene3dIssue` in `src/shared/scene3d/tree.ts`, reported as `SUI-RUN-3D` by
+  the controller. Tests: `test/graphics3d.test.ts`, `src/shared/play/play.test.ts`,
+  `test/composites/scene3d-texture.browser.test.ts` ("custom square").
+- stateui-mcp: the 3D guide topic names custom geometry, so an agent can write one before V4's `scene3d-modeling` topic.
+- The runtime chunk grew by 648 bytes gzipped (194,515 of the 195,269 the gate allows), so V1 needed no raise; 754 bytes
+  are left for V2 and V3.
 
 ## Rules and Constraints
 - Nothing is written while a handle is held; one `geometry` write per edit, on release or per operation.

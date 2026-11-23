@@ -53,9 +53,10 @@ F2, bodies a `scene3d` moves by speed, held keys and collisions, `repeat3d` copi
 F3, the `scene3d-play` guide topic and `ui_interact`'s held key in stateui-mcp, browser logic hearing `$.raised` in
 stateui-app, and the Orchard game in the example.
 
-Designed 2026-11-23, not built: the mesh editor ([design/stateui-mesh-editor.md](design/stateui-mesh-editor.md)),
+Designed 2026-11-23, V1 built the same day: the mesh editor ([design/stateui-mesh-editor.md](design/stateui-mesh-editor.md)),
 geometry kept in state and shaped in the scene, in four stages (V1 to V4) in stateui-3d, stateui-components,
-stateui-app, stateui-mcp and the example. Nothing in it touches the tower's packages.
+stateui-app, stateui-mcp and the example. V1 is a `mesh` of `custom` vertices and faces; V2 (picking) is next. Nothing
+in it touches the tower's packages.
 
 Real tiles in the example and the showcase wait for the tower's tiles.
 
