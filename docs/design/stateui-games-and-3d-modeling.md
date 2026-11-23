@@ -20,6 +20,9 @@ game) is the worked example.
 - **Code where it pays.** A host registers functions (`logicFunctions`): an expression function computes the next board
   from the board and a move, a compute unit checks a winning line, an effect asks a server-side opponent or fetches a
   level (its request token cancels a stale answer when a newer move comes in).
+- **Chance and keys.** `random(seed, n)` gives a roll that depends only on its seed, so an app seeds it from state
+  (the game id and the turn) and every replica agrees. A `scene3d` with `keys` raises `key` for the listed keys, and a
+  rule on `$.raised.<scene path>.key` turns each press into a move ([stateui-game-input.md](stateui-game-input.md)).
 - **Time.** `after` gives turn timers and card flip-backs; an `after` transition that stays in its state repeats, which
   is a slow tick. `debounce` waits for a quiet input.
 - **Feel.** `transition` eases a piece to its new tile; `animate` (`spin`, `bob`, `pulse`) marks a selection or a win;
@@ -34,12 +37,10 @@ with a countdown, card and tile games.
 | Gap | Why | What would close it | Size |
 |---|---|---|---|
 | No frame loop | Logic runs on state changes, not per frame; a chain stops at depth 8 and every move is a store (and sync) write | A per-frame logic timer kept in the browser, or a game-loop component that owns its own motion and writes state only at rest | Medium |
-| No randomness in expressions | The expression library is pure (only `now` and `today` read the world) | A seeded `random(seed, n)` among the built-in functions; today a host registers one as an expression function | Small |
 | No dragging in 3D | `draggable` exists for 2D shapes only; 3D nodes press and hover | Drag on a ground plane for an interactive mesh or group, written once on release like 2D | Medium |
-| No keyboard game input | `on` entries react to component events, not to raw keys over a scene | A key-binding entry on `scene3d` (`on.key` with the key name) | Small |
 
 An app built only through the MCP has no host code, so it has no registered functions: its rules must fit in
-expressions and tables, and anything random or iterative needs an effect the agent answers.
+expressions (`random` included) and tables, and anything iterative needs an effect the agent answers.
 
 ---
 

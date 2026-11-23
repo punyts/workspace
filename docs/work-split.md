@@ -25,6 +25,9 @@ Built 2026-11-22: images as app files in `richTextField` and `richText` (T7 of
 [design/stateui-text-editor.md](design/stateui-text-editor.md)). Uploads by tool, `/image`, paste and drop; an image
 panel for alt text, caption and width; drawn from the `/paths` URL.
 
+Built 2026-11-22: the small game gaps, a seeded `random(seed, n)` and keys on `scene3d`
+([design/stateui-game-input.md](design/stateui-game-input.md)).
+
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
@@ -67,6 +70,6 @@ These wait until users ask for them or the load needs them:
 - More than one Magnetic server: sessions, live views and authorities still assume one process.
 - Object storage for file bytes, and ADR-0017's open questions (malware scanning, a workspace quota, backing up the
   files folder).
-- The rich-text editor's later items: images as app files (after `/paths`), character-level merging (with the
+- The rich-text editor's later item: character-level merging (with the
   statenet direction).
 - Vector map tiles (a WebGL chunk), and SCIM's extras (roles from the provider, more attributes, bulk requests).
