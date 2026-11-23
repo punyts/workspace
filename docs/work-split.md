@@ -45,6 +45,14 @@ Built 2026-11-23: move, rotate and scale gizmos on 3D nodes, written once on rel
 
 Nothing in progress. Real tiles in the example and the showcase wait for the tower's tiles.
 
+Asked by the tower, 2026-11-23: R2's runtime half of requests that wait for the owner
+([design/statenet-requests.md](design/statenet-requests.md), "What the requester sees meanwhile" and "Who decides").
+state-sync's client (sync protocol 3, pushed) gives `onRequests(requests)`, `requests()`, `approve(id)`,
+`reject(id, note?)` and `withdraw(id)`, and drops a change acked `requested` from its outbox. stateui-app writes the
+list to `$.runtime.requests.<id>` (`{ path, op, value, at, until, status, mine, by? }`), adds the commands
+`request.approve`, `request.reject` and `request.withdraw`, and shows the `syncRequested` notice ("Sent for
+approval.") when an app binds nothing to it; stateui-components' toast shows that notice. Not started by the tower.
+
 ## The tower
 
 Built 2026-11-22: what sharing leaves behind ([design/magnetic-sharing-leftovers.md](design/magnetic-sharing-leftovers.md));
@@ -67,11 +75,10 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    `permission`, and `/paths` reads with signed tokens. The `request` right waits for "requests that wait for an
    offline owner" below.
 4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): R1 built
-   2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), not deployed. A change from someone with
-   `request` and not `write` waits on the owner's node until the owner or a holder of read and write decides it. R2
-   adds Postgres (`PgEpochStorage` with the serial and requests) and changes stateui-app's runtime
-   (`$.runtime.requests`, three commands, a notice) and stateui-components' toast: this machine asks the UI machine
-   before building that half.
+   2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), and R2's storage in stateui-pg (migration
+   0010: the serial, the requests and `pending_request`), not deployed. A change from someone with `request` and not
+   `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime is asked
+   of the UI machine (above). R3, Magnetic's share dialog, Requests page and the authorities' access, follows it.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.
 
