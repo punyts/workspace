@@ -1,13 +1,14 @@
 # The game loop: bodies that move on their own
 
-Status: F1 (the step, one body per node, held keys, contacts, writes at rest, contact and stop) and F2 (`repeat3d`
-copies as bodies, spheres, the grid) built 2026-11-23 in stateui-components; F3 not built.
+Status: built 2026-11-23. F1 (the step, one body per node, held keys, contacts, writes at rest, contact and stop) and
+F2 (`repeat3d` copies as bodies, spheres, the grid) in stateui-components; F3 (the guide topic, `ui_interact`'s held
+key, the example game) in stateui-mcp and the example.
 
 Asked for on 2026-11-23: "Design the frame loop", to the choice between the two gaps the games analysis
 ([stateui-games-and-3d-modeling.md](stateui-games-and-3d-modeling.md)) leaves open. That analysis names the gap:
 "No frame loop. Logic runs on state changes, not per frame; a chain stops at depth 8 and every move is a store (and
 sync) write", and two ways to close it: "A per-frame logic timer kept in the browser, or a game-loop component that
-owns its own motion and writes state only at rest". Then, the same day: "Yes, build F1", and "Yes, build F2".
+owns its own motion and writes state only at rest". Then, the same day: "Yes, build F1", "Yes, build F2" and "Yes, build F3".
 
 ## Why
 
@@ -113,18 +114,23 @@ rest, and which bodies met.
 - Speeds are capped at 1,000 units per second on each axis.
 
 ### The tools
-- stateui-mcp: a new guide topic, `scene3d-play` (the `scene3d-behavior` topic is near its cap). `ui_interact` gains
-  holding a key for a time (`key` with `hold` in ms), so an agent can try a game; the check waits for the scene to
-  come to rest.
-- The example app gains a short real-time game that uses each part (a basket the arrow keys move, falling fruit that
-  `fall`s, a `contact` rule that scores and removes the fruit, `after` spawning the next).
+- stateui-mcp: a guide topic of its own, `scene3d-play` (the `scene3d-behavior` topic is near its cap).
+- `ui_interact`'s `key` and `press` take `hold` (ms, at most 5,000): the key goes down, stays down and comes up, so an
+  agent can try a game. `hold` on another action is refused before the page opens.
+- While a scene's loop asks for frames, the `scene3d` element has `data-play="moving"`. After its actions
+  `ui_interact` waits up to 5 s for no scene to carry it, and lists in `moving` the scene paths still moving then (a
+  game whose bodies never stop).
+- The example app has a short real-time game, the Orchard section: a basket the arrow keys move, falling apples that
+  are `repeat3d` copies, rules on the basket's and the grass's `contact` that score or count a miss and delete the
+  apple's record, and a machine whose `after` transition back to its own state drops the next apple.
 
 ## Stages
 1. **F1, the step and one body** (built): `src/shared/play/` with its tests; `play` on `scene3d`, `velocity` and `body`
    on the 3D nodes; held keys; contacts with node keys; writes at rest, contact and stop.
 2. **F2, copies** (built): `repeat3d` copies as bodies, through their `<-position` and `<-velocity` links, and contacts
    that name the record and the repeat; sphere shapes; a uniform grid, so a board of many standing copies costs little.
-3. **F3, the tools and the example**: the guide topic, `ui_interact`'s held key, the example game.
+3. **F3, the tools and the example** (built): the guide topic, `ui_interact`'s held key and the wait for rest, the
+   example game.
 
 ## Decisions
 - **The scene moves its bodies; logic hears contacts and rests**, rather than a per-frame logic timer (owner,
@@ -143,6 +149,9 @@ rest, and which bodies met.
   not a body, and the repeat says so; a still copy (a wall, a coin) needs no link.
 - **Copies of a placed repeat collide only with each other**, rather than converting between the repeat's space and its
   parent's at every step.
+- **The wait for rest reads a mark on the element** (`data-play="moving"`), as the wait for drawing reads
+  `data-render="pending"`, rather than asking the store whether positions still change: between contacts and rests
+  the store does not change while bodies move.
 - **Limits report `SUI-RUN-3D`**, the 3D runtime's code, rather than `SUI-STATE-INVALID`: the document is valid, the
   scene cannot play it.
 
@@ -169,3 +178,16 @@ rest, and which bodies met.
   `on` entry, a held key, a velocity logic sets and a stop, copies that land and write their records, a bad control
   key),
   `test/graphics3d.test.ts`; stateui-mcp's `test/tools.test.ts` pins the nodes' events.
+- F3, stateui-components: `SceneLoop`'s `moving` option; the controller sets `data-play="moving"`. Test: the held key in
+  `test/composites/scene3d-play.browser.test.ts`.
+- F3, stateui-mcp: `src/infrastructure/preview/BrowserPreview.ts` (`MAX_HOLD_MS`, `pressKey`, `waitResting`, `moving`),
+  `src/infrastructure/mcp/liveTools.ts` (`hold` and its refusal), `src/infrastructure/mcp/guide.ts` (`SCENE3D_PLAY`,
+  the topic `scene3d-play`). Tests: `test/tools.test.ts`, `test/chunk3d.integration.test.ts` ("F3": a held key moves a
+  body in the real page; a scene that never rests is named in `moving`), `src/infrastructure/mcp/instructions.test.ts`,
+  `test/toolSet.test.ts`.
+- F3, stateui-app: browser logic now watches `$.raised`, so a rule on a `contact` (or any event) runs outside Full
+  mode. Test: `src/dom/mount/logic.browser.test.ts`.
+- F3, example: the Orchard section in `src/document/main.json` (with its German overlay, `data.json` and the
+  `orchardDrop` machine and `orchardCatch`, `orchardMiss`, `orchardOver` and `orchardReset` rules in `logic.json`).
+  Tests: `test/app.browser.test.ts` ("Northwind Ops Orchard": a catch and a miss, a dropped apple and the held key,
+  the end of a round and New round).
