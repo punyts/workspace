@@ -51,7 +51,9 @@ state-sync's client (sync protocol 3, pushed) gives `onRequests(requests)`, `req
 `reject(id, note?)` and `withdraw(id)`, and drops a change acked `requested` from its outbox. stateui-app writes the
 list to `$.runtime.requests.<id>` (`{ path, op, value, at, until, status, mine, by? }`), adds the commands
 `request.approve`, `request.reject` and `request.withdraw`, and shows the `syncRequested` notice ("Sent for
-approval.") when an app binds nothing to it; stateui-components' toast shows that notice. Not started by the tower.
+approval.") when an app binds nothing to it; stateui-components' toast shows that notice. R3 adds one source: an
+instance's server side writes the requests of its dataset sessions to the instance's `$.runtime.requests`, so the
+runtime shows those as it shows its own client's (design, "the write path"). Not started by the tower.
 
 ## The tower
 
@@ -78,7 +80,8 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), and R2's storage in stateui-pg (migration
    0010: the serial, the requests and `pending_request`), not deployed. A change from someone with `request` and not
    `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime is asked
-   of the UI machine (above). R3, Magnetic's share dialog, Requests page and the authorities' access, follows it.
+   of the UI machine (above). R3's write path is designed (datasets become namespaces `<owner>/data/<dataset>` that check
+   access; R3a to R3c) and waits for the owner's decisions in the design.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format; WebRTC, then WebTransport.
 
