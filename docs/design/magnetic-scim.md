@@ -102,7 +102,7 @@ groups.
   of the same name are then 409 until renamed, which the page warns of before turning it off.
 - Texts in English, German, French and Spanish, as the rest of the settings page.
 
-## Storage (migration 0022)
+## Storage
 | Table | Columns | Notes |
 |---|---|---|
 | `org_scim` | `org_id` PK, `token_hash` unique, `created_by`, `created_at`, `last_used_at` | A row is SCIM on |
@@ -148,7 +148,7 @@ SCIM). Details name what changed (`active`, `members` added and removed by count
 - By hand, the owner's: an Okta and an Entra ID test tenant pointed at a hosted Magnetic.
 
 ## As built
-- `magnetic/migrations/0022_scim.sql`: `org_scim`, `scim_user`, `scim_group_member`; `org_group` gains `scim`,
+- `magnetic/migrations/0001_baseline.sql`: `org_scim`, `scim_user`, `scim_group_member`; `org_group` gains `scim`,
   `external_id`, `updated_at`.
 - `magnetic/src/scim/filter.ts`, `schemas.ts`, `patch.ts`; `magnetic/src/orgs/Scim.ts`; `magnetic/src/orgs/Orgs.ts`
   (`SCIM_MEMBER`, `SCIM_GROUP`, `scimHolds`, `dropMember`); `magnetic/src/orgs/SignInRules.ts`.

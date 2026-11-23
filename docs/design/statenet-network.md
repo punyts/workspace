@@ -296,8 +296,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
   relay, to the aggregate. A server with no relays keeps the aggregate in its own process, as in S11a: one server
   locally, the tests.
 - **The aggregate finds an address's workspace in `statenet_namespace`**, read at each load, save and removal, never
-  kept. A server records the workspace there before it sends anything for an address. A migration fills it from
-  `namespace_head` for state saved before.
+  kept. A server records the workspace there before it sends anything for an address.
 - **The servers hold only `SELECT` on the state tables.** `magnetic migrate --app-role magnetic_app
   --aggregate-role magnetic_aggregate` grants the servers' role every table and then takes back `INSERT`, `UPDATE`
   and `DELETE` on the three, and grants the aggregate's role its own. The other writers go through the aggregate:
@@ -532,11 +531,11 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     beside its row and not into `models`. A deploy restarts them together.
 
 ### Owner numbers, the first part of S11b (19 November 2026)
-- **Magnetic** `migrations/0015_owner_numbers.sql`: the sequence `statenet_owner_number`; `owner_number` on
-  `app_user` and `org`, unique, the next of the sequence when a row is made; those already there numbered in the
-  order they came, people and orgs in one line, after numbers 1 and 2, kept for Magnetic's own two workspaces (its
-  pages and the admins' drafts of them, `statenet_system_owner`); and the view `statenet_owner` (`number`, `kind`, `id`,
-  `workspace_id`): every owner with the workspace that is its tree. Test: `src/storage/ownerNumbers.test.ts`.
+- **Magnetic** `migrations/0001_baseline.sql`: the sequence `statenet_owner_number`; `owner_number` on `app_user` and
+  `org`, unique, the next of the sequence when a row is made, people and orgs in one line, after numbers 1 and 2, kept
+  for Magnetic's own two workspaces (its pages and the admins' drafts of them, `statenet_system_owner`); and the view
+  `statenet_owner` (`number`, `kind`, `id`, `workspace_id`): every owner with the workspace that is its tree. Test:
+  `src/storage/ownerNumbers.test.ts`.
 
 ### Owner-rooted addresses, the second part of S11b (19 November 2026)
 An address is an owner and a path under its `$`: `<owner>/apps/<appId>` is `$.apps.<appId>` of that owner's tree (a
@@ -553,10 +552,9 @@ person's state of the app), `<owner>/data/<dataset>` is `$.data.<dataset>`. The 
 - **Magnetic**: `datasetAddress`, `datasetOf` and the new `appOf` (`src/grants/StateGrants.ts`); a grant's address is
   checked as `<owner>/apps/<app or *>` or `<owner>/data/<dataset>`; an org's read of all a member's apps is
   `<user>/apps/*`; the queries that take an address apart (retention, the support list, moving an app into an org,
-  the Statenet view's list, Shared by me). `migrations/0016_owner_tree_addresses.sql` moves `statenet_namespace` and
-  `state_grant`. Test: `src/storage/ownerTreeAddresses.test.ts`.
-- **Migrations 0006 and 0007 lift forced row-level security for their transaction**, as Magnetic's 0013 does: the
-  tables' owner is held by it too, so 0006 as first written would have added no `models` on the hosted database.
+  the Statenet view's list, Shared by me).
+- **Migrations 0006 and 0007 lift forced row-level security for their transaction**: the tables' owner is held by it
+  too, so 0006 as first written would have added no `models` on the hosted database.
   Both are tested run as a plain role that owns the tables (`state/state.test.ts`), twice over.
 - Checked: stateui-mcp 1086, stateui-pg 57, Magnetic 283 unit tests.
 ### Owners by number everywhere, the third part of S11b (19 November 2026)
@@ -574,11 +572,6 @@ person's own workspace and an org's workspace go by the person's and the org's n
   org's read revoked when a member leaves (`src/orgs/Orgs.ts`), the persona apps list and the statenet node use the
   numbers. `startMagnetic` hands one `OwnerNumbers` to all of them, to stateui-mcp's `createServices` and to
   stateui-pg's storage, and `RunningMagnetic.owners` exposes it.
-- **Magnetic** `migrations/0017_owner_numbers_everywhere.sql`: rewrites the owner in the addresses of
-  `state_node`, `state_change`, `namespace_head`, `namespace_owner`, persona-record embedding ids,
-  `statenet_namespace` and `state_grant`, a grant's issuer and subject (`org:<id>` included), and
-  `owner_key.owner_id`; ids that are no owner's and names that are not ids (`statenet`) stay. It lifts forced
-  row-level security for its transaction. Test: `src/storage/ownerNumbersEverywhere.test.ts` (run twice over).
 - Checked: stateui-mcp 1086, stateui-pg 57, statenet 65, Magnetic 284 unit tests.
 - Not yet done:
   - **When a person uses their own app, their state and the app's default are the same path of the same tree**
@@ -615,8 +608,6 @@ person's own workspace and an org's workspace go by the person's and the org's n
     `MAGNETIC_AGGREGATE_ROLE` (with `--app-role`: the app role keeps only `SELECT` on the state tables, and the
     aggregate role reads `statenet_namespace` and `owner_key` besides), the `aggregate` command. Test:
     `server/options.test.ts`.
-  - `migrations/0018_namespace_workspaces.sql` records the workspace of every namespace head, and sets a recorded
-    one to its head's. Test: `src/storage/namespaceWorkspaces.test.ts`.
   - `roleDatabases` (`src/testing/testDb.ts`) connects to a test schema as the two roles (`-c role=…`).
     `statenet.test.ts` runs two servers of one group linked up to `relay-1`, which links up to the aggregate, with
     the servers as the read-only role and the aggregate as its own; "should save people's state through the relay to
@@ -655,9 +646,9 @@ person's own workspace and an org's workspace go by the person's and the org's n
   - `startMagnetic` takes `network`; `fromNetwork(request)` drives the sign-in page (no providers, development users or
     work email, the notice how to sign in), the 403 at `/signin/dev`, Secure cookies and the runtime origin's scheme.
     `RunningMagnetic.networkOrigin`.
-  - `src/accounts/DeviceLinks.ts` and migration `0019_device_link.sql`; routes `GET /settings/device` (the link
-    page), `GET /signin/link/<token>` (the sign-in page with one "Continue as" button) and `POST /signin/link`. Your
-    apps has the `device` link beside Data. Texts in English, German, French and Spanish.
+  - `src/accounts/DeviceLinks.ts` and `device_link` in `migrations/0001_baseline.sql`; routes `GET /settings/device`
+    (the link page), `GET /signin/link/<token>` (the sign-in page with one "Continue as" button) and `POST
+    /signin/link`. Your apps has the `device` link beside Data. Texts in English, German, French and Spanish.
   - The beta's gate on `/signin/sso` and the work-email field is gone; `docs/design/magnetic-beta.md` says so.
 - Checked: `localTls.test.ts` (the chain, the names, a real TLS handshake trusting only the authority, a certificate
   kept or made again, the secret key), `deviceLinks.test.ts` (once, ten minutes, only the hash), `network.test.ts` (the
@@ -677,7 +668,7 @@ person's own workspace and an org's workspace go by the person's and the org's n
 
 ### S10b: stateui-mcp signed in to a node (20 November 2026)
 - **Magnetic**:
-  - Migration `0020_agent_token.sql`: `agent_code` (an ask, then its code, ten minutes) and `agent_token` (access and
+  - `migrations/0001_baseline.sql`: `agent_code` (an ask, then its code, ten minutes) and `agent_token` (access and
     refresh hashes), both referencing the person and the approving `session` row, deleted with it.
   - `src/accounts/AgentTokens.ts`: `ask`, `allow` (once, from the same session), `exchange` (the code taken once, the
     redirect and the challenge checked), `refresh` (taken once, a new pair), `find`; `isLoopbackRedirect`, `isAgentAsk`.
@@ -716,7 +707,7 @@ person's own workspace and an org's workspace go by the person's and the org's n
 - **Magnetic**:
   - Dependencies `@node-saml/node-saml` 5.2, `@xmldom/xmldom` 0.8 (reading metadata) and `xml-crypto` (the test
     provider's signatures).
-  - Migration `0021_org_saml.sql`: `org_saml` (the metadata URL and XML, the provider's entity id, sign-in URL and
+  - `migrations/0001_baseline.sql`: `org_saml` (the metadata URL and XML, the provider's entity id, sign-in URL and
     certificates, the email attribute, `enabled`, `fetched_at`, `fetch_error`), `saml_request` (one sign-in: the
     browser's key hash, `next`, ten minutes, then the subject and profile once answered) and `saml_assertion` (hashes
     of assertions taken, until they expire).

@@ -38,9 +38,8 @@ marked. A share the person has not answered waits at the front of the grid with 
 
 ## Answers to shares
 - A share is an app a link was opened for (`link_grant_member`) or an app of one of the person's orgs they may open.
-- New shares wait (owner, 2026-11-18). `share_answer` (migration `0012_share_answers.sql`) holds each person's answer per
-  app: `accepted` or `rejected`. The migration records every link already opened as accepted, so nothing that was
-  on Your apps before starts to wait.
+- New shares wait (owner, 2026-11-18). `share_answer` holds each person's answer per app: `accepted` or
+  `rejected`.
 - `POST /shares/<app>/accept` and `POST /shares/<app>/reject` (signed in, same origin) answer `{ answered }`.
 - **Accept** keeps the app as one of the person's tiles.
 - **Reject** removes the tile and, in one transaction, drops the person's link membership for every link to that app,
@@ -56,8 +55,8 @@ marked. A share the person has not answered waits at the front of the grid with 
   cards must change order (a new share goes to the front).
 
 ## As built
-- `magnetic/migrations/0012_share_answers.sql`, `magnetic/src/sharing/ShareAnswers.ts`, `magnetic/src/sharing/Grants.ts`
-  (`join` clears a rejection).
+- `share_answer` in `magnetic/migrations/0001_baseline.sql`, `magnetic/src/sharing/ShareAnswers.ts`,
+  `magnetic/src/sharing/Grants.ts` (`join` clears a rejection).
 - `magnetic/src/home/HomeApp.ts` (`homeScreen`, `appGrid`, the models, `show`), `magnetic/src/http/home.ts`
   (`shareAccept`, `shareReject`), `magnetic/src/http/text.ts` (the `home.tab*`, `home.shared`, `home.accept`,
   `home.reject`, `home.usage*` and `home.profileText` texts in four languages), `magnetic/src/server/startMagnetic.ts`

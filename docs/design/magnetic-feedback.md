@@ -12,7 +12,7 @@ feature requests."
   opening it closes Share and the appearance sheet.
 
 ## Decisions
-- **Kept in the database, `feedback`** (migration 0009): the person, the kind, the text (up to 4000 characters), the
+- **Kept in the database, `feedback`**: the person, the kind, the text (up to 4000 characters), the
   workspace, the app and its name, what the editor showed (the frame size and the language), the browser, and when.
   It goes with the person's account (`ON DELETE CASCADE`).
 - **Emailed to whoever runs the server**: the privacy contact (`MAGNETIC_CONTACT_EMAIL`), through the mailer that
@@ -24,7 +24,7 @@ feature requests."
 - Only people who may edit the app see the editor, so only they can send. Visitors to a shared app have no button.
 
 ## As built
-- `magnetic/src/feedback/Feedback.ts`: the store; `migrations/0009_feedback.sql`.
+- `magnetic/src/feedback/Feedback.ts`: the store; `feedback` in `magnetic/migrations/0001_baseline.sql`.
 - `magnetic/src/server/startMagnetic.ts`: `POST /edit/<app>/feedback`.
 - `magnetic/src/mail/Mailer.ts`: `feedback()` and `feedbackMessage()`.
 - `magnetic/src/editor/EditorApp.ts`: the `bug` icon, the button in the top right corner and `feedbackSheet`;

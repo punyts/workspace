@@ -120,9 +120,9 @@ the `/paths` sources table already uses it.
 
 ### Storage
 - **Magnetic**: one table, `permission` (the fields above; `owner` as `numeric(20)`, `pattern` as `text`, `rights` as
-  `text[]`), and `kind`, indexed by `(owner, subject)`, `(parent)` and
-  `(pattern)`, without row-level security, as the tables it replaced (see Decisions). A migration moves `app_access`, `app_setting.open_to_org`, `link_grant`, `link_grant_member` and
-  `state_grant` into it and drops them. The audit is unchanged: every made and revoked entry is an `audit_event`.
+  `text[]`), and `kind`, indexed by `(owner, subject)`, `(parent)` and `(pattern)`, without row-level security, as the
+  tables it replaced (see Decisions). It replaces `app_access`, `app_setting.open_to_org`, `link_grant`,
+  `link_grant_member` and `state_grant`. The audit is unchanged: every made and revoked entry is an `audit_event`.
 - **stateui-mcp alone**: a `PermissionStore` port, with a file store (one JSON file per owner) for the local server,
   which has one owner and today no sharing. The rules (`allowsIn`, `checkNewEntry`) are pure functions beside the port.
 - An org's policy (`grantsInOrg`, `externalLinks`) is checked when an entry is made, as now.
@@ -144,7 +144,7 @@ the `/paths` sources table already uses it.
 ## Stages
 1. **S14a, the matcher and tokens**: the matcher in `@punyts/state`; state-sync's grant claims on `owner` and
    `pattern`, relays filtering by pattern, `revoked { entry }`. Tests in state-sync and statenet.
-2. **S14b, the table**: Magnetic's `permission` table and migration, the `Permissions` service with `allows`,
+2. **S14b, the table**: Magnetic's `permission` table, the `Permissions` service with `allows`,
    `make`, `pass`, `revoke`; `AppAccess`, `Grants`, `StateGrants` and `SharedData` ask it; links open as passed-on
    entries. Shared by me lists entries.
 3. **S14c, `/paths` and stateui-mcp**: `/paths` checks signed tokens, `PathGrants` goes; stateui-mcp's
@@ -203,9 +203,6 @@ Made building S14b:
   route as relays are told `revoked { entry }`: the route runs beside the table.
 - **Without a secret key, Magnetic signs `/paths` tokens with keys kept in memory** (`MemoryGrantKeys`), as a local
   server does: its owner keys need the secret key to keep private keys sealed.
-- **The migration names moved rows with `md5(...)::uuid`** (an `opened` entry from its link and person), the one place
-  ids come from SQL: a migration has no code to call `randomUUID()`, and the ids are stable if it is run again on a
-  copy.
 
 ## As built
 
@@ -223,8 +220,7 @@ S14a (2026-11-22):
   from `@punyts/state`.
 
 S14b (2026-11-22):
-- Magnetic `migrations/0024_permission.sql`: the `permission` table, the moved rows, the `admins` entries, and the
-  old tables dropped. Test: `src/storage/permissionTable.test.ts`.
+- Magnetic `migrations/0001_baseline.sql`: the `permission` table.
 - `src/permissions/Permissions.ts`: `make` (parent live, same owner, `patternContains`, rights a subset, `until` cut,
   `MAX_DEPTH` 8), `revoke` (with everything passed on), `holder` (a person's subjects: number, org members and roles,
   groups, `everyone`), `allows`. Test: `src/permissions/Permissions.test.ts`.

@@ -366,7 +366,7 @@ N6 is the largest: about as much work as N2 to N5 together.
   Instead, every invite is the same to the admin, and it reaches the person two ways:
   - by email;
   - on their Your apps, if their verified email has an account, where they Join or Decline.
-- **The data:** `org_invite.declined_at` (migration 0006), with an index on open invites by email.
+- **The data:** `org_invite.declined_at`, with an index on open invites by email.
   - `Orgs.pendingFor` lists a person's open, current invites to orgs they are not in.
   - `acceptInvite` and `decline` act by invite id, only for the person whose verified email the invite names.
   - A declined invite's link stops working.
@@ -401,7 +401,7 @@ N6 is the largest: about as much work as N2 to N5 together.
 
 ### N6: connections
 - **Done as planned:**
-  - a workspace's connections (migration 0007: `connection`, `connection_oauth`);
+  - a workspace's connections (`connection`, `connection_oauth`);
   - sealed secrets;
   - the four sign-ins, including OAuth sign-in with PKCE and refresh;
   - endpoints with `{param}` templates;
