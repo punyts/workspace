@@ -64,7 +64,7 @@ from primitives, like Ridgeline's.
 | Gap | Why | What would close it | Size |
 |---|---|---|---|
 | No mesh editing | Geometry is a primitive or an imported GLB; there are no vertices, extrusion, booleans or subdivision | A mesh-editor component that keeps its vertices and faces in state | Large, a project of its own |
-| No gizmos | A part drags on its ground only; lifting, turning or scaling it needs fields or buttons beside the scene, and a `repeat3d` copy does not drag | A move and rotate gizmo for the picked node, and dragging of `repeat3d` copies | Medium |
+| No gizmos | A part drags on its ground only; lifting, turning or scaling it needs fields or buttons beside the scene | A move and rotate gizmo for the picked node | Medium |
 | No export | A scene is JSON state | An effect function that builds a GLB (or STL) file from the scene state and stores it as a file | Small to medium |
 
 ---
@@ -92,5 +92,5 @@ Its rules are in the example README and in `example/src/ridgeline.ts`.
 - A `scene3d` takes its height from its `theme` (`{ "scene3d": { "height": "520px" } }`), not from the host element's
   size.
 
-**Next steps, in order of value:** dragging `repeat3d` copies and a GLB export effect. Real-time games and mesh
+**Next steps, in order of value:** a GLB export effect. Real-time games and mesh
 modeling are separate projects.
