@@ -135,8 +135,8 @@ the `/paths` sources table already uses it.
 - The share dialog, the org's app access and the Data page make entries; they do not change otherwise.
 
 ### What stays out
-- **Requests**: the `request` right exists and is checked; a request is answered `unavailable` until "requests that
-  wait for an offline owner" is designed (the direction's next later item).
+- **Requests**: the `request` right exists in the table; what a request does is designed in
+  [statenet-requests.md](statenet-requests.md).
 - **Read keys and tags**: granting read as handing out a key, revoking as rotating it, and relays that see tags. They
   need encrypted packets, which come with the binary wire format.
 - **Denials and conditions** (a right only during working hours, only from a network).

@@ -55,16 +55,21 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
    - built 2026-11-22: what landed is kept by the storage, so a save sent again after an aggregate restarted writes
      nothing;
-   - built 2026-11-22, not deployed: relays under relays
+   - built 2026-11-22, deployed 2026-11-23: relays under relays
      ([design/statenet-relay-chains.md](design/statenet-relay-chains.md)). Every relay of the tree is listed with its
-     parent, so routing reaches the nodes below a nested relay. Mesh protocol 3: every node deploys together.
+     parent, so routing reaches the nodes below a nested relay. Mesh protocol 3.
 3. **Permissions, S14** ([design/statenet-permissions.md](design/statenet-permissions.md)): built 2026-11-22
    (S14a to S14c). One table of path patterns per owner replaces app access, links, state grants, dataset
    shares and the `/paths` grant. The matcher is in `@punyts/state`, Magnetic keeps every right in
    `permission`, and `/paths` reads with signed tokens. The `request` right waits for "requests that wait for an
    offline owner" below.
-4. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): requests that wait
-   for an offline owner; the binary wire format; WebRTC, then WebTransport.
+4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): designed
+   2026-11-23, waiting for the owner. A change from someone with `request` and not `write` waits on the owner's node
+   until the owner or a holder of read and write decides it. R2 changes stateui-app's runtime
+   (`$.runtime.requests`, three commands, a notice) and stateui-components' toast: this machine asks the UI machine
+   before building that half.
+5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
+   format; WebRTC, then WebTransport.
 
 The tower owns `statenet`, `state-sync`, the mesh and Magnetic's `src/statenet`. Work here that needs a change there
 asks first, in this file.
