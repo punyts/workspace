@@ -11,6 +11,9 @@ Updated 2026-11-22.
 Built 2026-11-22, not deployed: the agent sees the page ([design/magnetic-agent-browser.md](design/magnetic-agent-browser.md)).
 Magnetic's agent has `ui_preview`, `ui_screenshot` and `ui_interact` through one shared headless Chromium per server.
 
+Built 2026-11-22: `window` resizes from every edge and snaps when dragged to an edge
+([design/stateui-desktop-stage-2.md](design/stateui-desktop-stage-2.md)).
+
 Nothing in progress. After the tower's `/paths` route lands:
 
 1. **The clients of `/paths`** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): a file reference to
@@ -53,5 +56,4 @@ These wait until users ask for them or the load needs them:
   files folder).
 - The rich-text editor's later items: images as app files (after `/paths`), comments anchored to text, character-level
   merging.
-- Vector map tiles (a WebGL chunk), resizing a window from its left or top edge and snapping to edges, and SCIM's
-  extras (roles from the provider, more attributes, bulk requests).
+- Vector map tiles (a WebGL chunk), and SCIM's extras (roles from the provider, more attributes, bulk requests).

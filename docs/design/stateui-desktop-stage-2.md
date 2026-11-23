@@ -56,8 +56,13 @@ and resized when it sits in an `adhoc` layout. Lumen's composed `appWindow` and 
 - **Removed:** the composed `appWindow` and the pointer-down focus code in `bootstrap.ts`.
 
 ## Not in this stage
-- Resizing from the left or top edge (which would also move the window).
-- Snapping by dragging a window to a screen edge.
+Built later (2026-11-22, asked for as the next unscheduled UI item):
+- Resizing from the left or top edge and every corner: the window moves so the opposite edge stays.
+- Snapping by dragging: a move dropped within 12 px of the layout box's left, right or top edge raises `snapLeft`,
+  `snapRight` or `maximize` instead of writing, only when that frame button shows, with an outline of where while the
+  pointer is there. The window still never snaps itself; Lumen answers the events as it answers the buttons. Tests:
+  `src/shared/window/geometry.test.ts` and three more in `test/composites/window.browser.test.ts`; in Lumen a real
+  drag of the left edge resized Notes and a drop at the left edge snapped it.
 
 ## Checks
 - **Component browser tests:**
