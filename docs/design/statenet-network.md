@@ -350,7 +350,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 ## As built
 
 ### S7: link rules, sealed links and certificate renewal (19 November 2026)
-- **statenet** `src/mesh/`, mesh protocol 2, 3 since relays under relays (a node of an older protocol is refused, so servers and relays are upgraded
+- **statenet** `src/mesh/`, mesh protocol 2, 3 since relays under relays, 4 since requests (a node of an older protocol is refused, so servers and relays are upgraded
   together):
   - `mayLink(dialler, server)` (`certificates.ts`) is the table of who links to whom. The server end refuses a
     hello whose certificate's role may not link to its own, or names another role than the hello; the dialling end
@@ -393,7 +393,8 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     (`src/FileEpochStorage.ts`: a namespace's file and, beside it, the newest epoch it was saved under).
   - The saves of a namespace run one at a time. Those that arrive while one runs are folded into the newest, and
     every node waiting on an earlier revision is answered when it lands. A save at or below what landed under its
-    epoch writes nothing (a resend). A save under an older epoch is answered `fenced`, by the aggregate's own count
+    epoch writes nothing (a resend): by revision, then by serial, which counts the saves that take no revision
+    (`$.server` writes, requests; [statenet-requests.md](statenet-requests.md)). A save under an older epoch is answered `fenced`, by the aggregate's own count
     or by the storage's fence, and a waiting save of the old owner is fenced when the new owner's takes its place.
     `mayPersist` lets an aggregate with the directory refuse a node that does not order the address.
   - `createAggregateStorage(link)` is a node's storage: a save is done when the aggregate answers `saved`, which is

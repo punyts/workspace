@@ -63,9 +63,10 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    shares and the `/paths` grant. The matcher is in `@punyts/state`, Magnetic keeps every right in
    `permission`, and `/paths` reads with signed tokens. The `request` right waits for "requests that wait for an
    offline owner" below.
-4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): designed
-   2026-11-23, waiting for the owner. A change from someone with `request` and not `write` waits on the owner's node
-   until the owner or a holder of read and write decides it. R2 changes stateui-app's runtime
+4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): R1 built
+   2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), not deployed. A change from someone with
+   `request` and not `write` waits on the owner's node until the owner or a holder of read and write decides it. R2
+   adds Postgres (`PgEpochStorage` with the serial and requests) and changes stateui-app's runtime
    (`$.runtime.requests`, three commands, a notice) and stateui-components' toast: this machine asks the UI machine
    before building that half.
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire

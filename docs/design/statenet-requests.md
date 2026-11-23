@@ -1,6 +1,6 @@
 # Requests that wait for the owner
 
-Status: designed 2026-11-23, not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
+Status: R1 built 2026-11-23 in state-sync and statenet, not deployed; R2 and R3 not built. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).
 
 Asked for on 2026-11-23: "Design it", to the recommendation to design requests that wait for an offline owner next.
@@ -37,14 +37,15 @@ authority) is always on; the person who owns the namespace, and who decides, may
   `$.runtime.requests.<id>`: `{ path, op, value, at, until, status, mine: true }`. An app shows it beside the data
   ("waiting for approval") by binding that path; one that does not still shows a runtime notice, `syncRequested`
   ("Sent for approval."), as a refused change shows `syncRejected` today.
-- When the request is decided, the requester's session gets `decided { id, status }` and the runtime updates the
-  entry. An approved change then arrives as any change does, in the next `changes`. A requester who is offline gets
+- When the request is decided, the requester's session gets `decided { id, status, decidedAt, code?, note? }` and the
+  runtime updates the entry. An approved change then arrives as any change does, in the next `changes`. A requester who is offline gets
   the decisions of their requests in the `welcome` of their next session, so a request is never decided unseen.
 - The requester may withdraw a pending request (`withdraw { id }`): its status becomes `withdrawn`.
 
 ### Who decides
 - The owner, and anyone who holds both `read` and `write` on the request's path (an org's admins, through their
-  `admins` entry). `write` alone does not see values, so it does not let a person approve one.
+  `admins` entry), with a read that covers the path rather than one cut to parts of it. `write` alone does not see
+  values, so it does not let a person approve one.
 - A decider's session gets the pending requests it may decide in its `welcome` and each new one as `requested { … }`;
   the runtime writes them to `$.runtime.requests.<id>` with `mine: false` and `by`. The commands `request.approve`,
   `request.reject` (with an optional note) and `request.withdraw` act on them; the vocabulary of commands is a closed
@@ -58,11 +59,11 @@ authority) is always on; the person who owns the namespace, and who decides, may
   itself, so a person with `read` and `write` cannot use it to apply something else.
 
 ### Expiry
-- A request lives seven days by default (`until`). An entry may say less: `requestDays` on a permission entry with
-  `request` (1 to 30). It never lives longer than the entry that allowed it; revoking that entry ends its pending
-  requests as `revoked`.
-- Expiry is checked by the authority when it loads the namespace and once a minute while it runs. An expired request
-  ends `expired` and the requester is told as with any decision.
+- A request lives seven days by default (`until`), an option of the authority (`requests.lifeMs`). An entry may say
+  less: `requestDays` on a permission entry with `request` (1 to 30), which Magnetic turns into the grant's expiry
+  (R3). It never lives longer than the grant that allowed it; revoking an entry its grant rests on ends it as `revoked`.
+- Expiry and revocation are checked by the authority when it loads the namespace, at each hello and decision, and
+  once a minute while it runs. An expired request ends `expired` and the requester is told as with any decision.
 - A decided request is kept for 30 days after its decision, so a requester who comes back late still learns it, then
   dropped. Its change id stays in `applied` if it was applied.
 
@@ -81,14 +82,21 @@ authority) is always on; the person who owns the namespace, and who decides, may
 - Files and memory: in the stored namespace as it is.
 
 ### The protocol
-- **Sync protocol 3** (state-sync): the ack result `requested` with `request: id`; `requested { request }` and
-  `decided { id, status, code? }` from the authority; `approve { id }`, `reject { id, note? }` and `withdraw { id }`
-  from a client, answered by `decided`; `welcome.requests`. Protocol 2 clients keep working: they are never sent a
-  request, and a change that would become one is rejected with `access`, as today.
+- **Sync protocol 3** (state-sync): the ack result `requested` (the request's id is the change's, so the ack names
+  it); `requested { request }` and `decided { id, status, decidedAt, code?, note? }` from the authority; `approve
+  { id }`, `reject { id, note? }` and `withdraw { id }` from a client, answered by `decided`, or by an `error`
+  (`no-request`, `not-allowed`, `unsaved`) when the authority does not make the decision; `welcome.requests`.
+  Protocol 2 clients keep working: they are never sent a request, and a change that would become one is rejected with
+  `access`, as today.
 - **Grants**: `GrantRight` gains `request`, so a token signed from an entry with `request` lets a relay pass the
   change on. The relay does not decide anything: the authority does.
-- **The mesh**: a forwarded write's `WriteOutcome` gains `{ result: 'requested', id }`; new mesh messages `decide`
-  and `decided` carry a decision from a session at a relay to the owner node. Mesh protocol 4.
+- **The mesh**: a write carries the writer's access to the owner node, between owner nodes and in a handoff's queue,
+  and its `WriteOutcome` gains `{ result: 'requested', epoch }`. Mesh protocol 4. A decider at another node decides
+  over a sync session the mesh tunnels to the owner's authority (`OwnerMesh.connect`), so the mesh needs no message
+  of its own for decisions.
+- **Saves**: a request changes what is saved without taking a revision, as a `$.server` write does. The stored
+  namespace counts every saved change (`serial`), and storages and the aggregate skip a save as one sent again only
+  when its revision, then its serial, is no higher than what landed.
 
 ### Magnetic
 - The share dialog and the Data page offer "can suggest changes" (`request`) beside read and write.
@@ -109,12 +117,38 @@ authority) is always on; the person who owns the namespace, and who decides, may
 - Every decision reaches the requester, online or at their next session, until 30 days after it was made.
 - Request ids are uuids, never integer-like (they are keys of `$.runtime.requests`).
 
+## As built
+R1 (2026-11-23):
+- **state-sync** (sync protocol 3):
+  - `src/Messages.ts`: `PROTOCOL_VERSION` 3, `REQUEST_STATUSES`, `SyncRequest`, `requested`, `decided`,
+    `approve`, `reject`, `withdraw`, the ack result `requested`, `welcome.requests`, `REQUEST_ERROR_CODES`;
+    `src/Validate.ts` checks them.
+  - `src/authority/NamespaceStorage.ts`: `StoredRequest`, `StoredNamespace.requests` and `serial`, `serialOf`,
+    `isResave`.
+  - `src/authority/Authority.ts`: `AuthorityOptions.requests` (`RequestOptions`), pending requests, `decide`,
+    `requests`, `submit`, `ChangeContext.request`, the sweep, `serial`.
+  - `src/authority/Grants.ts`: `GrantRight` `request`.
+  - `src/authority/Ownership.ts`: `WriteOutcome` `requested`, `QueuedWrite`, `OwnerNode.write` and `NodePeer.write`
+    with access, `OwnerNodeOptions.access`, ordering through `submit`; `createMemoryEpochStorage` by `isResave`.
+  - `src/Client.ts`: `onRequests`, `requests()`, `approve`, `reject`, `withdraw`; a `requested` ack leaves the
+    outbox.
+- **statenet** (mesh protocol 4): `src/mesh/protocol.ts` (access in a handoff's queue), `OwnerMesh.ts` (access on
+  forwarded writes), `serving.ts`, `MeshUpstream.ts`, `linkClient.ts`, `ClientServer.ts` (acks `requested`),
+  `Aggregate.ts` and `src/FileEpochStorage.ts` (by `isResave`, `epoch.json` with `serial`).
+- Tests: state-sync `src/authority/Requests.test.ts` (a request told to its requester and the owner; protocol 2 and
+  a reader rejected; approval through the owner's logic with `stale` and the request context, and a resend after it;
+  a logic refusal on approval; who may decide and withdraw; expiry, revocation and forgetting; the limit per
+  requester; a request across a restart in both welcomes; a sync client's list approved by the owner's client; the
+  serial in memory storage; an owner node answering `requested`); statenet `src/mesh/groups.test.ts` ("requests
+  across groups": a write from a node of another group kept as a request and approved by the owner) and
+  `src/mesh/aggregate.test.ts` (a save that takes no revision written by its serial, in memory and in files).
+
 ## Stages
 1. **R1, state-sync and statenet**: the pending request in the authority (`StoredNamespace.requests`, limits,
    expiry), sync protocol 3, `GrantRight` `request`, the client's list and its events, `WriteOutcome` `requested`,
    mesh protocol 4 with `decide` and `decided`, `FileEpochStorage`. Tests in state-sync (`Authority.test.ts`,
    `Client.test.ts`) and statenet (`groups.test.ts`: a request from a node of another group decided by the owner).
-2. **R2, storage and the runtime**: `PgEpochStorage` with `namespace_head.requests` and `pending_request` (stateui-pg
+2. **R2, storage and the runtime**: `PgEpochStorage` with `namespace_head.requests`, the serial and `pending_request` (stateui-pg
    migration, Magnetic's baseline edited and databases reset); stateui-app `$.runtime.requests`, the three commands
    and the `syncRequested` notice; stateui-components' toast for it. stateui-app and stateui-components are the UI
    machine's, so R2's runtime half is asked for in [work-split.md](../work-split.md) first.
@@ -124,12 +158,10 @@ authority) is always on; the person who owns the namespace, and who decides, may
    adjusted by the app's logic.
 
 ## Decisions
-To be made with the owner:
-- **A change becomes a request by itself** when the sender holds only `request`. Proposed: yes, so an app needs no
-  code to support suggesting changes. The alternative, a change marked as a request by the app, would let an app with
-  `write` ask for approval too; that can be added later as a flag on the change.
-- **Who decides**: the owner and holders of `read` and `write`. Proposed as above; the alternative, the owner only,
-  would leave an org's requests to its owner alone.
+Made with the owner (proposed with the design; the owner said "Yes, build R1", 2026-11-23):
+- **A change becomes a request by itself** when the sender holds only `request`, so an app needs no code to support
+  suggesting changes. A change marked as a request by an app with `write` can be added later as a flag on the change.
+- **Who decides**: the owner and holders of `read` and `write`.
 - **Seven days by default, 1 to 30 per entry, decided requests kept 30 days.**
 - **No e-mail** for new requests in this design.
 
@@ -139,3 +171,21 @@ Made in this design:
   one answer, the one stale changes have.
 - The requester's optimistic change is taken out and kept as a request in `$.runtime`, not left in the shared state,
   so nobody mistakes a suggestion for what was saved.
+
+Made while building R1:
+- The request's id is the change's id. A resend of the change is answered as the first one was (`requested` while it
+  waits, `applied` once approved), as a resent change is today.
+- The authority, not the permission entry, holds a request's life: it sees a grant, not the entry. `requestDays`
+  reaches it as the grant's expiry, which caps the life.
+- The mesh carries no `decide` message: a decider at another node already has a tunnelled session with the owner's
+  authority, which speaks sync protocol 3.
+- Owner nodes order writes through `Authority.submit`, which answers at once with the writer's access, in place of one
+  ordering session per authority without access.
+
+## Open items
+- A relay's browser server (`ClientServer`) acks a request `requested` but sends no `requested`, `decided` or
+  `welcome.requests`: it serves a subscription, not a session with the authority. A requester there learns that a
+  request was approved when its change arrives.
+- Magnetic's authorities (`AppAuthorities`) and the statenet's (`Statenet.ts`) check no access today (who connects is
+  decided before the session); requests need `AuthorityOptions.access`, which R3 wires.
+- `PgEpochStorage` keeps no serial until R2: it skips a save at the same revision, a request among them.
