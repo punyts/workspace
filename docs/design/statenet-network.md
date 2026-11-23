@@ -422,8 +422,11 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     told so. Relays still get state from the nodes, until S9.
   - **No `statenet-aggregate` command**: statenet has no database driver, so a process with Postgres is Magnetic's
     to start (S11). A file-backed one has no command: a local Magnetic keeps the aggregate in its process (S10).
-  - **A restarted aggregate forgets what landed**, so a save sent again after its restart is written once more with
-    the same content. The storage's fence still holds.
+  - **What landed is kept by the storage, not only the aggregate** (22 November 2026): a save at or below the
+    revision stored under its epoch writes nothing (`EpochStorage`; `createMemoryEpochStorage`, `createFileEpochStorage`
+    with the revision in `epoch.json`, `PgEpochStorage` by `namespace_head`), so a save sent again after an aggregate
+    restarted is answered as saved without a write, and an older one cannot take the state back. Tests: statenet
+    `src/mesh/aggregate.test.ts`, stateui-pg `src/state/directory.test.ts`.
   - **The limit of held changes is counted per namespace** (22 November 2026): state-sync's authority takes
     `maxUnsaved` (10000 by default), the changes it holds that no landed save covers. A node with no link holds its
     save in `MeshUpstream` until the link is back, so its changes count up; past the limit a client change is rejected

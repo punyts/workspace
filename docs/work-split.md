@@ -45,10 +45,13 @@ the limit of held changes on a node with no link and the notice of a refused cha
 ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-route.md)).
 
 1. **The `/paths` tiles** ([design/statenet-paths-route.md](design/statenet-paths-route.md)): the MapTiler tile cache, a
-   row of the sources table, once the owner confirms MapTiler's terms.
+   row of the sources table. On hold (owner, 2026-11-22).
 2. **The statenet's open items** ([design/statenet-network.md](design/statenet-network.md), "As built" and its notes):
-   - a restarted aggregate forgets what landed, so a save sent again is written again;
-   - only one relay between a node and the aggregate is routed.
+   - built 2026-11-22: what landed is kept by the storage, so a save sent again after an aggregate restarted writes
+     nothing;
+   - relays under relays ([design/statenet-relay-chains.md](design/statenet-relay-chains.md)): designed 2026-11-22,
+     waiting for the owner. Every relay of the tree is listed with its parent, so routing reaches the nodes below a
+     nested relay.
 3. **Permissions, S14** ([design/statenet-permissions.md](design/statenet-permissions.md)): built 2026-11-22
    (S14a to S14c). One table of path patterns per owner replaces app access, links, state grants, dataset
    shares and the `/paths` grant. The matcher is in `@punyts/state`, Magnetic keeps every right in
