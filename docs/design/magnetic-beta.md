@@ -13,14 +13,12 @@ the 100 person limit is hit, the login will say we've met our limit, but they ca
 contact them when we do the next beta test." That is **Signing up** below; it changes steps 1 to 4 where it says.
 
 ## Signing up (the beta as it runs now)
-- **People sign in with the server's providers** (LinkedIn on the host), or with their work email through an org's own
-  provider (owner, 2026-11-20: org sign-in on again in the beta, statenet-network.md S10). Since nobody makes an org in
-  the beta, that is an org made before it.
-- **The admin's sign-in makes the org.** When someone whose verified email is in `MAGNETIC_ADMIN_EMAILS` signs in (or
-  opens Your apps) and there is no beta org yet, it is made with them as its owner, as Start the beta does.
-- **Everyone else who signs in joins it**, as a builder with a place, while places are left: at sign-in, and again on
-  Your apps for those who signed in before the org was there. The link to post is the server's own address; the beta
-  link still works too.
+- **People sign in with the server's providers** (LinkedIn on the host), with an emailed sign-in link, or with their
+  work email through an org's own provider ([magnetic-orgs-and-invites.md](magnetic-orgs-and-invites.md)).
+- **The server makes the beta org at start** ("Magnetic beta", with personal workspaces off and its $500 a month) and
+  invites the admins (`MAGNETIC_ADMIN_EMAILS`) as its owners (owner, 2026-11-23).
+- **Opening the beta link signed in joins it**, as a builder with a place, while places are left. Signing in anywhere
+  else joins nobody. An invite from the org's owners also adds someone, and takes a place the same way.
 - **Once the places are taken**, the sign-in page says so: "The beta is full. It has reached its 100 people. You can
   still sign in with LinkedIn, and we'll contact you when we run the next beta test." They sign in without a place or
   free agent use, and the refusals and the Agent use page say the same.
@@ -34,13 +32,12 @@ contact them when we do the next beta test." That is **Signing up** below; it ch
   limit.
 - All of this holds while `--beta-org` is set; without it, sign-in and orgs are as before.
 
-## How it goes (with the link alone, as first built)
-1. An admin opens **Admin** and presses **Start the beta**. That makes the org `beta` ("Magnetic beta") with them as
-   its owner, and shows the **beta link**, `https://<server>/beta/<code>`, with the places taken.
-2. The admin hands out the link. Whoever opens it signs in (or signs up), then sees how many of the 100 places are left
-   and what comes with one, and presses **Join the beta**. They join the org as a builder and get $5 of agent use.
-3. Once 100 people hold a place, the link says the beta is full: "It has reached its 100 people. Try again after the
-   beta test." They do not join.
+## How it goes
+1. The admin opens **Admin**, which shows the **beta link**, `https://<server>/beta/<code>`, with the places taken.
+2. The admin hands out the link. Whoever opens it signs in (or signs up) and comes back to it, joins the org as a
+   builder and gets $5 of agent use; the page says so.
+3. Once 100 people hold a place, the link says the beta is full: "It has reached its 100 people. We'll contact you when
+   we run the next beta test." They do not join.
 4. Someone who signs up without the link gets no free agent use. While places are left, the agent tells them it comes
    with the beta's invite link; once full, that the beta has reached its 100 people and to try again after it.
 
@@ -53,21 +50,23 @@ contact them when we do the next beta test." That is **Signing up** below; it ch
   across restarts and servers, needs no table, and cannot be guessed. A wrong code, or no beta org yet, is a 404.
 - **The last place is taken once.** Joins lock the org's row, so two people pressing at the same time cannot both get
   the hundredth place.
-- **Joined members build where they like**: their own workspace or the beta org's. The allowance is the person's,
-  wherever they spend it.
-- **The server's monthly budget is $500**, the whole beta: 100 × $5.
+- **Members build in the beta org's workspace**: it has personal workspaces off, so `/new` makes their apps there.
+  The allowance is the person's, within the org's $500 a month.
+- **The server's monthly budget is $550**: the beta org's $500 and the company org's $50.
 - Without `--beta-org` everything is as before: the first `--allowance-users` people to sign in get the allowance.
 
 ## Settings
 - `MAGNETIC_BETA_ORG` / `--beta-org` (the slug, `beta` on the host), with `MAGNETIC_ALLOWANCE_USERS='100'`,
-  `MAGNETIC_USER_ALLOWANCE='5'` and `MAGNETIC_MONTHLY_BUDGET='500'` in `infra/aws/host-deploy.sh`. It needs
+  `MAGNETIC_USER_ALLOWANCE='5'`, `MAGNETIC_BETA_BUDGET='500'` and `MAGNETIC_MONTHLY_BUDGET='550'` in
+  `infra/aws/host-deploy.sh`. It needs
   `MAGNETIC_SECRET_KEY`.
 
 ## As built
-- `magnetic/src/beta/Beta.ts`: the code, the status, starting the org, joining, and a person's place.
+- `magnetic/src/beta/Beta.ts`: the code, the status, joining, and a person's place. The org is made by
+  `magnetic/src/orgs/ServerOrgs.ts` at start.
 - `magnetic/src/agent/Budgets.ts`: the allowance by beta place, and the refusals.
 - `magnetic/src/server/betaRoutes.ts` and `magnetic/src/http/betaPage.ts`: `/beta/<code>`, in four languages.
-- Admin: Start the beta and the link on the overview; "Beta place n" and the free use by place on People.
+- Admin: the link on the overview; "Beta place n" and the free use by place on People.
 - The Agent use page says the beta is full, or that free use comes with the invite link.
 - Tests: `src/server/beta.test.ts`, options.
 

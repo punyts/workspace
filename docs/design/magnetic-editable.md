@@ -27,8 +27,10 @@ Settings, Shared by me, privacy and the admin pages are server HTML and stay cod
 ### Three versions of each page
 - **Magnetic's code version** of each of the four pages (sign-in, link, Your apps, editor) is an app in the system
   workspace, made from its `PageSpec` with the agent's tools (`PageApps`), and made again when the spec's hash changes.
-- **An admin's draft** is an app of the same name in a workspace of its own, the pages workspace
-  (`PAGES_WORKSPACE_ID`), so a draft never shares models or themes with the code version or with a person's apps.
+- **An admin's draft** is an app of the same name in the pages workspace, so a draft never shares models or themes with
+  the code version or with a person's apps. With `--internal-org` the pages workspace is the company org's workspace
+  (Magnetic's pages are in the company org, owner, 2026-11-23); without one it is a workspace of its own
+  (`PAGES_WORKSPACE_ID`).
 - **The published version** is what Publish stored in `magnetic_page`: the assembled document and icons the sign-in and
   link pages serve, and the app with every part it reaches, from which a person's copy is made.
 - **A person's copy** of Your apps and of the editor is an app in their own workspace, made from the published version
@@ -38,7 +40,8 @@ Settings, Shared by me, privacy and the admin pages are server HTML and stay cod
 ### Who edits what
 - The admins (`MAGNETIC_ADMIN_EMAILS`, with a verified email) edit the drafts (owner, 2026-11-18).
   `reach(userId, appId)` in `startMagnetic.ts`, the one gate of the editor's routes, finds an admin's drafts in the
-  pages workspace with `manage`. Nobody else reaches them: a non-admin gets what any app they cannot reach gives.
+  pages workspace with `manage`. In the company org its owners and admins also manage them, as they do every app of
+  the org. Nobody else reaches them: anyone else gets what any app they cannot reach gives.
 - The agent works on a draft as on any app; its turns are charged to the admin's budget.
 - Each person edits their own Your apps and editor (owner, 2026-11-18): "Your pages" on Your apps has Edit and Reset
   for both. The agent may work on a person's Your apps as on their editor.
