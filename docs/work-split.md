@@ -4,7 +4,7 @@ Two machines build in this workspace: this one (the UI machine) and the tower (s
 each is working on, so neither starts the other's work. Update it when work starts or lands, and pull before starting
 anything.
 
-Updated 2026-11-23.
+Updated 2026-11-24.
 
 ## This machine
 
@@ -130,15 +130,14 @@ asks first, in this file.
 
 ## The owner
 
-- **Production is down since the deploy of 2026-11-23** (image `2b5287f-202611240434`): both Magnetic servers restart
-  on start with `null value in column "created_by" of relation "org"`. The hosted database still has the old baseline
-  (`org.created_by` and `org_invite.created_by` NOT NULL, no `permission.request_days` or `bound` kind, no
-  `dataset_setting`), because the changed baseline is not applied to a database that has it. Either reset the hosted
-  database (drops its data; there are no users), or apply those four differences by hand (nothing dropped), then
-  restart the servers. The UI machine was not allowed to change the hosted database.
+- The hosted database was aligned by hand on 2026-11-24 (owner's choice), after the deploy of 2026-11-23 (image
+  `2b5287f-202611240434`) left both servers crashing on the old baseline: `org.created_by` and `org_invite.created_by`
+  nullable, `permission.request_days` and the `bound` kind added, `dataset_setting` created with its policy, in one
+  transaction; nothing dropped. A changed baseline is not applied to a database that already ran it, so a later
+  baseline change needs the same by hand, or a reset.
 - `/magnetic/admin-emails` in SSM (us-east-1) set to `rodger@ai-minion.com` (asked 2026-11-23; the SSO session had
-  expired, so it is the owner's to run after `aws sso login --profile magnetic`). The next deploy resets the hosted
-  database (the baseline migration changed) and makes both orgs; invite and sign-in emails reach outside addresses
+  expired, so it is the owner's to run after `aws sso login --profile magnetic`). The servers make both orgs at start;
+  invite and sign-in emails reach outside addresses
   once SES is out of its sandbox.
 - Deploys (`node infra/aws/deploy.mjs`, with Docker Desktop running), stack changes and SSO. The next deploy carries
   Chromium (about 920 MB more image): check the t3.small's memory with an agent turn running.
