@@ -75,9 +75,9 @@ Next on this machine:
   transitions.
 - **Starter apps** ([design/magnetic-starter-apps.md](design/magnetic-starter-apps.md)): every person's own space has
   the showcase, Northwind, the desktop and Magnetic (owner, 2026-11-23). Magnetic's tile (their copy of the editor)
-  built 2026-11-23. Northwind and the desktop do not convert to parts (their `$.data` is UI state, and code runs them):
-  they wait on the owner's choice between rebuilding them as parts apps and a closed catalog of their functions.
-- **Magnetic's e2e suite passes** (2026-11-23: 269 passed, 23 skipped); the editor, inspector and screens specs that
+  built 2026-11-23. Northwind Ops and the Lumen desktop rebuilt as parts apps 2026-11-24, installed with the showcase
+  in every new workspace; not deployed.
+- **Magnetic's e2e suite passes** (2026-11-24: 269 passed, 23 skipped); the editor, inspector and screens specs that
   were stale are fixed.
 
 Real tiles in the example and the showcase wait for the tower's tiles.
