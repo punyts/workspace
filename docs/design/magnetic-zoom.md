@@ -1,6 +1,6 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
-Status: designed, not built. Asked for on 2026-11-23:
+Status: designed, not built. Its first stage, the URL, stands on its own. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
@@ -13,6 +13,25 @@ Then:
 > If we think about it, a user has their own <ownerid> and that's where we could say is their "personal" org. That is
 > where their state lives, and their changes to state at some level (data state might not be their data so changes
 > might live on another <ownerid>)
+
+And:
+
+> The navigation, currently, doesn't change the url for screens, nor does it anchor positions or modals. We can't use
+> the browser back button easily
+
+## Where you are is in the URL
+Today the URL names the app only: moving between screens, panning the board and opening a sheet or modal leave it
+as it is, so Back leaves the app instead of undoing the last move. With zooming, every place you can go is in the URL,
+and Back and Forward move between them:
+- **The level and the tile**: the org, the app (as in the table below).
+- **The screen**: the running app's screen as its path (`/apps/<app>/<screen>`), and in the editor the screen in view
+  (`/edit/<app>/<screen>`). Changing screen pushes a history entry.
+- **The position**: the board's pan and zoom in the hash (`#x,y,zoom`), replaced as it moves (`replaceState`, no entry
+  per frame), so a reload or a shared link opens at the same place.
+- **What is open**: a sheet or modal (Share, the inspector, the library, a dialog of the app) as a query
+  (`?open=share`). Opening it pushes an entry; Back closes it before it leaves the screen.
+- The running app is in the runtime frame, on another origin: it tells the page its screen and what it opened by
+  message, and the page owns the history. A link from outside opens the app on that screen with that sheet open.
 
 ## The four levels
 Each level is a board of tiles, drawn like the editor's screens board, and each has its own URL, so Back, reload and
@@ -57,10 +76,12 @@ links work the same as zooming.
 - Whether Your apps (`/`) becomes the Orgs level or stays as it is with the level bar.
 
 ## Stages
-1. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar.
-2. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor.
-3. The Orgs level, with the person's own space.
-4. The scale transitions.
+1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. It
+   needs no zooming and comes first.
+2. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar.
+3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor.
+4. The Orgs level, with the person's own space.
+5. The scale transitions.
 
 ## Decisions
 None yet.
