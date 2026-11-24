@@ -1,7 +1,7 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
-Status: stages 1 (the URL), 2 (the chords and the level bar), 3 (an org's apps) and 4 (the Orgs level) built
-2026-11-23, not deployed; stage 5 designed, not built. Asked for on 2026-11-23:
+Status: all five stages built 2026-11-23 (the URL, the chords and the level bar, an org's apps, the Orgs level, the
+scale transitions), not deployed. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
@@ -109,8 +109,17 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
   no bar of its own: its corner already names the app and the workspace, and its logo goes to Your apps.
 
 ## Moving between levels
+Built 2026-11-23 (stage 5).
 - A zoom is a scale transition from the tile to the full window (or back), then the next level's page. It is
   navigation, not one giant board: each level loads only its own tiles.
+- **Between pages it is a cross-document view transition.** Every level's page opts in (`@view-transition`), and one
+  element on each is named `zoom`: in the shell the whole page, on a board a mark. Zooming into a tile moves the mark
+  over the tile first, so the next page grows out of it; zooming out spreads the mark over the whole board, and the
+  page zoomed out to draws its mark over its selected tile, which sits in the middle at full size, so the page shrinks
+  into it. The server draws that mark, so it is there before the board's script runs.
+- **In the page** (the editor and the running app) it is a same-document view transition: the level left scales up and
+  fades as the next comes in, or the reverse going out.
+- Browsers without view transitions, and people who ask for reduced motion, go straight to the next level.
 - Zooming out from the running app returns to the editor on the screen that was showing.
 
 ## Open questions
@@ -129,7 +138,7 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
 2. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar. Built 2026-11-23.
 3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor. Built 2026-11-23.
 4. The Orgs level, with the person's own space. Built 2026-11-23.
-5. The scale transitions.
+5. The scale transitions. Built 2026-11-23.
 
 ## Decisions
 - The screen is `/screens/<name>` after the app, not `/<name>`: `/edit/<app>/<x>` already serves the editor's routes
@@ -146,6 +155,8 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
   back to Your apps. Whether `/` becomes the Orgs level is still open. Made while building stage 4.
 - An app in Magnetic's pages workspace zooms out to `/orgs/me`, where it is not a tile; the board then fits every tile.
   Made while building stage 3.
+- The transitions are the browser's view transitions, not an animation the pages run before navigating: the next page
+  loads while the tile grows, and nothing waits on a timer. Made while building stage 5.
 - The page never rewrites the URL on load: `/edit/<app>` stays bare until the screen changes, so links of the bare form
   keep working.
 
@@ -189,3 +200,11 @@ Stage 4, in Magnetic:
   `apps.orgsBoard`, `apps.ownSpace`.
 - Tests: `src/apps/AppsPage.test.ts` (the Orgs level's tiles, the board's way out), `e2e/apps.spec.ts` (zooming out of a
   workspace to the Orgs level and back in).
+
+Stage 5, in Magnetic:
+- `src/http/zoom.ts`: `ZOOM_CSS` (the opt-in, the `zoom` group, the in-page keyframes, reduced motion) and `ZOOM_JS`
+  (`zoomInPage`); `APPS_BOARD` moved here.
+- `src/http/apps.ts`: `#zoom-mark`, over the selected tile when the query names one (`selected`), moved over a tile
+  before zooming in and over the board before zooming out.
+- `src/http/shell.ts`: the body named `zoom`; `zoomIn` and `zoomOut` in the page through `zoomInPage`.
+- Tests: `e2e/apps.spec.ts` (the editor grows out of a tile as a view transition).
