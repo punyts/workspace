@@ -75,7 +75,8 @@ Next on this machine:
   transitions.
 - **Starter apps** ([design/magnetic-starter-apps.md](design/magnetic-starter-apps.md)): every person's own space has
   the showcase, Northwind, the desktop and Magnetic (owner, 2026-11-23). Magnetic's tile (their copy of the editor)
-  built 2026-11-23. Northwind and the desktop are next: a build script and their host functions as logic.
+  built 2026-11-23. Northwind and the desktop do not convert to parts (their `$.data` is UI state, and code runs them):
+  they wait on the owner's choice between rebuilding them as parts apps and a closed catalog of their functions.
 - **28 e2e specs in `editor.spec.ts`, `inspector.spec.ts` and `screens.spec.ts` are stale** since the starter screen
   and the viewport fill (Magnetic 9eaf9cf, d044ce9): the frame now reads the stage area's size, not 1280 × 800, and
   the inspector specs find no selected box in the starter app. `npm run e2e` on 2026-11-23: 223 passed, 32 failed
@@ -131,6 +132,12 @@ asks first, in this file.
 
 ## The owner
 
+- **Production is down since the deploy of 2026-11-23** (image `2b5287f-202611240434`): both Magnetic servers restart
+  on start with `null value in column "created_by" of relation "org"`. The hosted database still has the old baseline
+  (`org.created_by` and `org_invite.created_by` NOT NULL, no `permission.request_days` or `bound` kind, no
+  `dataset_setting`), because the changed baseline is not applied to a database that has it. Either reset the hosted
+  database (drops its data; there are no users), or apply those four differences by hand (nothing dropped), then
+  restart the servers. The UI machine was not allowed to change the hosted database.
 - `/magnetic/admin-emails` in SSM (us-east-1) set to `rodger@ai-minion.com` (asked 2026-11-23; the SSO session had
   expired, so it is the owner's to run after `aws sso login --profile magnetic`). The next deploy resets the hosted
   database (the baseline migration changed) and makes both orgs; invite and sign-in emails reach outside addresses
