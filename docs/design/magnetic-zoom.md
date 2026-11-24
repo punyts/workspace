@@ -1,7 +1,7 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
-Status: stages 1 (the URL) and 2 (the chords and the level bar) built 2026-11-23, not deployed; stages 3 to 5
-designed, not built. Asked for on 2026-11-23:
+Status: stages 1 (the URL), 2 (the chords and the level bar) and 3 (an org's apps) built 2026-11-23, not deployed;
+stages 4 and 5 designed, not built. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
@@ -62,21 +62,42 @@ links work the same as zooming.
   page shows. Owners and admins see every app.
 - **The running app opens on the screen zoomed in on**, at the screen's URL path.
 
+## An org's apps (stage 3)
+Built 2026-11-23.
+- **The page**: `GET /orgs/<org>` for a member of the org, `GET /orgs/me` for the person's own space. Anyone else gets
+  404. The page holds Magnetic's page `magnetic-apps` (a `PageSpec`, served at `/assets/apps.json` like the editor's
+  board, editable by admins as the other pages are) and a level bar over it, and `/assets/apps.js` drives it through
+  `$.data.apps` and its emits, as `screens.js` drives the screens board.
+- **The tiles** are in the page, as JSON the server writes (`#apps-tiles`), so the board needs no second request.
+  An org's hold the apps of its workspace the person may open. Their own space holds their own apps and the apps shared
+  with them by link, less those they rejected, newest first; Your apps and Magnetic's editor are not tiles. The apps of
+  their orgs are on each org's board, not here. Each tile is a card with the app's name and a note (when it changed, or who shared it), in rows of five
+  on a canvas that pans and zooms. A tile shows no preview of the app yet.
+- **Zooming in on a tile** opens the app where the person may go: the editor for `manage` and `edit` and their own
+  apps, the running app for `use` and `view` and shares. A press on a tile zooms in on it; Ctrl+Shift+= zooms in on the
+  selected tile, or else the one most in view.
+- **Zooming out of the editor** goes to the app's workspace: `/orgs/<org>?app=<id>` for an org's app, else
+  `/orgs/me?app=<id>`. `?app=` selects that app's tile and brings it into view, so zooming back in returns to it. The
+  level bar's workspace goes to the same place.
+- **Zooming out of an org's apps** goes to Your apps (`/`) until stage 4 builds the Orgs level. The level bar reads
+  Your apps › Acme.
+- `GET /orgs` stays the JSON list of the person's orgs until stage 4, which needs the path for the Orgs page.
+
 ## The keys
 Built 2026-11-23 (stage 2) between the editor and the running app.
 - **Ctrl+Shift+= zooms in, Ctrl+Shift+- zooms out** (Cmd on a Mac; Ctrl+Shift++ and Ctrl+Shift+- on the keypad too).
   Ctrl+Shift+E is removed.
 - **Zooming in picks a tile**: the selected one, or else the one with the most in view (the board already tracks it),
   or else the one worked on. Zooming into the running app goes no further.
-- **Zooming out of the editor goes to Your apps (`/`)** until stage 3 gives an org's apps a board.
+- **Zooming out of the editor goes to the app's workspace**, its board of apps (stage 3).
 - **Plain zoom stays inside a level**: Ctrl+wheel, pinch and the zoom buttons scale the board as now.
 - The page takes the chord before the browser does: Ctrl+Shift+= is Ctrl++ on most keyboards, the browser's own page
   zoom, so the handler calls `preventDefault` on keydown. A chord pressed inside an app in the page (the running app, or
   the live app on the board) comes through the runtime as `stateui:key`: the page names `mod+shift+=` and
   `mod+shift+-` in `data-host-keys`, and stateui-app's runtime names Shift with `+` and `_` by the keys they are on.
 - **The level bar** names the levels over the running app: the workspace (Yours, or the org), the app and the screen
-  showing (Acme › Field notes › Home). The app zooms out to the editor in the page; the workspace goes to `/` until
-  stage 3. On a phone, with no keys, it is the way out; it also shows desktop users the levels exist. The editor has
+  showing (Acme › Field notes › Home). The app zooms out to the editor in the page; the workspace goes to its board of
+  apps, on the app's tile. On a phone, with no keys, it is the way out; it also shows desktop users the levels exist. The editor has
   no bar of its own: its corner already names the app and the workspace, and its logo goes to Your apps.
 
 ## Moving between levels
@@ -98,7 +119,7 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
 1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. Built
    2026-11-23.
 2. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar. Built 2026-11-23.
-3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor.
+3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor. Built 2026-11-23.
 4. The Orgs level, with the person's own space.
 5. The scale transitions.
 
@@ -109,8 +130,12 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
 - The level bar is drawn by the page over the running app only, a strip the app sits under, not part of the editor
   app: the bar must show while the editor is hidden, and the editor's corner already names the levels. Made while
   building stage 2.
-- Zooming out of the editor and the bar's workspace go to Your apps (`/`) until stage 3, so the chord does something
-  at every level that exists. Made while building stage 2.
+- Zooming out of an org's board goes to Your apps (`/`) until stage 4, so the chord does something at every level that
+  exists. Made while building stage 2.
+- The board's tiles are written into its page, not fetched from `GET /orgs/<org>/apps`: one request, and the page
+  holds nothing the person could not already open. Made while building stage 3.
+- An app in Magnetic's pages workspace zooms out to `/orgs/me`, where it is not a tile; the board then fits every tile.
+  Made while building stage 3.
 - The page never rewrites the URL on load: `/edit/<app>` stays bare until the screen changes, so links of the bare form
   keep working.
 
@@ -135,3 +160,14 @@ Stage 2:
 - Tests: `e2e/address.spec.ts` (zooming in and out, each an entry Back undoes; zooming out of the editor to `/`),
   `e2e/levels.spec.ts` (the bar, its app zooming out, Back), `e2e/editor.spec.ts` (the chords),
   `src/server/agentRoutes.test.ts` (the chords named on the page).
+
+Stage 3, in Magnetic:
+- `src/apps/AppsPage.ts`: the page `magnetic-apps` (`APPS`), a viewport holding a board of cards, served at
+  `/assets/apps.json` and listed among the site's pages. Texts `apps.*` in `src/http/text.ts`.
+- `src/http/apps.ts`: the page (`appsPage`, `/assets/apps.css`) and its script (`/assets/apps.js`): rows of five,
+  `?app=` selecting and centering a tile, a press or Ctrl+Shift+= zooming in, Ctrl+Shift+- out to `/`.
+- `src/server/startMagnetic.ts`: `appsBoardRoute` for `GET /orgs/me` and `GET /orgs/<org>`; the shell is given the org.
+- `src/http/shell.ts`: `data-board` (`boardOf`), where zooming out of the editor and the bar's workspace go.
+- Tests: `src/apps/AppsPage.test.ts` (the contract, an org's tiles for an editor and a user, 404 for anyone else, the
+  own space), `e2e/apps.spec.ts` (zooming out to the board and back in, a press on a tile), `e2e/address.spec.ts` and
+  `e2e/levels.spec.ts` (the board as the way out).
