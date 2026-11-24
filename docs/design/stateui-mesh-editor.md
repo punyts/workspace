@@ -1,6 +1,6 @@
 # The mesh editor: geometry kept in state, shaped in the scene
 
-Status: designed 2026-11-23; V1 to V3 built 2026-11-23; V4 not built.
+Status: designed 2026-11-23; V1 to V4 built 2026-11-23.
 
 Asked for on 2026-11-23: "Design the mesh editor", the gap the games and 3D analysis
 ([stateui-games-and-3d-modeling.md](stateui-games-and-3d-modeling.md)) leaves: "No mesh editing | Geometry is a
@@ -71,23 +71,29 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
   work. The history lives in the page and is not written to state.
 
 ### Operations (V4)
-- `mesh` gains `editRequest`, as `scene3d` has `exportRequest`: a changed value runs one operation on the pick, writes
-  `geometry` once, and writes `edit.picked` to what the operation made. `{ op, amount? }`, `op` one of a closed list:
+- `mesh` has `editRequest`, as `scene3d` has `exportRequest`: `{ op, amount?, n? }`. While it is set and differs from
+  `edit.done`, the scene runs it once on the pick, writes `geometry` once, writes `edit.picked` to what the operation
+  made, and records the request in `edit.done`, as the export records its request in `exported.request`. A reload, or
+  another page that already has the result, does not run it again. The counter `n` makes the same operation a new
+  request (a button press increments a counter and writes it). `op` is one of a closed list:
   - `extrude` (faces): moves the picked faces out by `amount` (default 0.2 scene units) along their average normal and
-    joins them to where they were with new side faces. The new faces are picked.
+    joins them to where they were with a side face for each edge of the picked region's rim. The moved faces keep
+    their places in `faces` and stay picked; the sides come last.
   - `inset` (faces): makes a smaller copy of each picked face, `amount` (0 to 1, default 0.2) of the way to its centre,
-    with a ring of faces around it. The inner faces are picked.
+    with a ring of faces around it. The inner face takes the picked face's place and stays picked; the ring comes last.
   - `delete` (any mode): removes the picked faces, the faces that use a picked edge or vertex, and the vertices no face
     uses any more.
   - `merge` (vertices): moves the picked vertices to their centre and makes them one; a face left with fewer than three
     vertices is removed.
   - `fill` (vertices): makes a face of the picked vertices in the order they were picked.
   - `flip` (faces): turns the picked faces to look the other way.
-  - `subdivide` (any mode, the whole mesh): one level of Catmull-Clark subdivision, every face becoming quads. It is
-    refused when the result would pass the limits.
+  - `subdivide` (any mode, the whole mesh): one level of Catmull-Clark subdivision, every face becoming quads; an
+    open rim stays a rim. It clears the pick, and is refused when the result would pass the limits.
   - `undo`, `redo`: as the keys.
-- An operation that does not fit the mode or the pick (an `extrude` of vertices, a `fill` of two) writes nothing and is
-  reported once as `SUI-RUN-3D`, naming the operation and the mode.
+- An operation that does not fit the mode or the pick (an `extrude` of vertices, a `fill` of two) writes only
+  `edit.done` and is reported once as `SUI-RUN-3D` at the mesh's path, saying why.
+- Every operation rounds what it makes to 4 decimals, keeps the limits of `@punyts/stateui-app/core`, and removes only the
+  vertices it left unused: a vertex no face used before stays.
 - The operations are pure code over `{ vertices, faces }` in stateui-components (`src/shared/model/`), outside the
   runtime chunk, as the game loop's step is. The same code can later run as logic commands, so an agent shapes a mesh
   without a page.
@@ -95,8 +101,10 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
 ### The tools and the example (V4)
 - stateui-mcp: a guide topic `scene3d-modeling` (custom geometry, `edit`, the operations, writing `geometry` from a
   tool, the limits); `ui_interact` already presses, holds keys and drags gizmo handles.
-- The example app gains a Workshop section: a stool modeled from a box, mode buttons (vertex, edge, face), operation
-  buttons, undo and redo, and a button that saves the model as a GLB file through the scene's `exportRequest`.
+- The example app has a Workshop section: a stool modeled from a box, a mode switch (off, vertices, edges, faces),
+  operation buttons, undo and redo, and a button that saves the model as a GLB file through the scene's `exportRequest`.
+  A button sets `$.data.workshop.input.op`; the rule `workshopOperation` increments the counter and writes the request,
+  because `on` writes literal values and cannot count.
 
 ### Where it runs
 - stateui-3d, in the runtime chunk: building a custom geometry (fan triangles, flat or smooth normals), the edit
@@ -136,6 +144,11 @@ tapered legs, a lamp shade, a game piece. Modeling tools start from a box and pu
 - **No texture coordinates in the first release**: a mesh is coloured by its material; unwrapping is a tool of its own.
 - **The runtime chunk's gate is raised by what V1 to V3 measure**, as it was for the gizmo; the operations stay
   outside the chunk. To confirm with the owner when V1 is built, with the measured size.
+- **The request is recorded in `edit.done`**, as the export records its request in `exported.request`: the scene
+  knows a request it has run without keeping it in the page, so a reload never runs it twice, and a refusal records it
+  too so it is reported once.
+- **The moved faces keep their places** (extrude, inset): a pick of face indices stays valid, so the same pick can be
+  extruded again.
 - **Pointer picking only**: as with the gizmo, a keyboard user edits through fields beside the scene or the
   operations' buttons; vertices have no proxy buttons.
 
@@ -182,6 +195,19 @@ V3, 2026-11-23:
   `src/shared/scene3d/history.test.ts`, `test/composites/scene3d-events.browser.test.ts` (a moved pick undone and redone).
 - The runtime chunk is 197,461 bytes gzipped, 1,014 more than after V2. The gate was raised by those 1,014 bytes to
   198,215 (`MESH_MOVE_GZIP_BYTES` in `runtime-chunk/build.test.ts`; owner, 2026-11-23), keeping the 754 bytes left after V1.
+
+V4, 2026-11-23:
+- stateui-components: `src/shared/model/operations.ts` (`MESH_OPERATIONS`, `EDIT_MODES`, `DEFAULT_EXTRUDE`,
+  `DEFAULT_INSET`, `readPoly`, `runOperation`, `extrude`, `inset`, `remove`, `merge`, `fill`, `flip`, `subdivide`,
+  `boxPoly`); `src/shared/scene3d/editRequest.ts` (`runEditRequests`, run by the controller after each draw);
+  `editRequest` and `edit.done` in `mesh.state.json` and `NODE3D_PROPERTIES`. Tests: `src/shared/model/operations.test.ts`,
+  `src/shared/scene3d/editRequest.test.ts`, `test/graphics3d.test.ts`, `test/composites/scene3d-events.browser.test.ts`
+  (an extrude, its undo, a refused merge reported once).
+- stateui-mcp: the guide topic `scene3d-modeling` (`src/infrastructure/mcp/guide.ts`). Tests:
+  `src/infrastructure/mcp/instructions.test.ts`, `test/toolSet.test.ts`.
+- example: the Workshop section (`main.json`, `main.locale.de.json`, the stool in `data.json`, the rules
+  `workshopOperation` and `workshopSave` in `logic.json`). Tests: `test/app.browser.test.ts` ("Northwind Ops Workshop").
+- The runtime chunk is unchanged: the operations run in the controller, outside it.
 
 ## Rules and Constraints
 - Nothing is written while a handle is held; one `geometry` write per edit, on release or per operation.
