@@ -77,13 +77,18 @@ MAGNETIC_LINKEDIN_CLIENT_SECRET='$LINKEDIN_SECRET'
 MAGNETIC_LINKEDIN_PKCE='false'
 ANTHROPIC_API_KEY='$ANTHROPIC_KEY'
 # The beta (docs/design/magnetic-beta.md): one org, beta, joined through the link on Admin; its first 100 members get
-# $5 of agent use once, with no daily pace, and those after are told it is full. The server stops at $500 a month in
-# all, the whole beta. Anyone else starts with none and may buy agent use when Stripe is on
+# $5 of agent use once, with no daily pace, and those after are told it is full. The beta org has $500 a month and the
+# company org, ai-minion, which holds Magnetic's own pages, $50; the server stops at $550 a month in all
+# (docs/design/magnetic-orgs-and-invites.md). The admins below are invited to both as owners when the server starts.
+# Anyone else starts with none and may buy agent use when Stripe is on
 MAGNETIC_USER_ALLOWANCE='5'
 MAGNETIC_ALLOWANCE_USERS='100'
 MAGNETIC_BETA_ORG='beta'
 MAGNETIC_DAILY_BUDGET='off'
-MAGNETIC_MONTHLY_BUDGET='500'
+MAGNETIC_MONTHLY_BUDGET='550'
+MAGNETIC_BETA_BUDGET='500'
+MAGNETIC_INTERNAL_ORG='ai-minion'
+MAGNETIC_INTERNAL_BUDGET='50'
 MAGNETIC_OPERATOR='$OPERATOR'
 MAGNETIC_CONTACT_EMAIL='$CONTACT'
 # The people whose verified email is listed see Admin on Your apps: feedback, people, and giving agent use
