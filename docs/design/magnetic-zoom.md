@@ -1,6 +1,6 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
-Status: designed, not built. Its first stage, the URL, stands on its own. Asked for on 2026-11-23:
+Status: stage 1, the URL, built 2026-11-23, not deployed; stages 2 to 5 designed, not built. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
@@ -20,18 +20,29 @@ And:
 > the browser back button easily
 
 ## Where you are is in the URL
-Today the URL names the app only: moving between screens, panning the board and opening a sheet or modal leave it
-as it is, so Back leaves the app instead of undoing the last move. With zooming, every place you can go is in the URL,
-and Back and Forward move between them:
-- **The level and the tile**: the org, the app (as in the table below).
-- **The screen**: the running app's screen as its path (`/apps/<app>/<screen>`), and in the editor the screen in view
-  (`/edit/<app>/<screen>`). Changing screen pushes a history entry.
-- **The position**: the board's pan and zoom in the hash (`#x,y,zoom`), replaced as it moves (`replaceState`, no entry
-  per frame), so a reload or a shared link opens at the same place.
-- **What is open**: a sheet or modal (Share, the inspector, the library, a dialog of the app) as a query
-  (`?open=share`). Opening it pushes an entry; Back closes it before it leaves the screen.
-- The running app is in the runtime frame, on another origin: it tells the page its screen and what it opened by
-  message, and the page owns the history. A link from outside opens the app on that screen with that sheet open.
+Built 2026-11-23 (stage 1). The URL names where the person is, and Back and Forward move between those places:
+- **The editor or the app alone**: `/edit/<app>` or `/apps/<app>`. Ctrl+Shift+E pushes an entry, so Back returns to
+  the editor.
+- **The screen**: `/screens/<name>` after either (`/edit/<app>/screens/<name>`, `/apps/<app>/screens/<name>`). Choosing
+  a screen pushes an entry: a card pressed, a screen picked in the Screens panel or a card's menu, or the app moving to
+  another screen after the person pressed or typed. When the board picks the screen most in view as it pans, the entry
+  is replaced. The page opens on the screen the URL names, before the one the app was left on. A bare `/edit/<app>` is
+  the screen the app is on, and the page leaves it bare until the screen changes. A screen that is not there gives way
+  to the one worked on, replacing the entry.
+- **The position**: the board's pan and zoom in the hash (`#x,y,zoom`), replaced as the view rests (no entry per frame),
+  only while the view is the person's: the board's fit has no hash, and an entry without one opens on the fit. The view
+  the hash names wins over the one kept on the server.
+- **What is open**: `?open=` names the panel beside the rail (`screens`, `connections`, `shared`) and the sheet
+  (`share`, `prefs`, `feedback`), comma-separated. Opening one pushes an entry. Closing it while nothing else has
+  changed goes back to the entry before, so Back after closing does not open it again. A link with `?open=` opens them
+  once the editor is shown.
+- Not in the URL: the library (a layout kept in this browser, open by default on a wide window), the inspector (it
+  follows the selection), the Statenet, Theme and Logic views (kept per app), and an app's own dialogs (the runtime
+  keeps no record of what is open).
+- The running app runs in the page, so the page reads its screen from the host (`navigated`, `$.route`) and owns the
+  history; nothing crosses an origin.
+- Someone without edit rights who opens `/apps/<app>/screens/<name>` is redirected to `/apps/<app>?screen=<name>`, the
+  host's app page, which navigates there once the app is ready.
 
 ## The four levels
 Each level is a board of tiles, drawn like the editor's screens board, and each has its own URL, so Back, reload and
@@ -76,12 +87,27 @@ links work the same as zooming.
 - Whether Your apps (`/`) becomes the Orgs level or stays as it is with the level bar.
 
 ## Stages
-1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. It
-   needs no zooming and comes first.
+1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. Built
+   2026-11-23.
 2. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar.
 3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor.
 4. The Orgs level, with the person's own space.
 5. The scale transitions.
 
 ## Decisions
-None yet.
+- The screen is `/screens/<name>` after the app, not `/<name>`: `/edit/<app>/<x>` already serves the editor's routes
+  (`screens`, `events`, `state` and others) and `/apps/<app>/<x>` the host's (`sync`, `files`, `report`, `export`),
+  which a screen name could match. Made while building stage 1.
+- The page never rewrites the URL on load: `/edit/<app>` stays bare until the screen changes, so links of the bare form
+  keep working.
+
+## As built
+Stage 1, in Magnetic:
+- `src/http/shell.ts` (`/assets/shell.js`): the address (`addressNow`, `addressOf`, `go`), what is open (`openStart`,
+  `openEnd`, `applyOpen`), `popstate`, Ctrl+Shift+E pushing an entry, and `magneticShell.address` for screens.js.
+- `src/http/screens.ts` (`/assets/screens.js`): the screen and the view in the address, and Back and Forward
+  (`addressMoved`).
+- `src/server/startMagnetic.ts`: `/apps/<app>/screens/<name>` and `/edit/<app>/screens/<name>` serve the page; anyone
+  else's app is redirected to the host's `?screen=`.
+- Tests: `e2e/address.spec.ts` (a screen chosen and Back, a sheet in the URL and Back, Ctrl+Shift+E and Back);
+  `e2e/screens.spec.ts` expects the Screens panel kept open across a reload.
