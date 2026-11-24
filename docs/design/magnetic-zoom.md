@@ -122,15 +122,14 @@ Built 2026-11-23 (stage 5).
 - Browsers without view transitions, and people who ask for reduced motion, go straight to the next level.
 - Zooming out from the running app returns to the editor on the screen that was showing.
 
-## Open questions
-- **Where a person's state for an app lives.** The owner's direction: a person's changes live under their own owner
-  number, laid over the app owner's paths, possibly replacing personas for app data. That is a state and statenet
-  decision (docs/design/statenet-direction.md) and does not block the levels above; it changes what a tile on the
-  person's own space shows.
-- **Starter apps per org.** The owner suggested every new org gets the component showcase and the example apps,
-  which its members may delete. Which examples, and whether a person's own space keeps the showcase, is decided with
-  that work, not here.
-- Whether Your apps (`/`) becomes the Orgs level. For now it stays as it is, and the Orgs level's bar links to it.
+## Answered questions
+- **Where a person's state for an app lives**: at the app's path under the person's own owner id, replacing personas as
+  they are (owner, 2026-11-23). Designed in [person-state.md](person-state.md); it changes what a tile on the person's
+  own space shows only once built.
+- **Starter apps**: every person's own space has the showcase, Northwind, the desktop and Magnetic (owner, 2026-11-23).
+  Designed in [magnetic-starter-apps.md](magnetic-starter-apps.md); Magnetic's tile is built.
+- **Whether Your apps (`/`) becomes the Orgs level**: it stays as it is, with the Orgs level's bar linking to it (the
+  owner left it to this design, 2026-11-23).
 
 ## Stages
 1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. Built

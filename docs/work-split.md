@@ -72,15 +72,14 @@ Next on this machine:
   running app, under a level bar, replacing Ctrl+Shift+E. Stage 3 built 2026-11-23, not deployed: an org's apps as a
   board at `/orgs/<org>` (`/orgs/me` for the person's own), where zooming out of the editor goes. Stage 4 built 2026-11-23, not deployed: the Orgs level at `/orgs`, the
   person's own space and their orgs as tiles. Stage 5 built 2026-11-23, not deployed: the scale transitions, as view
-  transitions. Their open questions go to the owner first: starter apps in every
-  new org (the component showcase and which examples), and where a person's state for an app lives (their owner number
-  laid over the app owner's paths, possibly replacing personas; the tower's area, with statenet-direction.md).
+  transitions.
+- **Starter apps** ([design/magnetic-starter-apps.md](design/magnetic-starter-apps.md)): every person's own space has
+  the showcase, Northwind, the desktop and Magnetic (owner, 2026-11-23). Magnetic's tile (their copy of the editor)
+  built 2026-11-23. Northwind and the desktop are next: a build script and their host functions as logic.
 - **28 e2e specs in `editor.spec.ts`, `inspector.spec.ts` and `screens.spec.ts` are stale** since the starter screen
   and the viewport fill (Magnetic 9eaf9cf, d044ce9): the frame now reads the stage area's size, not 1280 × 800, and
   the inspector specs find no selected box in the starter app. `npm run e2e` on 2026-11-23: 223 passed, 32 failed
   (the 4 orgs failures since fixed). Unit tests pass.
-- A new account still gets the component showcase in its own workspace although both orgs keep apps in the org.
-- Opening the beta link before accepting the owner invite takes a beta place as a builder.
 
 Real tiles in the example and the showcase wait for the tower's tiles.
 
@@ -121,6 +120,11 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    format, designed 2026-11-23 ([design/statenet-wire-format.md](design/statenet-wire-format.md)), its decisions made
    the same day (own CBOR subset, per-connection path numbers, one cut-over to protocol 4); W1, the codec, built the
    same day; W2, sync protocol 4, and W3, mesh protocol 5, built the same day; WebRTC, then WebTransport, are next.
+
+6. **A person's state under their own owner** ([design/person-state.md](design/person-state.md)), the owner's
+   decision of 2026-11-23: a person's state for an app is at the app's path under their owner id, and personas as they
+   are go. statenet-direction.md follows it. Stages 2 and 3 (stateui-mcp, stateui-pg, stateui-app) are the tower's;
+   stage 4 (Magnetic) follows them here.
 
 The tower owns `statenet`, `state-sync`, the mesh and Magnetic's `src/statenet`. Work here that needs a change there
 asks first, in this file.

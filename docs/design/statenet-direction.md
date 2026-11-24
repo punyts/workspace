@@ -1,7 +1,7 @@
 # Statenet Direction – Owners, Blueprints, Models and Relays
 
 ## Identity
-Where the statenet is going after the proof of concept: one global tree of state addressed by registered owners, apps published as versioned blueprints that each persona overlays with its own state, data structured by models, and a web of edges, relays and persistence that keeps live state close to whoever listens to it. Nothing here is built; the decisions below were reached in design discussion and are the direction new work should not contradict. Items marked **Later** need their own design before any ticket.
+Where the statenet is going after the proof of concept: one global tree of state addressed by registered owners, apps published as versioned blueprints that each person overlays with their own state, data structured by models, and a web of edges, relays and persistence that keeps live state close to whoever listens to it. Nothing here is built; the decisions below were reached in design discussion and are the direction new work should not contradict. Items marked **Later** need their own design before any ticket.
 
 Today's system is in `knowledge-base/design/stateui-state-sync.md` in AI Minion (one namespace per app, an authority per namespace, the statenet as a logic-free store). The logic layer, which comes first, is in `knowledge-base/design/stateui-logic.md` in AI Minion. The proposed owner tree for authoring (apps, themes, logic, models, data and components under the owner, and personas under their own root) is in `knowledge-base/design/stateui-owner-tree-and-tools.md` in AI Minion.
 
@@ -13,22 +13,22 @@ Today's system is in `knowledge-base/design/stateui-state-sync.md` in AI Minion 
 - **`$` is an owner.** The root of a state tree is an owner id: an unsigned 64-bit integer, registered globally. Only owners are registered; everything below an owner is that owner's business, like a domain name.
 - **Owner kinds.** An owner is a person, a group or a business. Ids are collated so ranges carry meaning; the first 999,999,999 are reserved.
 - **Ids are integers, not strings.** 64 bits to store, index and route on. In code they are `BigInt`; in JSON, the transport and persistence format, they are text that is hydrated to `BigInt`, by the model of the field where there is one.
-- **Personas are scopes.** Every user path has a persona segment that the user names (`work`, `personal`), with a reserved default. A persona is organisation inside the user's own tree, not a separate identity, and it is how one person has the same app twice.
+- **A person's state is under their own owner id, at the app's path.** There is no persona segment: a person's state for an app is at `[user].apps.[business].[app]`, the same shape as the app's own path with the person as the root (owner, 2026-11-23; [person-state.md](person-state.md)). Personas as named scopes are gone; they may come back as named sets of a person's themes and settings.
 - **Path shape.**
 
 ```
 [business].apps.[app]@2.3.0                         blueprint, published, immutable
-[user].[persona].apps.[business].[app]              that persona's state: the delta over the blueprint
-[user].[persona].data.…                             the persona's own data
+[user].apps.[business].[app]                        that person's state: the delta over the blueprint
+[user].data.…                                       the person's own data
 [business].data.marketing.contacts                  the business's data (a dataset, following a model)
 [business].data.marketing.contacts.c12@2.3.0+2      one record at one version
 ```
 
 - **Blueprints stay relative.** Inside a blueprint, `$.data.contacts` stays relative and is bound to a real data path at install; global paths appear only in registration and bindings, so one blueprint works over any owner's data.
 
-### Blueprints and persona state
+### Blueprints and a person's state
 - **The blueprint** is the screens, the logic, the default values and the data sources the app needs. The publisher is a business; people who work there use its apps under their own ids, so a blueprint path is never anyone's state.
-- **The persona's copy** holds only what differs from the blueprint's defaults (the split `snapshotState` already makes between document values and articulation), the blueprint version it extends, and the data each declared source is bound to. It is persisted and follows the person across devices; this needs sign-in (OAuth and JWT), which is secondary for the proof of concept.
+- **The person's copy** holds only what differs from the blueprint's defaults (the split `snapshotState` already makes between document values and articulation), the blueprint version it extends, and the data each declared source is bound to. It is persisted and follows the person across devices; this needs sign-in (OAuth and JWT), which is secondary for the proof of concept.
 - **Reads overlay, writes go to the delta, reset deletes the delta entry.**
 - **Shared app state is data.** Something several people see together (Ana's cursor) is a value at a path that its owner shares and others listen to. Live updates for it travel as described in [Transport and encoding](#transport-and-encoding).
 
@@ -105,7 +105,7 @@ Browsers cannot open raw UDP sockets. Their only UDP options are WebRTC data cha
 ---
 
 ## User Experience
-- A person signs in once and finds every app with their own state on any device, per persona.
+- A person signs in once and finds every app with their own state on any device.
 - An app built by one business works over another owner's data once its sources are bound.
 - Sharing a value (a cursor, a document, a dataset) is granting a path; others see it live, and the owner can approve, reject or revoke.
 
@@ -113,8 +113,8 @@ Browsers cannot open raw UDP sockets. Their only UDP options are WebRTC data cha
 
 ## Rules and Constraints
 - Owner ids are unsigned 64-bit integers, `BigInt` in code and text in JSON; only owners are registered globally.
-- Every user path has a persona segment; personas are scopes, not identities.
-- Published blueprints are immutable and versioned; a persona's state stores only its delta and the version it extends.
+- A person's state for an app is at the app's path under their own owner id; no path has a persona segment.
+- Published blueprints are immutable and versioned; a person's state stores only its delta and the version it extends.
 - Blueprints use relative paths; global paths appear only in registration and bindings.
 - Every path has exactly one authority, the owner's edge; relays never decide.
 - Token ids are internal and never reach clients; tokens are assigned by a registry.
@@ -128,7 +128,7 @@ Browsers cannot open raw UDP sockets. Their only UDP options are WebRTC data cha
 - **The logic engine** (logic epic 1, in `@punyts/stateui-app` for now) provides the path pattern matcher this direction reuses for permissions, versioning and relay routing.
 - **`@punyts/state-sync`**: changes move from namespace-relative paths to global paths, and `hello` with one namespace gives way to listening by path pattern.
 - **`@punyts/statenet`**: grows into the edge, relay and persistence roles.
-- **`@punyts/stateui-app`**: documents become blueprints with declared data sources; the snapshot becomes the persona delta.
+- **`@punyts/stateui-app`**: documents become blueprints with declared data sources; the snapshot becomes the person's delta.
 
 ---
 
