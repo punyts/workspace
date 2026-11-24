@@ -66,14 +66,15 @@ so `installShowcase` and `installShowcaseInto` install them with the showcase in
 workspace gets its own copy of the datasets. Workspaces made before 2026-11-24 do not get them.
 
 ### What building them found in the platform
-- An instance lays only keys the definition has (`layInstance`, stateui-app `core/snapshot/instance.ts`): a list
-  filled by `query` into `$.screens` loses its rows on load unless its definition has `items: []`.
-- `query` into a `$.data` path is refused (it writes integer-like position keys), so query results live in
-  screen state.
-- A screen name with a dash cannot be read in an expression (`$.screens.new-order` parses as a subtraction).
-- Logic on the server does not see a screen's definition defaults, only values written since; the apps wrap them in
-  `coalesce`.
-- `<-` cannot link a `$.screens` value or a textarea's `value`; the apps copy values with rules instead.
+Building them found five gaps, fixed on 2026-11-24 (the starter apps keep their workarounds, which still work):
+- An instance took only keys the definition has, so a list filled by `query` lost its rows on load: a node now also
+  takes a property its component declares, and a property's value takes new keys (stateui-app `layInstance`).
+- A screen name with a dash read as a subtraction in an expression: it is now read whole (`withScreenNames`).
+- Logic on the server did not see a screen's definition values: `$.screens` is read through the document, as `$.app`
+  is (stateui-mcp `AppLogic`).
+- `query` into `$.data` was refused for its position keys: there it writes a list in result order.
+- A link could reach only an exposed runtime property: `^name.prop` now reaches a stored property too (a field's
+  `value`), at the node's state path.
 
 ## Open questions
 - Whether the editor becomes its own app (a blueprint people install, rather than a copy of Magnetic's page). The tile
