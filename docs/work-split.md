@@ -77,10 +77,8 @@ Next on this machine:
   the showcase, Northwind, the desktop and Magnetic (owner, 2026-11-23). Magnetic's tile (their copy of the editor)
   built 2026-11-23. Northwind and the desktop do not convert to parts (their `$.data` is UI state, and code runs them):
   they wait on the owner's choice between rebuilding them as parts apps and a closed catalog of their functions.
-- **28 e2e specs in `editor.spec.ts`, `inspector.spec.ts` and `screens.spec.ts` are stale** since the starter screen
-  and the viewport fill (Magnetic 9eaf9cf, d044ce9): the frame now reads the stage area's size, not 1280 × 800, and
-  the inspector specs find no selected box in the starter app. `npm run e2e` on 2026-11-23: 223 passed, 32 failed
-  (the 4 orgs failures since fixed). Unit tests pass.
+- **Magnetic's e2e suite passes** (2026-11-23: 269 passed, 23 skipped); the editor, inspector and screens specs that
+  were stale are fixed.
 
 Real tiles in the example and the showcase wait for the tower's tiles.
 
