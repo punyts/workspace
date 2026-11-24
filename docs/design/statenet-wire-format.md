@@ -1,6 +1,6 @@
 # A binary wire format for sync and the mesh
 
-Status: designed 2026-11-23, decisions made 2026-11-23, not built. The first of the direction's transport items
+Status: designed 2026-11-23, decisions made 2026-11-23; W1 built 2026-11-23. The first of the direction's transport items
 ([statenet-direction.md](statenet-direction.md), "Transport and encoding", item 1).
 
 Asked for on 2026-11-23: "Ok, let's do all of that starting with your recommendation", to the list of next steps that
@@ -29,8 +29,10 @@ which needs no new infrastructure.
   over MessagePack because it is a standard with a defined deterministic form and a tag for big integers (owner ids
   are 64-bit). The codec is ours (`state-sync/src/Cbor.ts`, browser-safe, no dependency): about 300 lines, with the
   limits an authority needs on untrusted bytes (depth, item count, string and total size), refusing what JSON cannot
-  hold (undefined, byte strings, tags other than big integers, non-text keys, NaN and infinities) so a decoded value is
-  always a `JsonValue`.
+  hold (undefined, tags, non-text keys, repeated keys, NaN and infinities) so a decoded value is always a `JsonValue`.
+  Byte strings pass only when the caller asks (`{ bytes: true }`), for the id fields below. Every tag is refused,
+  the big-integer tag too: a `JsonValue` cannot hold a bigint, owner ids travel as text today, and the tag comes with
+  the typed values that would carry one.
 - **Messages are arrays, not maps.** Each message is `[code, …fields]` in a fixed order per type: `change` is
   `[5, id, path, op, base, value?]`, `changes` is `[3, [[revision, id, path, op, base, value?], …]]`. Codes and op
   codes are small integers listed in `Messages.ts`; field names never travel.
@@ -61,6 +63,14 @@ which needs no new infrastructure.
 Typed values by model (a field's value encoded by the model's type, so a record goes as its field values in model
 order) are the direction's next step and need the model version on both sides; they get a design of their own once
 this is measured.
+
+## As built
+W1, 2026-11-23:
+- state-sync: `src/Cbor.ts` (`encodeCbor`, `decodeCbor`, `CborLimits`, `DEFAULT_CBOR_LIMITS`, `CborError`,
+  `CborValue`), exported from the index; `scripts/wire-size.ts`. Tests: `src/Cbor.test.ts`.
+- A session of a welcome of 300 orders and 1,000 one-change `changes` messages (`node scripts/wire-size.ts`, best of 7 runs on the tower): JSON 105,717 and 209,532 bytes, CBOR 88,939 and 173,158 (84% and 83%); encoding 1.0 ms as JSON text (UTF-8 bytes included) and 2.3 ms as CBOR, decoding 1.1 ms and 3.4 ms. The messages are still maps there, so the saving is the encoding's alone.
+- Decoding is about three times slower than V8's `JSON.parse`, which is native code; short ASCII strings are read and
+  written byte by byte, which cut both times to about a third of what a `TextEncoder` or `TextDecoder` call per string took.
 
 ## Rules and Constraints
 - A decoded message is always a `JsonValue` tree; nothing the JSON form could not carry crosses the wire.
