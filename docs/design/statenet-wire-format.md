@@ -1,6 +1,6 @@
 # A binary wire format for sync and the mesh
 
-Status: designed 2026-11-23, decisions made 2026-11-23; W1 built 2026-11-23. The first of the direction's transport items
+Status: designed 2026-11-23, decisions made 2026-11-23; W1 and W2 built 2026-11-23. The first of the direction's transport items
 ([statenet-direction.md](statenet-direction.md), "Transport and encoding", item 1).
 
 Asked for on 2026-11-23: "Ok, let's do all of that starting with your recommendation", to the list of next steps that
@@ -71,6 +71,31 @@ W1, 2026-11-23:
 - A session of a welcome of 300 orders and 1,000 one-change `changes` messages (`node scripts/wire-size.ts`, best of 7 runs on the tower): JSON 105,717 and 209,532 bytes, CBOR 88,939 and 173,158 (84% and 83%); encoding 1.0 ms as JSON text (UTF-8 bytes included) and 2.3 ms as CBOR, decoding 1.1 ms and 3.4 ms. The messages are still maps there, so the saving is the encoding's alone.
 - Decoding is about three times slower than V8's `JSON.parse`, which is native code; short ASCII strings are read and
   written byte by byte, which cut both times to about a third of what a `TextEncoder` or `TextDecoder` call per string took.
+
+W2, 2026-11-23:
+- state-sync: `src/Wire.ts` (`createSyncWire`, `SyncWire`, `MAX_WIRE_PATHS`, `wireTypeOf`); `validateMessage` in
+  `Validate.ts` checks a decoded message as `parseMessage` checks a parsed one; `PROTOCOL_VERSIONS` is `[4]`. The
+  client and each authority session read and write through a wire made per connection; `SyncTransport`,
+  `TransportConnection`, `AuthorityConnection` and `AuthoritySession` carry `string | Uint8Array`. Every session now gets
+  `durable`, `requests` and ephemeral changes; `Authority.submit` lost its `protocol`. Tests: `src/Wire.test.ts`; the
+  authority tests send through `src/__fixtures__/Wired.ts`, the fake network through a wire per connection.
+- Codes are 2 to 12 in the order of the message list (welcome, changes, durable, change, ack, requested, decided,
+  approve, reject, withdraw, emit); hello and error have none, since they stay text. A welcome's requests are written
+  before its changes and read in the same order, so new paths are numbered alike on both sides. `wireTypeOf` reads a
+  message's type from its first two bytes: relays use it to pass emits on (statenet's emit relay) and to refuse a
+  read-only view's changes (stateui-mcp's `HttpServer`) without the session's wire; emits and acks carry no numbered
+  path, so their bytes are the same from any wire, and the refused changes are read by one wire per socket.
+- statenet: `Statenet.ts` takes binary frames; `ClientServer` has a wire per browser socket and per requests-only
+  tunnel. The mesh is still protocol 4 until W3: a `say` carries a sync message as `text` or as `bytes` in base64
+  (`Said`, `sayOf`, `saidOf`).
+- stateui-mcp: the view socket (`HttpServer`), the browser channels (`viewChannel.ts`, `statenetChannel.ts`,
+  `statenetView.ts`, with `binaryType = 'arraybuffer'`), the statenet link and bridge (`StatenetLink`, `StatenetViews`).
+  The browser's sync transport is the view host's, not stateui-app's runtime frame, which posts changes to the host;
+  the runtime bundle was rebuilt for the new state-sync. Test: `test/http.test.ts` (a read-only view).
+- The session of `scripts/wire-size.ts` (best of 7 runs on the tower): welcome JSON 105,717 bytes, protocol 4 88,893
+  (84%); changes 209,532 against 88,831 (42%), from arrays, path numbers and uuid bytes. Writing all messages 1.0 ms as
+  JSON text and 3.1 ms through a wire; reading 1.1 ms with `JSON.parse` alone and 5.8 ms through a wire, which checks
+  every message (the JSON figure checks none).
 
 ## Rules and Constraints
 - A decoded message is always a `JsonValue` tree; nothing the JSON form could not carry crosses the wire.
