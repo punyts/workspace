@@ -443,6 +443,69 @@ N6 is the largest: about as much work as N2 to N5 together.
   - With the gaps filled: `appCalls.test.ts` has 4, `e2e/connections.spec.ts` 8 at two sizes; the suite runs 102
     times (95 pass, 7 skipped), and magnetic has 213 unit tests.
 
+### After M8: the starter screen and layouts in the library (23 November 2026)
+Asked for on 2026-11-23: "The app is blank modal is not closable. I tried dragging and dropping an accordion layout on
+the app and nothing happened. A blank page should start with a row layout, including a header, body and footer. An
+screen's layout should be configurable. and layout sections should accept layouts as a dropped item"
+
+What was wrong:
+- A new app's home screen was a bare `panel` with no layout and no children, 26px tall. The drop looks for the
+  innermost node under the pointer that lays out children, and skipped an empty node with no `layout`, so it fell
+  through to the app node and tried to place the component beside the screen `home` (`No sibling "home" at
+  "root.children"`).
+- The blank app's hint had no close button. It went only when a request was sent.
+- A panel given the height left in a column (`grow`) kept its content height. Its box filled the host with
+  `block-size: 100%`, which has nothing to resolve against when the height comes from a flex parent under an app that
+  only has a `min-height`.
+
+What was built:
+- **The starter screen** (`src/editor/StarterScreen.ts`): a new app (`POST /new`, and an org's app) gets an app node
+  laid out as a column, and a home screen that fills it (`grow`): a column of three empty sections, `header` (a row,
+  centred), `body` (a column that grows) and `footer` (a row). A screen added from the Screens panel gets the same,
+  without the screen's `grow` in an app made before the starter, whose app node has no layout and refuses it. The
+  agent's instructions name the three sections and say it may fill them, change their layouts or replace the root.
+- **Blank means only panels**: `isBlankApp` calls an app blank while every screen holds nothing but panels, so the
+  starter shows the hint. The hint has a close button (`hintClose`) that keeps it closed until the page loads again,
+  and it goes as soon as the inspector writes a node (`magneticShell.appChanged`).
+- **Drops into empty sections** (`inspect.ts` `dropAt`): a node is a drop target when it has a layout, has children or
+  its component lays out children (the catalog's `layout` flag, now on each library entry and on stateui-mcp's
+  `CatalogFileComponent`). The app node is never a target: its children are the screens.
+- **Layouts in the library**: the Layout category starts with `row layout`, `column layout`, `grid layout` (two
+  columns) and `adhoc layout`, each dropped as an empty bordered panel with that layout. A dropped layout takes all of
+  its container (owner, 2026-11-23: "A layout should take 100% of it's container"): `grow` 1 in a row or a column, `x`
+  and `y` 0 with `width` and `height` 100% in an adhoc layout, and a grid's cell stretches it already. Several layouts
+  in one row or column share its space. A component still lands at its own size. A region is not offered: its children each need a
+  region, so nothing can be dropped into one. The card's texts are in all four languages (`library.layoutName`,
+  `library.layout.*`).
+- **A screen's layout is configured as any node's**: the screen root is a panel with a layout, so selecting it (from
+  the breadcrumb) shows its Layout section. Nothing new was needed once the screen fills the frame.
+- **stateui-components**: the panel's host is a column of one and its box grows in it, so a panel fills the height a
+  column's `grow` gives it.
+- **stateui-app: an app on the page fills the viewport** (owner, 2026-11-23: "Ideally, there will be one app in a
+  browser, and that should take up the full viewport. If there are multiple apps, then they should go side by side").
+  `mountApp` marks its host `sui-app` and the document adopts one sheet (`fillPage`): with an app on the body or on an
+  element right below it, the body loses its margin and becomes a grid of one row of at least the viewport's height
+  and an equal column per element; a host the page gives a size keeps it. The selectors are in `:where()`, so a page with its own body layout, such as
+  Magnetic's, keeps it. An app deeper in the page, such as the editor's canvas, is sized by its page.
+- **The editor's panels open over the app** (owner, 2026-11-23: "When the inspector is opened the screen scrunches
+  down, the editor overlays should not be in the same flow"). The Desktop frame and the fit zoom follow the stage area,
+  the canvas less the rail, the top corners and the chat bar (`canvas.stageArea` in `src/http/shell.ts`); the inspector
+  and the library or screens list beside the rail cover part of the app rather than shrink it. Overlay positions and
+  what counts as in view still use the free area.
+- **A board's cards are as wide as its columns** (owner, 2026-11-23: "the outline for layout is past the app's
+  viewport"). A board column's list never scrolls, so it keeps no scrollbar gutter (`--sui-list-gutter: auto` in
+  `board.view.css`); before, the live app's card was 15px narrower than its frame and the selection outline, drawn from
+  the frame, ran past the app's right edge.
+
+Tests: `src/editor/StarterScreen.test.ts`; stateui-app `src/dom/mount/pageFill.browser.test.ts`; stateui-components `test/composites/panel-toolbar.browser.test.ts` ("should
+fill the height a column gives it with grow, so its own growing child fills it in turn"),
+`test/composites/board.browser.test.ts` ("should make a card as wide as its column, keeping no room for a scrollbar the
+list never shows"); `src/server/editor.browser.test.ts` ("should keep the Desktop frame and the zoom when the inspector
+opens over the canvas"). Checked by hand in the
+editor: a new app's header, body and footer measure 26, 731 and 26px of an 800px frame; the hint closes; an accordion
+dragged onto the body lands in it; a row layout dropped into the header spans it, and an avatar dropped into that row
+lands in it; the screen root's Layout section shows its column.
+
 ## Not in M8
 - Reading another owner's state from an app's logic (statenet datasets by grant). Since built after M8:
   [magnetic-shared-data.md](magnetic-shared-data.md).
