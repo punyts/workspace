@@ -20,11 +20,11 @@ Most of the server is built. Magnetic composes these pieces rather than writing 
 | Need | Already in | Notes |
 |---|---|---|
 | Serve static files and the runtime | `stateui-mcp` `HttpServer` | The page and runtime are on two origins, and the app runs in a sandboxed frame |
-| Websocket sync, many views, offline queue | `state-sync` Full mode, `stateui-mcp` `AppAuthorities` | One authority per instance namespace `instances.<persona>.<ownerId>.<appId>` |
+| Websocket sync, many views, offline queue | `state-sync` Full mode, `stateui-mcp` `AppAuthorities` | One authority per instance namespace `instances.<person>.<ownerId>.<appId>` |
 | Server-side logic | `stateui-app` logic engine, run by each authority | Rules, machines, decision tables and expressions, with chain depth capped at 8 |
 | Coded logic kept to the host | `startServer` `logicFunctions` and `procedures` | Only the host can register them |
 | Building tools for an agent | `stateui-mcp` `createStateUiTools` (36 tools) | Parts, nodes, themes, data, logic, preview, screenshots and interaction |
-| Owners and personas | `createServices({ ownerId, dataDir })`, persona instances | One owner per server, and only the `default` persona exists so far (`runTarget.ts`, `FileUiInstanceRepository`) |
+| Owners and people | `createServices({ ownerId, dataDir })`, an instance per person | One owner per server; the owner's own instance is the one whose person is the owner (person-state.md) |
 | Persistence | File repositories, `statenet` `NamespaceStorage` port | A database adapter can replace the files later |
 | Drag mechanics | `stateui-components` `shared/drag`, `board`, `window`, drawing drag | Pointer threshold, hit columns, keyboard moves |
 | Component library | The catalog (`ui_components_search`, `ui_component_get`), the showcase | Has categories, summaries and examples |
@@ -444,11 +444,11 @@ data volume.
 - **Grants are Magnetic's.** `Grants` keeps each link in `grants.json`: its token, owner, app, right, when it was
   revoked, and the people who opened it. The principal is always a signed-in user. A link adds the user as a member
   of its grant when they open it.
-- **Persona instances.** A `use` member syncs with the persona named by their user id. stateui-mcp keeps each
-  persona's instance under `personas/<persona>/` and runs one authority per persona. A `view` member syncs with the
-  owner's `default` instance, read only: the server rejects each change and drops each event before the authority.
+- **An instance per person.** A `use` member syncs with their own instance, keyed by their user id. stateui-mcp keeps
+  each person's instance under `people/<person>/` and runs one authority per person. A `view` member syncs with the
+  owner's own instance, read only: the server rejects each change and drops each event before the authority.
 - **Who serves a shared app.** For `/apps/<appId>` of an app the person does not own, Magnetic answers with the
-  owner's workspace, the persona and the access. A member with a live `use` and `view` link gets `use`.
+  owner's workspace, the person and the access. A member with a live `use` and `view` link gets `use`.
 - **Revoke.**
   - The grant is marked revoked, not removed, so its members can be told.
   - Each member's open views are closed. A member with no other live link is first sent the sync error `revoked`.

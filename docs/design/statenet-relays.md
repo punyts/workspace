@@ -338,9 +338,10 @@ Every stage, S1 to S6, is built, and Magnetic runs behind the mesh on any number
 
 ### S1: addresses and storage (15 November 2026)
 - Addresses: `formatAddress`, `parseAddress`, `userStateAddress` and `appStateAddress` in stateui-mcp
-  (`src/domain/StateAddress.ts`). A persona's state of an app is at `<persona>/<appId>/user`; the workspace's default
-  persona (its builders' preview, and the person in their own workspace) is the workspace's id, so a person's state of
-  their own app is at their id and keeps its address when the app moves into an org (only its workspace changes).
+  (`src/domain/StateAddress.ts`). A person's state of an app is keyed by their id, and the workspace's own instance (its
+  builders' preview, and the person in their own workspace) by the workspace's id, so a person's state of their own app
+  keeps its address when the app moves into an org (only its workspace changes). The address is now
+  `<person>/apps/<appId>` (statenet-network.md, person-state.md).
 - stateui-pg `0004_state.sql`: `state_node`, `state_change` and `namespace_head`. It moves the rows of `instance` and
   `persona_dataset` to their addresses, in key order, keeping when each last changed, and drops both tables.
 - `PgStateStore`: one row per top-level key and per record under `data.<binding>`, each with its position among its
@@ -503,7 +504,7 @@ Topology steps 2 and 3: any number of Magnetic servers on one database, each an 
     no grants (its readers are its own instances, and relays below check their listeners).
   - **The agent's events** are recorded at the server that runs the instance; the tools claim the instance, so they
     run where its events are.
-  - **`stop` of an app** claims only the default persona's instance; another person's instance running on another
+  - **`stop` of an app** claims only the owner's own instance; another person's instance running on another
     server is not stopped.
   - **A notice missed** while a server's listener reconnects rebuilds its usage index, but open views are not sent
     the change until the next one.

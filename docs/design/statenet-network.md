@@ -174,8 +174,8 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 
 ### `$` is the owner (owner, 2026-11-19)
 - The `$` at the root of a state path is an owner, and an owner is a number that is distinct universally. An owner's
-  state is one tree: its apps, its data, its personas and their state in apps, its functions, as the Statenet view
-  already draws it (`$.apps`, `$.data`, `$.personas`, `$.functions`; magnetic-show-views.md).
+  state is one tree: its apps, its data, its people's state in apps, its functions, as the Statenet view
+  already draws it (`$.apps`, `$.data`, `$.people`, `$.functions`; magnetic-show-views.md).
 - So a place in the statenet is an owner and a path under its `$`, and **the same path means something else under
   another owner** (owner, 2026-11-19):
 
@@ -184,7 +184,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 | `$.apps.app1.form.open` | The app's owner | The application's default: what the app starts as |
 | `$.apps.app1.form.open` | The user | The user's current state of that app: only what differs from the default |
 | `$.data.users.1.name` | The data's owner | The data itself; a user's view of it reads the data owner's tree |
-| `$.personas` | The user | The user's own state |
+| `<user>/apps/<app>` | The user | The user's own state of an app (person-state.md) |
 | `$.functions` | The app's owner | The app's state: the functions it runs |
 
 - **A view is two trees laid one on the other.** The browser loads the app's state under the app owner's `$` (the
@@ -209,7 +209,7 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 ### An instance is a stored namespace (owner, 2026-11-19: store as namespaces)
 What is there now (stateui-mcp `InstanceNamespaceStorage`, stateui-pg `PgUiInstanceRepository`): an instance's
 authority saves through `UiInstanceRepository`, which writes the diff over the definition (`app`, `screens`,
-`theme`, a moved `route`), its own unbound data as `localData`, and each persona binding's records under
+`theme`, a moved `route`), its own unbound data as `localData`, and each person binding's records under
 `data.<binding>`, a row per record, with the binding's model kept beside its row. It keeps no revision of the
 authority's, no log and no applied change ids (a load starts at `Date.now()`), and queues the records' embeddings in
 the transaction of the write.
@@ -230,14 +230,14 @@ the transaction of the write.
   each binding's records before and after and queues what changed (`queuePersonaRecordChanges`, as now).
 - **Which workspace a namespace is in** (row-level security) the aggregate reads from `statenet_namespace`, which
   the node writes when it places the namespace, as now.
-- **Nothing writes an instance but its node.** `WritePersonaData`, a reset, deleting an app and the file import
+- **Nothing writes an instance but its node.** `WritePersonData`, a reset, deleting an app and the file import
   write the repository directly today. They become writes to the namespace at the node that orders it, and
   removing a namespace becomes a message to the aggregate (`remove`, new).
 - **Readers keep reading rows** (the support view, export, retention, the Statenet view's list, the embedding
   queries): Magnetic's servers keep `SELECT` on the state tables and lose the rest. The embedding queries read
   the model from `models` instead of the binding's row.
 - **The standalone stateui-mcp** saves the same stored namespace with `createFileEpochStorage`;
-  `stateui-mcp convert` moves a data directory's `personas/` files over.
+  `stateui-mcp convert` moves a data directory's `people/` files over.
 - **Migration** (one SQL migration in stateui-pg): for each `.../user` address, add `models` from the binding rows'
   values, leave the rest as it is, and set `namespace_head.applied` to empty. `localData`, the record rows and the
   addresses do not move, so it can be run again and an older server reads what it wrote.
@@ -411,7 +411,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 - Deviations:
   - **Magnetic's instances do not save through it yet.** An instance is not saved as an authority's namespace: its
     server writes it through `UiInstanceRepository` (stateui-pg's `PgUiInstanceRepository`) as a diff over the
-    app's definition, a row per key, with each persona binding's records written apart and their embeddings queued
+    app's definition, a row per key, with each person binding's records written apart and their embeddings queued
     in the same transaction, under the workspace's row-level security. The aggregate's port takes a whole stored
     namespace, so putting it under Magnetic today would save nothing through it. S11 has to settle how an
     instance's writes reach the aggregate: the repository's writes sent up as they are, or instances kept as
@@ -499,7 +499,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
     `data.<binding>` and `models.<binding>`. Its other methods (`get`, `write`, `getData`, `writeData`,
     `reset`) read the namespace, change their part and save it at the next revision, under the epoch the node
     holds the address under.
-  - `WritePersonaData` stops the running instance and writes while it is stopped, as a reset does: a running
+  - `WritePersonData` stops the running instance and writes while it is stopped, as a reset does: a running
     instance would otherwise save its own records over the new ones.
   - Tests: `config/instanceStates.test.ts`, "kept as one stored namespace" (3).
 - **stateui-pg**:
@@ -528,7 +528,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
   - **The aggregate learns an address's workspace from the workspace that reads or saves it**, kept in memory, not
     from `statenet_namespace`: enough in one process, not for a separate aggregate.
   - **Servers still hold every right on the state tables.** Narrowing them to `SELECT` is S11.
-  - **The standalone stateui-mcp still keeps instances in its `personas/` files** (`FileUiInstanceRepository`);
+  - **The standalone stateui-mcp still keeps instances in its `people/` files** (`FileUiInstanceRepository`);
     `convert` is not extended.
   - **A save no longer logs the rows it changed** in `state_change`. Nothing reads that log, and the authority's
     own log is not kept either (above).
@@ -551,7 +551,7 @@ person's state of the app), `<owner>/data/<dataset>` is `$.data.<dataset>`. The 
   names owners go by in addresses, `OWNER_IDS` (their ids) by default; `createServices` takes `owners` and hands it
   to the instance states, the in-process relay and `uses.external`. `appStateAddress` and `StateScope` are removed.
   Tests: `domain/StateAddress.test.ts`.
-- **stateui-pg**: `pgWorkspaceStorage`, `txInstances` and `RecordSimilarity` take `owners`; a persona record's
+- **stateui-pg**: `pgWorkspaceStorage`, `txInstances` and `RecordSimilarity` take `owners`; a person record's
   embedding id is `<owner>/apps/<appId>/<binding>/<key>`. `migrations/0007_owner_tree_addresses.sql` moves the
   addresses in `state_node`, `state_change`, `namespace_head`, `namespace_owner` and the embedding ids.
 - **Magnetic**: `datasetAddress`, `datasetOf` and the new `appOf` (`src/grants/StateGrants.ts`); a grant's address is
@@ -574,7 +574,7 @@ person's own workspace and an org's workspace go by the person's and the org's n
   `idOfName`, `address` and `addressById` convert grants' names and addresses either way.
 - **Magnetic** `StateGrants` issues, checks, lists and revokes by numbers and gives its callers ids back; key
   rotation, the grant routes, the support list (`src/orgs/Instances.ts`), retention (`src/orgs/Policies.ts`), an
-  org's read revoked when a member leaves (`src/orgs/Orgs.ts`), the persona apps list and the statenet node use the
+  org's read revoked when a member leaves (`src/orgs/Orgs.ts`), the person's apps list and the statenet node use the
   numbers. `startMagnetic` hands one `OwnerNumbers` to all of them, to stateui-mcp's `createServices` and to
   stateui-pg's storage, and `RunningMagnetic.owners` exposes it.
 - Checked: stateui-mcp 1086, stateui-pg 57, statenet 65, Magnetic 284 unit tests.

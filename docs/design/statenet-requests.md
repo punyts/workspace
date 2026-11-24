@@ -174,7 +174,7 @@ namespace and always allows it, and a request kept there would be decided by its
   Data page ("changes wait for my approval") or per person in the share dialog.
 
 ### Magnetic: how R3a is built
-- **The namespace's state** is `$.data.records.<key>`. Postgres keeps one row per record, as it does a persona
+- **The namespace's state** is `$.data.records.<key>`. Postgres keeps one row per record, as it does a person
   binding's. The model stays in the stored part, where renames and the usage index already handle it.
 - **The data part is served from it.** The stored `data` part keeps the dataset's id, name and model. The part
   repository that Services hands out (`DatasetParts`) serves a `data` part with the namespace's records, and the
@@ -212,8 +212,9 @@ namespace and always allows it, and a request kept there would be decided by its
   Without `datasetAccess` (the file server, tests) sessions are not checked.
 - **A binding is a session.** `DatasetHub` opens one `DatasetSession` per shared binding of a running instance: a sync
   client in the server (protocol 3) over an in-process transport (`sessionTransport`), connected here or tunnelled to
-  the server that holds the dataset (`InstancePlacement.connect`), as the persona the instance acts for. Magnetic's
-  `accessFor` is `StateGrants.boundAccess`: the workspace itself for its own persona (`default`), otherwise a token
+  the server that holds the dataset (`InstancePlacement.connect`), as the person the instance acts for. Magnetic's
+  `accessFor` is `StateGrants.boundAccess`: the workspace itself for its own instance (the person is the workspace),
+  otherwise a token
   for the person's standing `bound` entry on `$.data.<dataset>`, read and write, made the first time they bind it
   (permission kind `bound`, not listed under Shared by me). So everyone who runs an instance of an app writes the
   datasets it binds, as with `use` today; R3c lets the owner lower an entry to `request`.
@@ -387,7 +388,7 @@ R3b (2026-11-23):
   `DatasetNamespaces.ts` (the model check as the authority's change handler, `context` and `requests` options,
   `syncNamespaceOf`); `DatasetSession.ts` (`sessionTransport`, a binding's sync client as a person, renewed before its grant expires);
   `DatasetHub.ts` (bindings as sessions, `sync.requests` and `sync.decide`); `AuthorityInstanceStates.ts` (attach as
-  the instance's persona); `src/config/createServices.ts` (`datasetAccess`, sessions here or through the placement);
+  the instance's person); `src/config/createServices.ts` (`datasetAccess`, sessions here or through the placement);
   `src/browser/host.ts` and `requestsView.ts` (the bindings' requests in `$.runtime.requests`, decisions sent on).
 - **Magnetic**: `migrations/0001_baseline.sql` (permission kind `bound`); `src/grants/StateGrants.ts`
   (`boundAccess`, `accessContext`, `refreshRevoked`, `tokenFor` keeps `request`); `src/server/startMagnetic.ts`

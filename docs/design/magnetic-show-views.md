@@ -148,7 +148,7 @@ so a return to Screens finds the screens where they were.
 its records to `$.data.statenet.nodes`, and `layoutTree` places them). Each node's id is its path, which the card
 carries as `data-id`.
 - **`$`**, then a pill per branch: `$.apps`, `$.themes`, `$.data`, `$.models`, `$.logic`, `$.components`, `$.patterns`
-  (when the owner has any), `$.connections` and `$.personas`.
+  (when the owner has any), `$.connections` and `$.people`.
 - **Every part of the owner** under its branch. A part the app being edited does not use is flat with its label
   muted ("Not used by this app"). The app being edited is selected; the owner's other apps open in their own editor.
 - **One level below a part:**
@@ -159,13 +159,12 @@ carries as `data-id`.
   - a model: its fields with their types (`$.models.<model>.fields.<field>`);
   - a logic module: its units (`$.logic.<module>.<group>.<unit>`);
   - a connection: its endpoints, plus endpoints the logic calls that are missing from it;
-  - a persona: the apps of the workspace it has state in (`$.personas.<persona>.apps.<owner>.<app id>`), the most
+  - the person editing: the apps of the workspace they have state in (`$.people.<person>.apps.<app id>`), the most
     recently used first: the app being edited and the most recent others, eight in all (`TREE_RECORDS`), and how many
     more. A dashed edge joins an app to its instance.
-- **`$.personas` holds the person's own persona only.** Another person's state is theirs: an org's admins reach it only
-  through the audited support view. A persona is the person's own context of use (`work`, `comptia`, `comptia_bob`),
-  not the person, who is `$.user`; the node is named by the persona. Magnetic gives each person the `default` persona,
-  whose state it keeps at the statenet address `<their id>/<app id>/user` (`personaApps`, from `namespace_head`).
+- **`$.people` holds the person editing only**, at their own id and labelled with their name. Another person's state is
+  theirs: an org's admins reach it only through the audited support view. A person's state of an app is at
+  `<their owner number>/apps/<app id>` (`personApps`, from `namespace_head`; person-state.md).
   A part the app does not use is drawn without what it holds; its editor shows that.
 - **A branch shows** every part the app uses and the first six others (`UNUSED_SHOWN`), then a pill "N more" that shows
   the rest, and "Show fewer" after. An owner with many apps and themes would otherwise draw a board too tall to read.
@@ -234,7 +233,7 @@ pans the canvas keeps it.
 - **A screen:** shows that screen in the Screens view.
 - **A binding:** its dataset's editor.
 - **Another app:** Open this app.
-- **A persona:** what it holds. **An app's instance under it:** what it is, when it was last used, and Open this app
+- **The person:** what their state holds. **An app's instance under it:** what it is, when it was last used, and Open this app
   for another app.
 - **A part the app does not use** (a theme, a dataset, a module) has Use in this app.
 
@@ -339,7 +338,8 @@ person's own tools (`src/server/viewRoutes.ts`):
   too tall to read.
 - The branches of `$` are split between its right and left sides, in order, by height (owner, 2026-11-18): one side
   ran about twice as tall as wide.
-- `$.personas` shows the person's own persona only, named by the persona, never the person (owner, 2026-11-18).
+- `$.people` shows the person editing only (owner, 2026-11-18: "Only my own"). The owner then had it named by a
+  persona, never the person; personas went (person-state.md, owner 2026-11-23), so the node is the person's own id.
 - A logic module is made working on one of the app's bindings: its units may only use `$.data.<need>` paths, so a
   module with no need could hold no rule.
 - Statenet is drawn on the board, in the world that pans and zooms, not on a sheet of its own (owner, 2026-11-18).

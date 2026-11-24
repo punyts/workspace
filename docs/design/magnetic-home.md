@@ -49,7 +49,7 @@ marked. A share the person has not answered waits at the front of the grid with 
 
 ## Decisions
 - New shares wait for an answer rather than joining the grid at once (owner, 2026-11-18).
-- The card model of the grids has no field defaults. A persona binding starts as its model's defaults, which on a map
+- The card model of the grids has no field defaults. A person binding starts as its model's defaults, which on a map
   of cards would be keys beside the cards; the server writes `own` and `answered` on every app card.
 - A write keeps the keys a map has where they are and appends new ones, so `HomeApps.show` empties a list first when its
   cards must change order (a new share goes to the front).

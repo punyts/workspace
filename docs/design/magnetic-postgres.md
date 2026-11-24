@@ -29,11 +29,11 @@ error logs; everything else here stands.
 | Need | Already in | Notes |
 |---|---|---|
 | Part storage port | `stateui-mcp` `UiPartRepository` | Create, find by name or id, list, write and delete with `expectedRevision`, rename with rewrites all or nothing |
-| Instance storage port | `stateui-mcp` `UiInstanceRepository` | The diff of an instance over its definition, and persona binding records, by app id |
+| Instance storage port | `stateui-mcp` `UiInstanceRepository` | The diff of an instance over its definition, and person binding records, by app id |
 | File metadata and bytes | `UiFileRepository`, `UiFileStore`, `AppFolderStore` | At most 10 MB a file, 50 files and 100 MB an app; quotas checked under a per-app lock |
 | Sync authority storage | `state-sync` `NamespaceStorage` | stateui-mcp keeps instance namespaces through `InstanceNamespaceStorage`, which writes the instance repository, not a sync log |
-| Shared and personal data | `stateui-app` `DataBinding` | A binding is an owner dataset (`{ dataset }`, shared by everyone using the app) or a persona binding (`{ model, scope: 'persona' }`, each persona's own records) |
-| Personas | `InstanceKey` `{ persona, ownerId, appId }` | `use` links already give each viewer their own instance with persona = their user id |
+| Shared and personal data | `stateui-app` `DataBinding` | A binding is an owner dataset (`{ dataset }`, shared by everyone using the app) or a person binding (`{ model, scope: 'person' }`, each person's own records) |
+| People | `InstanceKey` `{ person, ownerId, appId }` | `use` links give each viewer their own instance under their user id (person-state.md) |
 | A contract test for parts | `stateui-mcp` `partRepository.contract.test.ts` | The Postgres adapter runs the same contract |
 | Magnetic's own stores | `Accounts`, `Sessions`, `Grants`, `Budgets`, `Chats` | Each a class over one JSON file (`storage/jsonFile.ts`), one write at a time |
 | One `Services` per user | `Workspaces`, `createServices({ ownerId, dataDir })` | Isolation comes from each user having their own folder |
@@ -91,8 +91,8 @@ These pieces are new:
 ### `createServices` takes storage instead of a folder
 - `ServicesOptions` gets `storage?: ServicesStorage`. With it, `createServices` uses the given adapters. Without it,
   `dataDir` builds the file adapters, for the local server.
-- `ServicesStorage` holds `parts`, `instances(persona)` (a factory, because `AuthorityInstanceStates` makes one per
-  persona today), `files`, `fileStore`, `errorLog`, `appFolders`, and `recover` (files finish a crashed rename; on
+- `ServicesStorage` holds `parts`, `instances(person)` (a factory, because `AuthorityInstanceStates` makes one per
+  person), `files`, `fileStore`, `errorLog`, `appFolders`, and `recover` (files finish a crashed rename; on
   Postgres a rename is one transaction, so there is nothing to finish).
 - The Postgres adapters lock with the transaction itself: `SELECT ... FOR UPDATE` on the part row for revisions, and
   on the app's quota row for file adds. That makes them safe across processes, which the in-process `KeyedLock` was
@@ -166,20 +166,19 @@ Each app has an **access list** of entries: a member or a group, with one **app 
   the org (`externalLinks`); the default for an org is members only.
 
 ### State: each employee's own where it belongs
-- **Each employee has their own instance** of every org app they use: persona = their user id, as `use` links work
-  today. Their instance holds their route, form values, selections and theme choices, so two employees never see each
+- **Each employee has their own instance** of every org app they use, keyed by their user id, as `use` links work. Their instance holds their route, form values, selections and theme choices, so two employees never see each
   other's half-filled forms.
 - **The app decides which data is shared**, binding by binding, with what StateUI already has:
   - an owner dataset binding (`{ dataset }`) is the org's data: one set of records everyone using the app reads and
     writes, live (an inventory, the team's tickets);
-  - a persona binding (`{ model, scope: 'persona' }`) is each employee's own records (their expense claims, their
+  - a person binding (`{ model, scope: 'person' }`) is each employee's own records (their expense claims, their
     drafts).
 - The agent's guide gets a section on choosing between them, and the editor's Data panel shows each binding as
   **Shared with everyone** or **Each person's own**.
 - Who may write the shared data is the app's logic and the person's permission: `view` writes nothing, `use` writes
   what the app's screens and logic let them, `edit` also changes the dataset's model and records directly in the
   inspector.
-- The owner's `default` persona is not used in an org workspace. Admins can open any employee's instance read only, for
+- The org workspace's own instance (the key whose person is the workspace) is not used by members. Admins can open any employee's instance read only, for
   support, and that access is written to the audit log.
 - A new section of the inspector lists the instances of an app (who uses it, last used), for people with `manage`.
 
@@ -192,9 +191,9 @@ Each app has an **access list** of entries: a member or a group, with one **app 
   - the app part, with its id, so its URLs and links keep working;
   - the parts it reaches (themes, logic, models, datasets, components, patterns). A part that no other app in the
     personal workspace uses moves. One that another personal app also uses is copied, so that app keeps working;
-  - its instances: the owner's `default` instance becomes their instance with persona = their user id, and the
+  - its instances: the owner's own instance becomes their instance under their user id, and the
     instances of people who opened its `use` links move as they are;
-  - persona records, shared dataset records, uploaded files and their bytes, the preview error log, the chat, and
+  - person records, shared dataset records, uploaded files and their bytes, the preview error log, the chat, and
     the embeddings (no re-embedding needed);
   - its links: they keep working if the org's `externalLinks` policy allows them, and are revoked otherwise, with
     the usual scrub of the browsers that opened them.
@@ -267,7 +266,7 @@ Each app has an **access list** of entries: a member or a group, with one **app 
 4. **Data in the apps.** A model field can be marked `embed: true` (a string field only). The records of datasets and
    persona bindings with such fields are embedded per record and field. Apps query them with a new data operation,
    `similar` (`{ binding, field, text, limit }`), which logic and the agent's tools can run. The answer is record keys
-   with scores, so the app reads the records as usual. A persona binding's search covers only that person's records.
+   with scores, so the app reads the records as usual. A person binding's search covers only that person's records.
    `embed` is a new key on `FieldDeclaration` in `stateui-app`, and the local server ignores it.
 
 ## The schema
@@ -387,7 +386,7 @@ P5 can run beside P3 and P4. P6 and P7 can run beside each other.
   - `chat_recall` finds an earlier chat of the same person by meaning, and never another person's.
 - **P7:**
   - A dataset with an `embed` field answers `similar` with the closest records' keys, in logic and in the tools.
-  - `similar` over a persona binding returns only that person's records.
+  - `similar` over a person binding returns only that person's records.
   - A record edit re-embeds only that record and field.
 
 ## Settled
@@ -424,7 +423,7 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
 - The org tables in `migrations/0001_baseline.sql`; `Orgs` (members and roles, groups, invites, the audit log),
   `AppAccess` (permissions, access lists, open to the org, where an app is) and `moveAppToOrg`. JSON routes under
   `/orgs`, `/invites` and `/apps/<id>/move` (listed in Magnetic's README). Pages, the editor, agent turns, shares and
-  view sockets all ask `AppAccess`; members use org apps with persona = their user id; losing an app closes its views.
+  view sockets all ask `AppAccess`; members use org apps under their own user id; losing an app closes its views.
   Your apps lists the org apps a person may open.
 - Changed from the design: no `app_directory`. An app's workspace is found by looking in the person's own workspace,
   then their orgs' (`AppAccess.locate`), so the table had nothing to add. A moved app's reached parts are copied, and
@@ -484,22 +483,20 @@ Built on `feature/postgres` in the workspace, `magnetic` and `stateui-mcp`, and 
 ### P7: vectors in app data (15 November 2026)
 - `embed: true` on a model's string field (`FieldDeclaration.embed` in stateui-app; `readModel` refuses it on any
   other type, and on screen and module params); `ui_model_write` sets it, and the local server ignores it.
-- stateui-pg `records.ts`: two sources, `record` (`<dataset part id>/<key>`) and `persona-record`
-  (`<app id>/<binding>/<persona>/<key>`, owned by the persona), one vector per embedded field. A part change now carries
-  its body before and after (`PartChange`), and a persona binding's write the records it replaces
-  (`PersonaDataWrite`), so a record edit queues only the records and fields it changed; a model that starts or stops
-  embedding a field queues that field of every record of its datasets and persona bindings; `queueAllRecords` for
+- stateui-pg `records.ts`: two sources, `record` (`<dataset part id>/<key>`) and `person-record`
+  (`<app id>/<binding>/<person>/<key>`, owned by the person), one vector per embedded field. A part change now carries
+  its body before and after (`PartChange`), and a person binding's write the records it replaces, so a record edit queues only the records and fields it changed; a model that starts or stops
+  embedding a field queues that field of every record of its datasets and person bindings; `queueAllRecords` for
   `magnetic reindex`. `EmbeddingIndex.search` takes `sourcePrefix` and `field`.
 - `RecordSimilarity`: `{ binding, field, text, limit }` resolved through the app's `uses.data`, refused for a field the
-  model does not embed, answered with record keys and scores; a persona binding searches only that persona's records.
+  model does not embed, answered with record keys and scores; a person binding searches only that person's records.
 - Magnetic: workspaces queue records (`embedRecords`), the server registers the `similar` procedure in every workspace,
-  and the agent gets `data_similar` (the person's own records over a persona binding: the default persona in their own
-  workspace, their id in an org's).
+  and the agent gets `data_similar` (the person's own records over a person binding, under their user id).
 - Deviations:
   - `similar` is a server procedure that logic reaches with `call`, not a new logic command. Logic commands run
     synchronously in a transition, and embedding the text and searching cannot; `call` already answers a machine
-    later as a named result. To let it search a persona binding, a procedure now gets the persona whose instance calls
-    it (`AppProcedureContext.persona` in stateui-mcp). The design's `dataset_record` table was never built: records
+    later as a named result. To let it search a person binding, a procedure now gets the person whose instance calls
+    it (`AppProcedureContext.person` in stateui-mcp). The design's `dataset_record` table was never built: records
     stay in their part body and `persona_dataset`, and their vectors are keyed by their place there.
   - The guide's text is a topic of its own (`similar`), as the `logic` topic is at its size cap.
   - A record written moments ago is found once the worker has embedded it (every 2 seconds), as the design says of

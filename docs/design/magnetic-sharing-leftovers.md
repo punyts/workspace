@@ -10,7 +10,7 @@ some things behind", and then "Do it all".
 Sharing an app (`use`, `view` and `remix` links, `src/sharing/Grants.ts`) left three things behind:
 
 - **Deleting an app kept other people's state of it and its links.** `DeletePart` stops every running instance of the
-  app, but removes only the owner's own (`instances.reset`, the default persona). Each person who used it through a
+  app, but removes only the owner's own (`instances.reset`, the key whose person is the owner). Each person who used it through a
   `use` link, and each org member, keeps a namespace `<their number>/apps/<appId>` in the owner's workspace. The
   links stay live, so their pages say "This app was deleted" but their browsers keep what they cached.
 - **The page of a revoked app shows its name.** The link page of a revoked token is titled with the app's name, and
@@ -22,9 +22,9 @@ Sharing an app (`use`, `view` and `remix` links, `src/sharing/Grants.ts`) left t
 ## The design
 
 ### Deleting an app takes everything of it
-- stateui-mcp's `ServicesStorage` gains `removeApp?(appId)`: removes every persona's stored instance of the app. The
+- stateui-mcp's `ServicesStorage` gains `removeApp?(appId)`: removes every person's stored instance of the app. The
   delete of an app calls it while the app's instances are stopped, after the owner's own reset. File storage has
-  no other persona's instance kept by app, so it leaves it out.
+  no other person's instance kept by app, so it leaves it out.
 - stateui-pg's `pgWorkspaceStorage` implements it: the addresses `<owner>/apps/<appId>` of the workspace in
   `namespace_head`, each removed whole through the workspace's namespace store at the epoch its head holds. In
   Magnetic that store is `StateWriter`, so the removal goes through the aggregate (S11).
