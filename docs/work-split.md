@@ -70,7 +70,8 @@ Next on this machine:
   follows the screen (`/screens/<name>`), the board position (`#x,y,zoom`) and the open panel or sheet (`?open=`), so
   Back works. Stage 2 built 2026-11-23, not deployed: Ctrl+Shift+= and Ctrl+Shift+- zoom between the editor and the
   running app, under a level bar, replacing Ctrl+Shift+E. Stage 3 built 2026-11-23, not deployed: an org's apps as a
-  board at `/orgs/<org>` (`/orgs/me` for the person's own), where zooming out of the editor goes. Stages 4 and 5 are next. Their open questions go to the owner first: starter apps in every
+  board at `/orgs/<org>` (`/orgs/me` for the person's own), where zooming out of the editor goes. Stage 4 built 2026-11-23, not deployed: the Orgs level at `/orgs`, the
+  person's own space and their orgs as tiles. Stage 5 is next. Their open questions go to the owner first: starter apps in every
   new org (the component showcase and which examples), and where a person's state for an app lives (their owner number
   laid over the app owner's paths, possibly replacing personas; the tower's area, with statenet-direction.md).
 - **28 e2e specs in `editor.spec.ts`, `inspector.spec.ts` and `screens.spec.ts` are stale** since the starter screen

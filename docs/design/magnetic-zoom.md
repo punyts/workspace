@@ -1,7 +1,7 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
-Status: stages 1 (the URL), 2 (the chords and the level bar) and 3 (an org's apps) built 2026-11-23, not deployed;
-stages 4 and 5 designed, not built. Asked for on 2026-11-23:
+Status: stages 1 (the URL), 2 (the chords and the level bar), 3 (an org's apps) and 4 (the Orgs level) built
+2026-11-23, not deployed; stage 5 designed, not built. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
@@ -79,9 +79,17 @@ Built 2026-11-23.
 - **Zooming out of the editor** goes to the app's workspace: `/orgs/<org>?app=<id>` for an org's app, else
   `/orgs/me?app=<id>`. `?app=` selects that app's tile and brings it into view, so zooming back in returns to it. The
   level bar's workspace goes to the same place.
-- **Zooming out of an org's apps** goes to Your apps (`/`) until stage 4 builds the Orgs level. The level bar reads
-  Your apps › Acme.
-- `GET /orgs` stays the JSON list of the person's orgs until stage 4, which needs the path for the Orgs page.
+- **Zooming out of an org's apps** goes to the Orgs level, `/orgs?org=<org>` (`?org=me` from their own), which
+  selects that workspace's tile. The level bar reads Orgs › Acme.
+
+## The Orgs level (stage 4)
+Built 2026-11-23.
+- **The page**: `GET /orgs`, the same page as a workspace's board (`magnetic-apps`, `/assets/apps.js`) with other tiles.
+- **The tiles**: the person's own space first (Yours, to `/orgs/me`), then each org they are in, with their role, to
+  `/orgs/<org>`. `?org=<id>` (`?org=me`) selects a tile and brings it into view.
+- **Zooming in** on a tile, by a press or Ctrl+Shift+=, opens that workspace's board. Zooming out goes nowhere: it is
+  the outermost level. The level bar reads Your apps › Orgs, so Your apps stays one press away.
+- `GET /orgs` no longer answers the JSON list of the person's orgs; nothing used it. `POST /orgs` still makes an org.
 
 ## The keys
 Built 2026-11-23 (stage 2) between the editor and the running app.
@@ -113,14 +121,14 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
 - **Starter apps per org.** The owner suggested every new org gets the component showcase and the example apps,
   which its members may delete. Which examples, and whether a person's own space keeps the showcase, is decided with
   that work, not here.
-- Whether Your apps (`/`) becomes the Orgs level or stays as it is with the level bar.
+- Whether Your apps (`/`) becomes the Orgs level. For now it stays as it is, and the Orgs level's bar links to it.
 
 ## Stages
 1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. Built
    2026-11-23.
 2. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar. Built 2026-11-23.
 3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor. Built 2026-11-23.
-4. The Orgs level, with the person's own space.
+4. The Orgs level, with the person's own space. Built 2026-11-23.
 5. The scale transitions.
 
 ## Decisions
@@ -130,10 +138,12 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
 - The level bar is drawn by the page over the running app only, a strip the app sits under, not part of the editor
   app: the bar must show while the editor is hidden, and the editor's corner already names the levels. Made while
   building stage 2.
-- Zooming out of an org's board goes to Your apps (`/`) until stage 4, so the chord does something at every level that
-  exists. Made while building stage 2.
 - The board's tiles are written into its page, not fetched from `GET /orgs/<org>/apps`: one request, and the page
   holds nothing the person could not already open. Made while building stage 3.
+- The Orgs level is the same page as a workspace's board, with workspaces for tiles; the page is told which query
+  parameter selects (`data-pick`) and where zooming out goes (`data-out`). Made while building stage 4.
+- Your apps stays at `/`, outside the levels: the Orgs level is reached by zooming out or at `/orgs`, and its bar links
+  back to Your apps. Whether `/` becomes the Orgs level is still open. Made while building stage 4.
 - An app in Magnetic's pages workspace zooms out to `/orgs/me`, where it is not a tile; the board then fits every tile.
   Made while building stage 3.
 - The page never rewrites the URL on load: `/edit/<app>` stays bare until the screen changes, so links of the bare form
@@ -171,3 +181,11 @@ Stage 3, in Magnetic:
 - Tests: `src/apps/AppsPage.test.ts` (the contract, an org's tiles for an editor and a user, 404 for anyone else, the
   own space), `e2e/apps.spec.ts` (zooming out to the board and back in, a press on a tile), `e2e/address.spec.ts` and
   `e2e/levels.spec.ts` (the board as the way out).
+
+Stage 4, in Magnetic:
+- `src/server/startMagnetic.ts`: `appsBoardRoute` answers `GET /orgs` with the Orgs level; a workspace's board zooms
+  out to `/orgs?org=<id>`. `src/server/orgRoutes.ts` no longer answers `GET /orgs`.
+- `src/http/apps.ts`: the bar's levels (`BoardLevel`), `data-pick`, `data-out` and `data-label`. Texts `apps.orgs`,
+  `apps.orgsBoard`, `apps.ownSpace`.
+- Tests: `src/apps/AppsPage.test.ts` (the Orgs level's tiles, the board's way out), `e2e/apps.spec.ts` (zooming out of a
+  workspace to the Orgs level and back in).
