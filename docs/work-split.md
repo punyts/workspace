@@ -68,7 +68,8 @@ Next on this machine:
 - **Zooming between orgs, apps, screens and the running app**, designed 2026-11-23
   ([design/magnetic-zoom.md](design/magnetic-zoom.md)). Stage 1 built on the tower 2026-11-23, not deployed: the URL
   follows the screen (`/screens/<name>`), the board position (`#x,y,zoom`) and the open panel or sheet (`?open=`), so
-  Back works. Stages 2 to 5 are next. Their open questions go to the owner first: starter apps in every
+  Back works. Stage 2 built 2026-11-23, not deployed: Ctrl+Shift+= and Ctrl+Shift+- zoom between the editor and the
+  running app, under a level bar, replacing Ctrl+Shift+E. Stages 3 to 5 are next. Their open questions go to the owner first: starter apps in every
   new org (the component showcase and which examples), and where a person's state for an app lives (their owner number
   laid over the app owner's paths, possibly replacing personas; the tower's area, with statenet-direction.md).
 - **28 e2e specs in `editor.spec.ts`, `inspector.spec.ts` and `screens.spec.ts` are stale** since the starter screen

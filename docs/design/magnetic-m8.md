@@ -212,7 +212,7 @@ N6 is the largest: about as much work as N2 to N5 together.
     - the editor: `#editor iframe`, over the app at `#artboard iframe`;
     - an app opened on its own: its only frame.
   - Pressing an idea on a blank app sends it at once; it does not fill the request.
-  - Leaving the editor with Ctrl+Shift+E only drops the `editing` class, so the editor's frame stays in the DOM.
+  - Zooming into the running app only drops the `editing` class, so the editor's frame stays in the DOM.
   - On a phone the frame opens at Phone size.
   - An invite link shows Join to anyone signed in; the email is checked when Join is pressed.
 - **What the suite found:**

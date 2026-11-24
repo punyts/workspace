@@ -62,9 +62,9 @@ These pieces are new:
     into its data on each visit, and the page acts on its `emit`s (open, create, sign out). It is Magnetic's
     own UI built with StateUI. A stamp of its definition per person makes it again when the definition changes.
   - **A card opens the app** at `/apps/<appId>`, full page, with the editor hidden.
-  - **Ctrl+Shift+E** (Cmd on a Mac) brings the editor in over the app: the canvas, so the app can be panned and
-    zoomed, the panels and the chat. Pressed again it goes. The address switches between `/apps/<appId>` and
-    `/edit/<appId>` without a reload. Ctrl+Shift+T was asked for first, but browsers keep it to reopen a tab.
+  - **Ctrl+Shift+-** (Cmd on a Mac) zooms out of the app to the editor: the canvas, so the app can be panned and
+    zoomed, the panels and the chat. Ctrl+Shift+= zooms back in. The address switches between `/apps/<appId>` and
+    `/edit/<appId>` without a reload. The chords and the level bar over the app are in magnetic-zoom.md.
   - The app runs in a frame of another origin, so the page cannot hear a key pressed in it. stateui-app's `load`
     now takes `keys`, and the runtime posts a matching key to the host as `key`. stateui-mcp's host script
     reads them from `data-host-keys` and raises `stateui:key` and `stateui:emit` on the page.
