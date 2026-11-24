@@ -1,6 +1,6 @@
 # A binary wire format for sync and the mesh
 
-Status: designed 2026-11-23, not built. The first of the direction's transport items
+Status: designed 2026-11-23, decisions made 2026-11-23, not built. The first of the direction's transport items
 ([statenet-direction.md](statenet-direction.md), "Transport and encoding", item 1).
 
 Asked for on 2026-11-23: "Ok, let's do all of that starting with your recommendation", to the list of next steps that
@@ -43,8 +43,10 @@ which needs no new infrastructure.
 - **Sync protocol 4 is binary after hello.** `hello` stays JSON text and gains nothing new: protocol 4 means "binary
   from here". The authority answers a protocol 4 hello with a binary `welcome`, and every later message both ways is a
   binary WebSocket frame. `SyncTransport`, `TransportConnection` and authority sessions carry `string | Uint8Array`;
-  a text frame after hello on a protocol 4 connection is `invalid-message`. Clients below 4 keep JSON (`PROTOCOL_VERSIONS`
-  gains 4).
+  a text frame after hello on a protocol 4 connection is `invalid-message`. Protocol 4 replaces 1 to 3 in the same
+  change (owner, 2026-11-23): `PROTOCOL_VERSIONS` is `[4]`, a hello of 1 to 3 is `invalid-message` naming 4, and the
+  text path after hello is removed. A tab open across the deploy stops syncing until it reloads the new runtime
+  bundle; the `requests` field of hello stays the client's opt-in.
 - **Mesh protocol 5 seals CBOR.** The link handshake stays JSON; after it, a frame's messages are encoded as CBOR
   before sealing, and `say` carries a sync message as bytes. Nodes of protocol 4 and 5 do not link (the mesh already
   refuses a protocol it does not speak); a deploy restarts every node.
@@ -76,16 +78,15 @@ this is measured.
 3. **W3, mesh protocol 5** (statenet): CBOR frames under the seal; `say` as bytes.
 
 Checks: the example's suites and Magnetic's e2e suite pass over protocol 4; the size script's numbers are in the
-CHANGELOG; a protocol 3 client still syncs with an authority that speaks 4.
+CHANGELOG; a protocol 3 hello is refused as `invalid-message`.
 
 ## Decisions
-Proposed, for the owner:
-- **Our own CBOR subset rather than a library** (`cbor-x`, `msgpackr`): the subset is small, the limits and the
-  refusals are what an authority needs, and state-sync stays dependency-free in the browser.
-- **CBOR rather than MessagePack**, for the standard's deterministic form and big-integer tag.
-- **Paths numbered per connection**, not globally, until the registry exists.
-- **Text protocols 1 to 3 stay** until the runtime bundle every open browser runs speaks 4; they are removed by a later
-  change once a deploy has carried protocol 4.
+- **Our own CBOR subset rather than a library** (`cbor-x`, `msgpackr`) (owner, 2026-11-23): the subset is small, the
+  limits and the refusals are what an authority needs, and state-sync stays dependency-free in the browser.
+- **CBOR rather than MessagePack** (owner, 2026-11-23), for the standard's deterministic form and big-integer tag.
+- **Paths numbered per connection** (owner, 2026-11-23), not globally; the registry's global ids can replace them later.
+- **One cut-over, no text protocols beside 4** (owner, 2026-11-23): Magnetic has no users, so a tab that reloads after
+  the deploy is the whole cost, and the workspace keeps no backwards compatibility.
 
 ## Open items
 - Typed values by model, and how a model version selects them.
