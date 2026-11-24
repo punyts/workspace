@@ -58,6 +58,24 @@ geometry kept in state and shaped in the scene, in four stages (V1 to V4) in sta
 stateui-app, stateui-mcp and the example. V1 is a `mesh` of `custom` vertices and faces; V2 picks its vertices, edges and faces in the scene; V3 moves the pick with the gizmo, with undo; V4 adds the operations, the `scene3d-modeling` guide topic and the example's Workshop. Nothing
 in it touches the tower's packages.
 
+Built 2026-11-23, not deployed: the company org, the beta org and invites
+([design/magnetic-orgs-and-invites.md](design/magnetic-orgs-and-invites.md)). The server makes `ai-minion` ($50 a
+month, holds Magnetic's page drafts) and `beta` ($500) at start with apps kept in the org, and invites
+`MAGNETIC_ADMIN_EMAILS` as owner of both; invites work signed out; sign-in by emailed link; `/new` in the org; org
+public on Share. The hosted database is reset with the next deploy.
+
+Next on this machine:
+- **Zooming between orgs, apps, screens and the running app**, designed 2026-11-23, not started
+  ([design/magnetic-zoom.md](design/magnetic-zoom.md)). Its open questions go to the owner first: starter apps in every
+  new org (the component showcase and which examples), and where a person's state for an app lives (their owner number
+  laid over the app owner's paths, possibly replacing personas; the tower's area, with statenet-direction.md).
+- **28 e2e specs in `editor.spec.ts`, `inspector.spec.ts` and `screens.spec.ts` are stale** since the starter screen
+  and the viewport fill (Magnetic 9eaf9cf, d044ce9): the frame now reads the stage area's size, not 1280 × 800, and
+  the inspector specs find no selected box in the starter app. `npm run e2e` on 2026-11-23: 223 passed, 32 failed
+  (the 4 orgs failures since fixed). Unit tests pass.
+- A new account still gets the component showcase in its own workspace although both orgs keep apps in the org.
+- Opening the beta link before accepting the owner invite takes a beta place as a builder.
+
 Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower
@@ -103,6 +121,10 @@ asks first, in this file.
 
 ## The owner
 
+- `/magnetic/admin-emails` in SSM (us-east-1) set to `rodger@ai-minion.com` (asked 2026-11-23; the SSO session had
+  expired, so it is the owner's to run after `aws sso login --profile magnetic`). The next deploy resets the hosted
+  database (the baseline migration changed) and makes both orgs; invite and sign-in emails reach outside addresses
+  once SES is out of its sandbox.
 - Deploys (`node infra/aws/deploy.mjs`, with Docker Desktop running), stack changes and SSO. The next deploy carries
   Chromium (about 920 MB more image): check the t3.small's memory with an agent turn running.
 - The MapTiler template and key: `/magnetic/map-tiles-url` and `/magnetic/map-tiles-key` in SSM (us-east-1), and
