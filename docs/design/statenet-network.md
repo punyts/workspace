@@ -350,7 +350,7 @@ browser ──▶ magnetic-2 ─┴══▶ relay-1 ══▶ aggregate-1 ─�
 ## As built
 
 ### S7: link rules, sealed links and certificate renewal (19 November 2026)
-- **statenet** `src/mesh/`, mesh protocol 2, 3 since relays under relays, 4 since requests (a node of an older protocol is refused, so servers and relays are upgraded
+- **statenet** `src/mesh/`, mesh protocol 2, 3 since relays under relays, 4 since requests, 5 since CBOR frames (a node of an older protocol is refused, so servers and relays are upgraded
   together):
   - `mayLink(dialler, server)` (`certificates.ts`) is the table of who links to whom. The server end refuses a
     hello whose certificate's role may not link to its own, or names another role than the hello; the dialling end

@@ -1,6 +1,6 @@
 # A binary wire format for sync and the mesh
 
-Status: designed 2026-11-23, decisions made 2026-11-23; W1 and W2 built 2026-11-23. The first of the direction's transport items
+Status: designed 2026-11-23, decisions made 2026-11-23; W1, W2 and W3 built 2026-11-23. The first of the direction's transport items
 ([statenet-direction.md](statenet-direction.md), "Transport and encoding", item 1).
 
 Asked for on 2026-11-23: "Ok, let's do all of that starting with your recommendation", to the list of next steps that
@@ -18,7 +18,7 @@ which needs no new infrastructure.
   (`send(text)`, `onMessage(text)`); `Authority.connect` sessions `receive(text)`. `Validate.ts` checks each parsed
   message; `maxMessageBytes` bounds it.
 - **Mesh protocol 4** (`statenet/src/mesh/protocol.ts`): `link-hello`, `link-welcome` and `link-proof` in clear JSON,
-  then `frame` messages of `MeshMessage`s, each frame JSON text sealed by `LinkSeal.seal(text): Buffer`.
+  then `frame` messages of `MeshMessage`s, each frame JSON text sealed by `LinkSeal`.
 - **Who speaks sync**: the browser runtime (stateui-app's runtime frame, through stateui-mcp's view host), the server's
   dataset sessions (`DatasetSession`, in process), statenet's `ClientServer`, and tunnelled sessions (`open`/`say`
   through the mesh, whose `say` carries a sync message as text).
@@ -86,8 +86,7 @@ W2, 2026-11-23:
   read-only view's changes (stateui-mcp's `HttpServer`) without the session's wire; emits and acks carry no numbered
   path, so their bytes are the same from any wire, and the refused changes are read by one wire per socket.
 - statenet: `Statenet.ts` takes binary frames; `ClientServer` has a wire per browser socket and per requests-only
-  tunnel. The mesh is still protocol 4 until W3: a `say` carries a sync message as `text` or as `bytes` in base64
-  (`Said`, `sayOf`, `saidOf`).
+  tunnel.
 - stateui-mcp: the view socket (`HttpServer`), the browser channels (`viewChannel.ts`, `statenetChannel.ts`,
   `statenetView.ts`, with `binaryType = 'arraybuffer'`), the statenet link and bridge (`StatenetLink`, `StatenetViews`).
   The browser's sync transport is the view host's, not stateui-app's runtime frame, which posts changes to the host;
@@ -96,6 +95,25 @@ W2, 2026-11-23:
   (84%); changes 209,532 against 88,831 (42%), from arrays, path numbers and uuid bytes. Writing all messages 1.0 ms as
   JSON text and 3.1 ms through a wire; reading 1.1 ms with `JSON.parse` alone and 5.8 ms through a wire, which checks
   every message (the JSON figure checks none).
+
+W3, 2026-11-23:
+- statenet: `MESH_PROTOCOL` is 5. Past the handshake a link message is CBOR, sealed: `encodeLinkMessage` and
+  `decodeLinkMessage` in `src/mesh/protocol.ts`, used by `MeshServer` and `MeshUpstream`; `LinkSeal` seals and opens
+  bytes. A `say` is `{ type: 'say', tid, data }`, its data the sync wire's text (`hello`, `error`) or bytes, passed
+  on as they came (`linkClient.ts`, `serving.ts`, `MeshUpstream.ts`). Mesh messages stay maps: they are few per
+  frame beside what they carry, and the sync messages inside a `say` are already arrays.
+- A link message is decoded with bytes allowed, then refused unless its byte strings are `say` data (inside `rev` too),
+  so every other value is JSON's, as the rules ask. Limits: `MAX_LINK_MESSAGE_BYTES` (16 MiB, the WebSocket bound at
+  both ends now) for the input, items and strings; values may nest 16 levels deeper than a sync message's.
+- A message that cannot be encoded (NaN, a class instance, a value nested too deep) is left out of its frame and
+  reported by type in a warning, instead of throwing in the frame's flush: closing the link would only
+  send the same write again on the next one.
+- state-sync: `encodeCbor` takes `omitUndefined` (a map member that is undefined is left out, as JSON leaves it; mesh
+  messages are built with optional members) and `maxDepth`. The sync wire now writes as deep as it reads, so a change
+  value at the sync depth limit no longer fails to encode. Tests: `src/Cbor.test.ts`, `src/Wire.test.ts`.
+- Tests: statenet's `src/mesh/protocol.test.ts` (round trip, refusals) and `src/mesh/network.test.ts` ("mesh protocol
+  5": a protocol 4 hello refused, a sealed JSON frame and bytes outside a `say` closing the link); the mesh, groups,
+  aggregate and owner-mesh suites run over CBOR links.
 
 ## Rules and Constraints
 - A decoded message is always a `JsonValue` tree; nothing the JSON form could not carry crosses the wire.

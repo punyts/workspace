@@ -96,7 +96,7 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
 5. **The direction's later items** ([design/statenet-direction.md](design/statenet-direction.md)): the binary wire
    format, designed 2026-11-23 ([design/statenet-wire-format.md](design/statenet-wire-format.md)), its decisions made
    the same day (own CBOR subset, per-connection path numbers, one cut-over to protocol 4); W1, the codec, built the
-   same day; W2, sync protocol 4, built the same day; W3, mesh protocol 5, is next; WebRTC, then WebTransport.
+   same day; W2, sync protocol 4, and W3, mesh protocol 5, built the same day; WebRTC, then WebTransport, are next.
 
 The tower owns `statenet`, `state-sync`, the mesh and Magnetic's `src/statenet`. Work here that needs a change there
 asks first, in this file.
