@@ -495,7 +495,10 @@ What was built:
 - **A board's cards are as wide as its columns** (owner, 2026-11-23: "the outline for layout is past the app's
   viewport"). A board column's list never scrolls, so it keeps no scrollbar gutter (`--sui-list-gutter: auto` in
   `board.view.css`); before, the live app's card was 15px narrower than its frame and the selection outline, drawn from
-  the frame, ran past the app's right edge.
+  the frame, ran past the app's right edge. The card's column is also the screen's width plus the frame's 1px border
+  on either side, and the card's panels draw no border, so the frame lies inside the card instead of running about
+  5px past its right edge. The frame's corners are square (owner, 2026-11-23: "The rounded corner will cover up the
+  corners of the app"), so the app's corners and the selection outline drawn at them stay in sight.
 
 Tests: `src/editor/StarterScreen.test.ts`; stateui-app `src/dom/mount/pageFill.browser.test.ts`; stateui-components `test/composites/panel-toolbar.browser.test.ts` ("should
 fill the height a column gives it with grow, so its own growing child fills it in turn"),
