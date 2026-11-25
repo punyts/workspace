@@ -1,7 +1,7 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
-Status: all five stages built 2026-11-23 (the URL, the chords and the level bar, an org's apps, the Orgs level, the
-scale transitions), deployed 2026-11-24. Asked for on 2026-11-23:
+Status: all five stages built 2026-11-23 (the URL, the chords, an org's apps, the Orgs level, the scale transitions),
+deployed 2026-11-24. The running app as a page of its own, with nothing over it, built 2026-11-24. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
@@ -103,10 +103,18 @@ Built 2026-11-23 (stage 2) between the editor and the running app.
   zoom, so the handler calls `preventDefault` on keydown. A chord pressed inside an app in the page (the running app, or
   the live app on the board) comes through the runtime as `stateui:key`: the page names `mod+shift+=` and
   `mod+shift+-` in `data-host-keys`, and stateui-app's runtime names Shift with `+` and `_` by the keys they are on.
-- **The level bar** names the levels over the running app: the workspace (Yours, or the org), the app and the screen
-  showing (Acme › Field notes › Home). The app zooms out to the editor in the page; the workspace goes to its board of
-  apps, on the app's tile. On a phone, with no keys, it is the way out; it also shows desktop users the levels exist. The editor has
-  no bar of its own: its corner already names the app and the workspace, and its logo goes to Your apps.
+- **The running app is the app alone**, asked for on 2026-11-24:
+
+  > For the telescoping, when we go all the way into the screen, remove the breadcrumbs, it should just be the app.
+  > Basically you are switching back to the app.
+
+  and then:
+
+  > It should literally go back to the app, not just be in the editor without the breadcrumbs.
+
+  `/apps/<app>` is its own page: the app fills the window, nothing is drawn over it, and no editor is loaded. Each zoom
+  between it and the editor is a page load: Ctrl+Shift+- loads `/edit/<app>` on the screen showing, and Ctrl+Shift+=
+  loads `/apps/<app>` on the screen picked. On a phone, with no keys, the editor is reached by its address.
 
 ## Moving between levels
 Built 2026-11-23 (stage 5).
@@ -117,8 +125,8 @@ Built 2026-11-23 (stage 5).
   over the tile first, so the next page grows out of it; zooming out spreads the mark over the whole board, and the
   page zoomed out to draws its mark over its selected tile, which sits in the middle at full size, so the page shrinks
   into it. The server draws that mark, so it is there before the board's script runs.
-- **In the page** (the editor and the running app) it is a same-document view transition: the level left scales up and
-  fades as the next comes in, or the reverse going out.
+- Between the editor and the running app it is the same cross-document transition: the shell's whole page is the
+  `zoom` element on both.
 - Browsers without view transitions, and people who ask for reduced motion, go straight to the next level.
 - Zooming out from the running app returns to the editor on the screen that was showing.
 
@@ -134,7 +142,8 @@ Built 2026-11-23 (stage 5).
 ## Stages
 1. The URL follows the screen, the position and what is open, in the editor and the running app, so Back works. Built
    2026-11-23.
-2. The chords replace Ctrl+Shift+E between the editor and the running app, with the level bar. Built 2026-11-23.
+2. The chords replace Ctrl+Shift+E between the editor and the running app. Built 2026-11-23; each zoom a page load and
+   the level bar removed, 2026-11-24.
 3. An org's apps as a board (`/orgs/<org>`), zoomed out to from the editor. Built 2026-11-23.
 4. The Orgs level, with the person's own space. Built 2026-11-23.
 5. The scale transitions. Built 2026-11-23.
@@ -143,9 +152,9 @@ Built 2026-11-23 (stage 5).
 - The screen is `/screens/<name>` after the app, not `/<name>`: `/edit/<app>/<x>` already serves the editor's routes
   (`screens`, `events`, `state` and others) and `/apps/<app>/<x>` the host's (`sync`, `files`, `report`, `export`),
   which a screen name could match. Made while building stage 1.
-- The level bar is drawn by the page over the running app only, a strip the app sits under, not part of the editor
-  app: the bar must show while the editor is hidden, and the editor's corner already names the levels. Made while
-  building stage 2.
+- The running app and the editor are two pages, not one page that hides the editor: the running app is then the app as
+  anyone opens it, and each page syncs with one instance, the person's own or the test run
+  (stateui-test-runs.md), so a view is never moved between instances (owner, 2026-11-24).
 - The board's tiles are written into its page, not fetched from `GET /orgs/<org>/apps`: one request, and the page
   holds nothing the person could not already open. Made while building stage 3.
 - The Orgs level is the same page as a workspace's board, with workspaces for tiles; the page is told which query
@@ -173,12 +182,11 @@ Stage 1, in Magnetic:
 Stage 2:
 - stateui-app `src/runtime/createRuntime.ts`: with Shift, `+` and `_` are named `shift+=` and `shift+-` (`SHIFTED`), so
   a host can name the chords. Test: `src/runtime/startRuntime.browser.test.ts`.
-- Magnetic `src/http/shell.ts`: `ZOOM_KEYS` in `data-host-keys`, `zoomChord`, `zoomIn`, `zoomOut`, `setEditing` taking
-  the screen into the same entry, the level bar (`levelBar`, `.levels`, `magneticShell.levelScreen`) and the bar's app
-  zooming out in the page; `shell.levels` in `src/http/text.ts`.
-- Magnetic `src/http/screens.ts`: `zoomPick` (the shell's `onZoomIn`) and the screen's title in the bar.
-- Tests: `e2e/address.spec.ts` (zooming in and out, each an entry Back undoes; zooming out of the editor to `/`),
-  `e2e/levels.spec.ts` (the bar, its app zooming out, Back), `e2e/editor.spec.ts` (the chords),
+- Magnetic `src/http/shell.ts`: `ZOOM_KEYS` in `data-host-keys`, `zoomChord`, and `zoomIn` and `zoomOut` loading the
+  other page at `addressOf` the screen; the editor is mounted only on `/edit`, and `.alone` fills the window.
+- Magnetic `src/http/screens.ts`: `zoomPick` (the shell's `onZoomIn`).
+- Tests: `e2e/address.spec.ts` (zooming in to the app alone with nothing over it and out to the editor on that screen,
+  each an entry Back undoes; zooming out of the editor to `/`), `e2e/editor.spec.ts` (the chords),
   `src/server/agentRoutes.test.ts` (the chords named on the page).
 
 Stage 3, in Magnetic:
@@ -187,10 +195,10 @@ Stage 3, in Magnetic:
 - `src/http/apps.ts`: the page (`appsPage`, `/assets/apps.css`) and its script (`/assets/apps.js`): rows of five,
   `?app=` selecting and centering a tile, a press or Ctrl+Shift+= zooming in, Ctrl+Shift+- out to `/`.
 - `src/server/startMagnetic.ts`: `appsBoardRoute` for `GET /orgs/me` and `GET /orgs/<org>`; the shell is given the org.
-- `src/http/shell.ts`: `data-board` (`boardOf`), where zooming out of the editor and the bar's workspace go.
+- `src/http/shell.ts`: `data-board` (`boardOf`), where zooming out of the editor goes.
 - Tests: `src/apps/AppsPage.test.ts` (the contract, an org's tiles for an editor and a user, 404 for anyone else, the
-  own space), `e2e/apps.spec.ts` (zooming out to the board and back in, a press on a tile), `e2e/address.spec.ts` and
-  `e2e/levels.spec.ts` (the board as the way out).
+  own space), `e2e/apps.spec.ts` (zooming out to the board and back in, a press on a tile), `e2e/address.spec.ts` (the board as
+  the way out).
 
 Stage 4, in Magnetic:
 - `src/server/startMagnetic.ts`: `appsBoardRoute` answers `GET /orgs` with the Orgs level; a workspace's board zooms
@@ -201,9 +209,8 @@ Stage 4, in Magnetic:
   workspace to the Orgs level and back in).
 
 Stage 5, in Magnetic:
-- `src/http/zoom.ts`: `ZOOM_CSS` (the opt-in, the `zoom` group, the in-page keyframes, reduced motion) and `ZOOM_JS`
-  (`zoomInPage`); `APPS_BOARD` moved here.
+- `src/http/zoom.ts`: `ZOOM_CSS` (the opt-in, the `zoom` group, reduced motion); `APPS_BOARD` moved here.
 - `src/http/apps.ts`: `#zoom-mark`, over the selected tile when the query names one (`selected`), moved over a tile
   before zooming in and over the board before zooming out.
-- `src/http/shell.ts`: the body named `zoom`; `zoomIn` and `zoomOut` in the page through `zoomInPage`.
+- `src/http/shell.ts`: the body named `zoom`.
 - Tests: `e2e/apps.spec.ts` (the editor grows out of a tile as a view transition).

@@ -49,8 +49,8 @@ These pieces are new:
     Escape. The activity drawer sits at the foot of the chat.
 - At first the app frame started below the top panels and right of the rail. It is now a frame on a canvas
   instead, so the person moves the app out from under a panel:
-  - The frame has a size, Desktop 1280×800, Tablet 834×1112 or Phone 390×844, and the app lays itself out at
-    that size. The canvas scales the frame with a CSS transform; the browser maps the pointer through it.
+  - The frame has a device, Desktop, Tablet or Phone, and one of six common screen sizes of that device (first
+    1280×800, 834×1112 and 390×844), turned or not; the app lays itself out at that size. The canvas scales the frame with a CSS transform; the browser maps the pointer through it.
   - The app runs in a frame from another origin, so the page never sees the pointer over it. Scrolling and
     dragging move the board only outside the frame. The Move tool, or Space held, lays a cover over the frame
     so the pointer moves the board anywhere. Ctrl+scroll is how browsers report a trackpad pinch.
@@ -61,10 +61,10 @@ These pieces are new:
   - **Your apps** is a StateUI app, `your-apps`, in each workspace: a grid of cards. Magnetic writes the lists
     into its data on each visit, and the page acts on its `emit`s (open, create, sign out). It is Magnetic's
     own UI built with StateUI. A stamp of its definition per person makes it again when the definition changes.
-  - **A card opens the app** at `/apps/<appId>`, full page, with the editor hidden.
+  - **A card opens the app** at `/apps/<appId>`, alone in the window; that page loads no editor.
   - **Ctrl+Shift+-** (Cmd on a Mac) zooms out of the app to the editor: the canvas, so the app can be panned and
-    zoomed, the panels and the chat. Ctrl+Shift+= zooms back in. The address switches between `/apps/<appId>` and
-    `/edit/<appId>` without a reload. The chords and the level bar over the app are in magnetic-zoom.md.
+    zoomed, the panels and the chat. Ctrl+Shift+= zooms back in. Each loads the other page, `/apps/<appId>` or
+    `/edit/<appId>`. The chords, each loading the other page, are in magnetic-zoom.md.
   - The app runs in a frame of another origin, so the page cannot hear a key pressed in it. stateui-app's `load`
     now takes `keys`, and the runtime posts a matching key to the host as `key`. stateui-mcp's host script
     reads them from `data-host-keys` and raises `stateui:key` and `stateui:emit` on the page.

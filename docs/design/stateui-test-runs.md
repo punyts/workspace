@@ -46,12 +46,9 @@ one instance, `instances.<owner>.<owner>.<app>`, so nothing told a test run from
   removes the `.test` namespace with every person's instance.
 - **Editing the seed.** `ui_data_write`, `ui_data_query` and Magnetic's Data page read and write the owner's dataset
   directly.
-- **Magnetic's page.** `/edit/<id>` and `/apps/<id>` are one shell page. It carries both namespaces
-  (`data-test-namespace`, `data-own-namespace`), starts on the one its address names, and at each zoom calls
-  `stateuiHost.reconnect(namespace, run)`: the view's sync client stops, the page's `data-namespace` and `data-run`
-  change, and a new client connects. The app stays loaded, and the other instance's welcome replaces its state (the
-  host diffs it in whole, deleting what the new state lacks). The editor's socket and its CSV exports
-  send `run=test`; the tenant answers them with no person (the test run), and every other request of the person's own
+- **Magnetic's pages.** `/edit/<id>` and `/apps/<id>` are two pages, and each zoom between them is a page load
+  (magnetic-zoom.md). Each names its one instance in `data-namespace`: the editor the test run, with `data-run="test"`,
+  the running app the person's own. The editor's socket and its CSV exports send `run=test`; the tenant answers them with no person (the test run), and every other request of the person's own
   workspace with the person's own instance. An org app gives the org's test run to someone who may edit it.
   Magnetic's own pages are real use: Your apps writes each visit's lists into the person's own instance of their
   home app (`HomeApps.show`, through `instanceViews.authority(app, person)`), and its page syncs with that instance.
@@ -63,7 +60,8 @@ one instance, `instances.<owner>.<owner>.<app>`, so nothing told a test run from
 - The copy follows the dataset's changes while the test run is running, instead of keeping its records until a reset,
   so the agent's seed edits show in its next screenshot. A copy stored from an earlier run keeps its records until a
   reset (2026-11-24).
-- The editor reconnects at each zoom rather than keeping the instance the page was loaded with (owner, 2026-11-24).
+- The editor and the running app are separate pages, each with its own instance, so a zoom loads the other page's
+  instance rather than moving one view between instances (owner, 2026-11-24).
 - The State view's graph lists a person's real state, not the test run's.
 
 ## As built
@@ -72,7 +70,7 @@ one instance, `instances.<owner>.<owner>.<app>`, so nothing told a test run from
   `src/infrastructure/sync/DatasetHub.ts` (checks and follows copies), `src/infrastructure/sync/AuthorityInstanceStates.ts`
   (the test person by default), `src/infrastructure/preview/InstanceViews.ts`, `src/config/createUiBuilder.ts` and
   `createServices.ts` (`instances` and `ownInstances`), `src/application/use-cases/DeletePart.ts`, `src/browser/host.ts`
-  (`reconnect`), `src/browser/viewChannel.ts` and `fileExport.ts` (`run=test`). Tests: `src/config/datasetHub.test.ts`
+  (`run` from `data-run`), `src/browser/viewChannel.ts` and `fileExport.ts` (`run=test`). Tests: `src/config/datasetHub.test.ts`
   ("should take a change of the dataset into a test run's copy …", "should give a save-data with a bad field in the
   copy of a test run the rejected result …"), `src/config/instanceStates.test.ts`, `src/config/placement.test.ts`,
   `test/runTools.test.ts` ("should refuse a definition path, and write a shared dataset to the copy of the test run
@@ -80,8 +78,8 @@ one instance, `instances.<owner>.<owner>.<app>`, so nothing told a test run from
 - stateui-pg: `src/workspace/PgWorkspaceStorage.ts` (`removeApp`), `src/embeddings/records.ts`. Tests:
   `src/workspace/workspaceStorage.test.ts`, `src/embeddings/records.test.ts`.
 - Magnetic: `src/server/startMagnetic.ts` (`testRun`, the tenant, `appShellPage`, `personApps`), `src/http/shell.ts`
-  (both namespaces, the reconnect in `setEditing`), `src/home/HomeApp.ts` (Your apps in the person's own instance). Tests: `src/server/viewRoutes.test.ts` ("should sync the app at its
-  address with the owner's own instance, and the editor with the test run"), `src/server/statenet.test.ts`,
+  (the page's one `data-namespace`), `src/home/HomeApp.ts` (Your apps in the person's own instance). Tests: `src/server/viewRoutes.test.ts` ("should sync the app at its
+  address with the owner's own instance, and the editor with the test run, each page with its own only"), `src/server/statenet.test.ts`,
   `e2e/home.spec.ts`, `e2e/profile.spec.ts`.
 
 ## Rules and Constraints
