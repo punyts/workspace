@@ -80,6 +80,12 @@ Next on this machine:
 - **Magnetic's e2e suite passes** (2026-11-24: 269 passed, 23 skipped); the editor, inspector and screens specs that
   were stale are fixed.
 
+- **Test runs** ([design/stateui-test-runs.md](design/stateui-test-runs.md)), built 2026-11-24, not deployed: the
+  tools, the view host, the agent's browser and Magnetic's editor run an app as the owner's test run, whose shared
+  datasets are copies a reset throws away; `/apps/<id>` is real use. For the tower: a test run's instance address is
+  `<owner>/apps/<appId>.test` (`userStateAddress`, `instanceOfAddress` in stateui-mcp), hosted like any instance;
+  nothing in statenet, state-sync, the mesh or Magnetic's `src/statenet` changed.
+
 Real tiles in the example and the showcase wait for the tower's tiles.
 
 ## The tower

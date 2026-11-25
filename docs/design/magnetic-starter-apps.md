@@ -81,9 +81,8 @@ Two limits of the logic engine followed on 2026-11-24 (owner: "Fix the limits"):
 - A stamp rule (a path trigger, `set` to `now()`) ran at start for every record and stamped the seed orders with
   today: a rule that reads `$previous`, `now()` or `today()` now waits for a change.
 
-A test run still writes the owner's datasets (`ui_interact`, a press in the preview), and `ui_state_reset` resets the
-instance, not them; installing a starter copies its records into each workspace, so this touches only the builder's
-own data. It waits on the owner's choice of how test runs treat data.
+A test run wrote the owner's datasets (`ui_interact`, a press in the preview), and `ui_state_reset` reset the
+instance, not them. Test runs now write copies that a reset throws away (stateui-test-runs.md).
 
 ## Open questions
 - Whether the editor becomes its own app (a blueprint people install, rather than a copy of Magnetic's page). The tile
