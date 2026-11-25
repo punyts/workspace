@@ -1,6 +1,6 @@
 # A person's state lives under their own owner
 
-Status: built 2026-11-23 (stages 1 to 4), not deployed. It changes the statenet's direction (statenet-direction.md,
+Status: built 2026-11-23 (stages 1 to 4), deployed 2026-11-24. It changes the statenet's direction (statenet-direction.md,
 "Owners and paths").
 
 Asked for on 2026-11-23:

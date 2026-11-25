@@ -1,7 +1,7 @@
 # Requests that wait for the owner
 
 Status: R1 (state-sync, statenet), R2 (stateui-pg storage; stateui-app, stateui-components and stateui-mcp runtime)
-R3a, R3b and R3c (state-sync, stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, not deployed; the follow-ups
+R3a, R3b and R3c (state-sync, stateui-mcp, stateui-pg, Magnetic) built 2026-11-23, deployed 2026-11-24; the follow-ups
 (shared reads by namespace, `bound` entries ending with access, requests through a relay and through statenet
 views) built the same day. Follows S14 ([statenet-permissions.md](statenet-permissions.md)); the
 direction's later item "requests that wait for an offline owner" ([statenet-direction.md](statenet-direction.md)).

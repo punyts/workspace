@@ -4,11 +4,11 @@ Two machines build in this workspace: this one (the UI machine) and the tower (s
 each is working on, so neither starts the other's work. Update it when work starts or lands, and pull before starting
 anything.
 
-Updated 2026-11-24.
+Updated 2026-11-24. Everything built on both machines by then, except S11's stack change, was deployed 2026-11-24 (image `11fadae-202611250134`).
 
 ## This machine
 
-Built 2026-11-22, not deployed: the agent sees the page ([design/magnetic-agent-browser.md](design/magnetic-agent-browser.md)).
+Built 2026-11-22, deployed 2026-11-24: the agent sees the page ([design/magnetic-agent-browser.md](design/magnetic-agent-browser.md)).
 Magnetic's agent has `ui_preview`, `ui_screenshot` and `ui_interact` through one shared headless Chromium per server.
 
 Built 2026-11-22: `window` resizes from every edge and snaps when dragged to an edge
@@ -58,7 +58,7 @@ geometry kept in state and shaped in the scene, in four stages (V1 to V4) in sta
 stateui-app, stateui-mcp and the example. V1 is a `mesh` of `custom` vertices and faces; V2 picks its vertices, edges and faces in the scene; V3 moves the pick with the gizmo, with undo; V4 adds the operations, the `scene3d-modeling` guide topic and the example's Workshop. Nothing
 in it touches the tower's packages.
 
-Built 2026-11-23, not deployed: the company org, the beta org and invites
+Built 2026-11-23, deployed 2026-11-24: the company org, the beta org and invites
 ([design/magnetic-orgs-and-invites.md](design/magnetic-orgs-and-invites.md)). The server makes `ai-minion` ($50 a
 month, holds Magnetic's page drafts) and `beta` ($500) at start with apps kept in the org, and invites
 `MAGNETIC_ADMIN_EMAILS` as owner of both; invites work signed out; sign-in by emailed link; `/new` in the org; org
@@ -66,21 +66,21 @@ public on Share. The hosted database is reset with the next deploy.
 
 Next on this machine:
 - **Zooming between orgs, apps, screens and the running app**, designed 2026-11-23
-  ([design/magnetic-zoom.md](design/magnetic-zoom.md)). Stage 1 built on the tower 2026-11-23, not deployed: the URL
+  ([design/magnetic-zoom.md](design/magnetic-zoom.md)). Stage 1 built on the tower 2026-11-23, deployed 2026-11-24: the URL
   follows the screen (`/screens/<name>`), the board position (`#x,y,zoom`) and the open panel or sheet (`?open=`), so
-  Back works. Stage 2 built 2026-11-23, not deployed: Ctrl+Shift+= and Ctrl+Shift+- zoom between the editor and the
-  running app, under a level bar, replacing Ctrl+Shift+E. Stage 3 built 2026-11-23, not deployed: an org's apps as a
-  board at `/orgs/<org>` (`/orgs/me` for the person's own), where zooming out of the editor goes. Stage 4 built 2026-11-23, not deployed: the Orgs level at `/orgs`, the
-  person's own space and their orgs as tiles. Stage 5 built 2026-11-23, not deployed: the scale transitions, as view
+  Back works. Stage 2 built 2026-11-23, deployed 2026-11-24: Ctrl+Shift+= and Ctrl+Shift+- zoom between the editor and the
+  running app, under a level bar, replacing Ctrl+Shift+E. Stage 3 built 2026-11-23, deployed 2026-11-24: an org's apps as a
+  board at `/orgs/<org>` (`/orgs/me` for the person's own), where zooming out of the editor goes. Stage 4 built 2026-11-23, deployed 2026-11-24: the Orgs level at `/orgs`, the
+  person's own space and their orgs as tiles. Stage 5 built 2026-11-23, deployed 2026-11-24: the scale transitions, as view
   transitions.
 - **Starter apps** ([design/magnetic-starter-apps.md](design/magnetic-starter-apps.md)): every person's own space has
   the showcase, Northwind, the desktop and Magnetic (owner, 2026-11-23). Magnetic's tile (their copy of the editor)
   built 2026-11-23. Northwind Ops and the Lumen desktop rebuilt as parts apps 2026-11-24, installed with the showcase
-  in every new workspace; not deployed.
+  in every new workspace; deployed 2026-11-24.
 - **Magnetic's e2e suite passes** (2026-11-24: 269 passed, 23 skipped); the editor, inspector and screens specs that
   were stale are fixed.
 
-- **Test runs** ([design/stateui-test-runs.md](design/stateui-test-runs.md)), built 2026-11-24, not deployed: the
+- **Test runs** ([design/stateui-test-runs.md](design/stateui-test-runs.md)), built 2026-11-24, deployed 2026-11-24: the
   tools, the view host, the agent's browser and Magnetic's editor run an app as the owner's test run, whose shared
   datasets are copies a reset throws away; `/apps/<id>` is real use. For the tower: a test run's instance address is
   `<owner>/apps/<appId>.test` (`userStateAddress`, `instanceOfAddress` in stateui-mcp), hosted like any instance;
@@ -111,7 +111,7 @@ ranges and read grants ([design/statenet-paths-route.md](design/statenet-paths-r
    offline owner" below.
 4. **Requests that wait for the owner** ([design/statenet-requests.md](design/statenet-requests.md)): R1 built
    2026-11-23 in state-sync and statenet (sync protocol 3, mesh protocol 4), and R2's storage in stateui-pg (migration
-   0010: the serial, the requests and `pending_request`), not deployed. A change from someone with `request` and not
+   0010: the serial, the requests and `pending_request`), deployed 2026-11-24. A change from someone with `request` and not
    `write` waits on the owner's node until the owner or a holder of read and write decides it. R2's runtime half was built
    on the UI machine 2026-11-23. R3's write path is decided (owner, 2026-11-23). R3a is built: a dataset's records live
    in its namespace `<owner>/data/<dataset>` (stateui-mcp, stateui-pg, Magnetic; databases are reset, not moved). R3b

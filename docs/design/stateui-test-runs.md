@@ -1,6 +1,6 @@
 # Test runs write scratch copies of their datasets
 
-Status: built 2026-11-24, not deployed.
+Status: built 2026-11-24, deployed 2026-11-24.
 
 Asked for on 2026-11-24, after building the starter apps showed that trying an app changed its seed records:
 

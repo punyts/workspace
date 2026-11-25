@@ -1,6 +1,6 @@
 # Magnetic: the apps every person's own space starts with
 
-Status: built, not deployed. Magnetic's tile 2026-11-23; Northwind Ops and the Lumen desktop rebuilt as parts apps
+Status: built, deployed 2026-11-24. Magnetic's tile 2026-11-23; Northwind Ops and the Lumen desktop rebuilt as parts apps
 2026-11-24.
 
 Asked for on 2026-11-23, answering which apps every new org gets:

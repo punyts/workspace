@@ -1,6 +1,6 @@
 # The agent sees the page
 
-Status: built 2026-11-22 (see "As built"); not deployed.
+Status: built 2026-11-22 (see "As built"); deployed 2026-11-24.
 
 Asked for on 2026-11-22, after the list of what is left ("The agent cannot see the page" first among Magnetic's): "Let's
 do all of what you think we should do here."

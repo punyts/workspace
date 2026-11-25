@@ -1,6 +1,6 @@
 # Relays under relays
 
-Status: built 2026-11-22, not deployed. Follows S13 ([statenet-relay-directory.md](statenet-relay-directory.md)) in
+Status: built 2026-11-22, deployed by 2026-11-24. Follows S13 ([statenet-relay-directory.md](statenet-relay-directory.md)) in
 [statenet-network.md](statenet-network.md).
 
 Asked for on 2026-11-22: "Let's do it", to the open item of S9 as built: "Only one relay between a node and the

@@ -1,7 +1,7 @@
 # Magnetic: zooming between orgs, apps, screens and the running app
 
 Status: all five stages built 2026-11-23 (the URL, the chords and the level bar, an org's apps, the Orgs level, the
-scale transitions), not deployed. Asked for on 2026-11-23:
+scale transitions), deployed 2026-11-24. Asked for on 2026-11-23:
 
 > Let's say a ctrl + shift + zoom-in on a screen then the browser "jumps" into the app in runtime mode. A ctrl + shift
 > + zoom-out will take you out of the app, replacing ctrl + shift + E. Then if you are in the app editor, ctrl + shift
