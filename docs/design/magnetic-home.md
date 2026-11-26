@@ -24,7 +24,7 @@ marked. A share the person has not answered waits at the front of the grid with 
   no limit), what today cost, and Agent use, which opens `/settings/billing`.
 - **Profile:** the person's name and email, the appearance and language menus, Connections, Data, Admin (admins only)
   and Sign out; then Your pages (Edit and Reset for Your apps and for the editor).
-- The tab shown is kept in the page's data (`$.data.home.tab`), so coming back to `/` shows the tab last left.
+- The tab shown is kept in the page's data (`$.data.page.tab`), so coming back to `/` shows the tab last left.
 
 ## The grid
 - One record grid of every app, each tile the same size (the grid's item height; a short card stretches to it). The

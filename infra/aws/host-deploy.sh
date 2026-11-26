@@ -38,21 +38,6 @@ umask 022
 curl -fsS -o rds-ca.pem "https://truststore.pki.rds.amazonaws.com/$STACK_REGION/$STACK_REGION-bundle.pem"
 umask 077
 
-# The servers connect as magnetic_app, which only reads people's state; the aggregate as magnetic_aggregate, which
-# writes it (docs/design/statenet-network.md, S11). migrate --app-role and --aggregate-role grant them their tables
-echo "== extensions and the magnetic_app and magnetic_aggregate roles"
-export PGPASSWORD="$MASTER_PASS" PGSSLMODE=verify-full PGSSLROOTCERT=/opt/magnetic/docker/rds-ca.pem APP_PASS AGGREGATE_PASS
-psql -h "$DB_HOST" -U "$MASTER_USER" -d magnetic -v ON_ERROR_STOP=1 -q <<'SQL'
-CREATE EXTENSION IF NOT EXISTS vector;
-CREATE EXTENSION IF NOT EXISTS ltree;
-\getenv app_pass APP_PASS
-SELECT format('CREATE ROLE magnetic_app LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE', :'app_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'magnetic_app') \gexec
-SELECT format('ALTER ROLE magnetic_app PASSWORD %L', :'app_pass') \gexec
-\getenv aggregate_pass AGGREGATE_PASS
-SELECT format('CREATE ROLE magnetic_aggregate LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE', :'aggregate_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'magnetic_aggregate') \gexec
-SELECT format('ALTER ROLE magnetic_aggregate PASSWORD %L', :'aggregate_pass') \gexec
-SQL
-unset PGPASSWORD
 
 echo "== env files"
 # For compose itself: the image, the host names and the three database URLs (the owner's only reaches migrate, the
@@ -110,6 +95,34 @@ docker image prune --all --force | tail -1
 aws ecr get-login-password --region "$STACK_REGION" | docker login --username AWS --password-stdin "${IMAGE%%/*}" >/dev/null
 COMPOSE=(docker compose -p magnetic --env-file deploy.env -f magnetic.compose.yml -f magnetic.aws.compose.yml)
 "${COMPOSE[@]}" pull --quiet migrate
+
+# A fresh start (deploy.mjs --reset-database, the owner's call): stop the stack and make the database again, empty.
+# Everything in it is lost: people, apps, budgets, orgs. The roles stay; migrate grants them the new tables. It runs
+# only now, with the new image on the host, so a deploy that cannot pull leaves the old stack and its data alone
+if [ "${RESET_DATABASE:-}" = 1 ]; then
+  echo "== RESET: dropping and making the magnetic database again"
+  "${COMPOSE[@]}" down --remove-orphans
+  PGPASSWORD="$MASTER_PASS" PGSSLMODE=verify-full PGSSLROOTCERT=/opt/magnetic/docker/rds-ca.pem psql -h "$DB_HOST" -U "$MASTER_USER" -d postgres -v ON_ERROR_STOP=1 -q <<'SQL'
+DROP DATABASE IF EXISTS magnetic WITH (FORCE);
+CREATE DATABASE magnetic;
+SQL
+fi
+
+# The servers connect as magnetic_app, which only reads people's state; the aggregate as magnetic_aggregate, which
+# writes it (docs/design/statenet-network.md, S11). migrate --app-role and --aggregate-role grant them their tables
+echo "== extensions and the magnetic_app and magnetic_aggregate roles"
+export PGPASSWORD="$MASTER_PASS" PGSSLMODE=verify-full PGSSLROOTCERT=/opt/magnetic/docker/rds-ca.pem APP_PASS AGGREGATE_PASS
+psql -h "$DB_HOST" -U "$MASTER_USER" -d magnetic -v ON_ERROR_STOP=1 -q <<'SQL'
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS ltree;
+\getenv app_pass APP_PASS
+SELECT format('CREATE ROLE magnetic_app LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE', :'app_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'magnetic_app') \gexec
+SELECT format('ALTER ROLE magnetic_app PASSWORD %L', :'app_pass') \gexec
+\getenv aggregate_pass AGGREGATE_PASS
+SELECT format('CREATE ROLE magnetic_aggregate LOGIN PASSWORD %L NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE', :'aggregate_pass') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'magnetic_aggregate') \gexec
+SELECT format('ALTER ROLE magnetic_aggregate PASSWORD %L', :'aggregate_pass') \gexec
+SQL
+unset PGPASSWORD
 
 echo "== the stack"
 "${COMPOSE[@]}" up -d --no-build --remove-orphans

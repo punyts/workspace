@@ -24,12 +24,12 @@ Then, resetting how state, StateUI and the statenet fit together:
 The asks that settled the design are quoted where they apply below.
 
 ## Why
-Magnetic's editor keeps everything it shows in one record, `$.data.editor` of the `magnetic-editor` model, about 120
-fields: real data (app and workspace names, the budget, models), component state (about 40 `…Hidden` flags, `tab`,
-`tool`, `view`, `size`, `frame`) and values derived from other values (`toolLook`, `toolTone`, `budgetTone`, the
-`no…` flags). Its statenet is one wide branch. The starter apps do the same in a smaller way (Northwind's `view`,
-`ui`, `selectedOrder`, `wizard`; magnetic-starter-apps.md). And the owner's own state of an app is the app's
-definition itself (person-state.md), so using your own app changes it.
+An app that keeps everything it shows in one record of `$.data` mixes three kinds of value: real data (names, a
+budget, a list of models), component state (whether a panel is open, the tab, the tool, the view) and values derived
+from other values (a button's look, a `no…` flag that hides an empty line). Its statenet is one wide branch. When this
+was asked for, Magnetic's editor was such an app, with one record of about 120 fields, and the starter apps were in a
+smaller way; "As built" says where each kind of value is now. And when the owner's own state of an app is the app's
+definition itself (person-state.md), using your own app changes it.
 
 ## The design
 
@@ -245,7 +245,8 @@ through to shared data or a shared branch can be refused, and the app shows them
 ```
 with magnetic.components.editor.screens.edit
 .chat.hidden            = true
-.chat."<-messages"      = "$.data.chat.messages"
+.chat."<-messages"      = "$.data.messages"
+.chat.status."<-_text"  = "$.data.chat.status"
 .toolbar.tool           = "pick"
 .toolbar.tools.use.look = "{{ toolbar.tool == 'use' ? 'solid' : 'ghost' }}"
 
@@ -254,8 +255,9 @@ with 4242.apps.editor.screens.edit
 .toolbar.tool = "use"
 ```
 
-The `…Hidden` flags become the state of the panels they hide, derived looks become expressions, and what is left in
-`$.data` is data: chat messages, the budget, the models, the feed.
+Whether a panel is open is the state of the panel, derived looks become expressions, and what is left in `$.data` is
+data: chat messages, the budget, the models, the feed. That data is not one record either: it has a record per part
+of the editor (`$.data.chat`, `$.data.inspector`, `$.data.canvas`, …), so the data branches as the components do.
 
 ## Stages
 1. **state**: metadata keys read from the definition's structure; the composed view of an instance over its
@@ -385,12 +387,69 @@ across a reload …").
 `$.components` and draws the instance of the app being edited with its own tree: its screens, and in each the nodes
 with an `@id` or a composed component, hung from the nearest such node (`views.kind.node`). Test:
 `src/inspector/viewInfo.test.ts` ("should draw the instance of the app being edited …").
-The editor's eighteen `…Hidden` fields left the `magnetic-editor` model: each pane carries an `@id` (`chatPane`,
-`boardPane`, …; `EDITOR_PANES`) and its own `hidden`, which the page script writes at the node's path, found by its
-id, when it sets the flag it always set (`src/http/shell.ts`, `ed`). The rail's looks and tones (`libraryLook`,
-`toolLook`) are still data the script writes: a `#name` reference reaches only a node's ancestors, so a rail button
-cannot read a sibling pane's `hidden`. The server reads pages through ids (`src/http/raised.ts`). Tests:
+
+**Own state on the nodes of Magnetic's pages** (magnetic `src/pages/own.ts`, `src/pages/PageSpec.ts`). Asked for on
+2026-11-26: "Remember that app state should not be flat, it should fan out with the components. Data state should
+have appropriate namespaces." No page keeps a field in `$.data` that only feeds a node's `hidden`, `variant` or
+`tone`. A definition marks the node (`'own:hidden': 'noNotice'`); `pageSpec` gives it the field's first value and an
+`@id`, takes the field out of the model and lists where each field goes (`PageSpec.own`). The page scripts and the
+server still name the field; `ownWrites` takes the write to the node by id (`#noticePart.hidden`). The editor's panes
+(`chatPane`, `boardPane`, …; `EDITOR_PANES`) are in the same map. Your apps is written on the server, which finds the
+node in the person's assembled document (`pathOfId`; the instance state alone is sparse and holds no ids). The page
+script's `ownWrites` is the text of the server's function (`OWN_JS`), so the two cannot differ. A marked node without
+an `@id` gets one from its own keys (`generatedIds`): the shortest camel-cased ending of its chain of keys, plus
+`Part`, that no other marked node, `@id` or key could be, so adding a node renames another only when their names
+collide. The server reads pages through ids (`src/http/raised.ts`). Tests:
+`src/pages/own.test.ts`, `src/pages/ownState.test.ts` (each of the ten pages validates with no `SUI-LINK-OWN`),
 `src/server/editor.browser.test.ts`, `e2e/`.
+
+**Namespaced data** (magnetic `src/editor/EditorApp.ts`, `RECORDS` and `EDITOR_FIELDS`; `src/pages/PageSpec.ts`,
+`src/pages/own.ts`). The owner, 2026-11-26: "App state should not be flat, it should fan out with the components. Data
+state should have appropriate namespaces." The editor's data is eleven records, each at `$.data.<namespace>` with a
+model (`magnetic-editor-<namespace>`, `magnetic-editor-screens-panel`) and a binding of its own:
+
+| Namespace | What it holds |
+|---|---|
+| `app` | the app's name and workspace, the notice, whether the window is narrow and the app blank |
+| `chat` | the status and data lines, the focus and context chips, the model and models, the agent's note, agent use |
+| `inspector` | its status, the heading, the breadcrumb, the open tab, the detail of the state path chosen |
+| `sharing` | what a new link allows, whether the org may open the app, what the last change said |
+| `preferences` | light or dark, the language |
+| `feedback` | the text being written, its kind, what sending it said |
+| `canvas` | the view, the frame's device and size, the zoom |
+| `rail` | the tool, the layers, the looks and tones of its buttons |
+| `screensPanel` | the screen worked on, the names typed, the columns of the canvas |
+| `connectionsPanel` | what it says of the workspace's connections |
+| `sharedPanel` | what it says of the datasets shared with the workspace |
+
+The lists (`messages`, `calls`, `links`, `components`, `screens`, `connections`, `shared`, `paths`, `feed`) are
+datasets beside them. A field's name is in one namespace only, so the page script still names a field alone:
+`EDITOR_FIELDS` maps each name to its data path (`status` to `$.data.chat.status`), is made from the models, throws on
+a name in two namespaces, and is `FIELDS` in `/assets/shell.js` (`src/http/shell.ts`, `ed`), where a name the editor
+does not have throws. A pane's flag (`chatHidden`) maps under `$.data.panes`, which holds nothing: the editor's own map
+takes the write to the pane's `hidden` by its id. `pageSpec` takes `records` (a list of `{ path, model }`), and
+`ownTree(definition, models, records)` takes each `own:` field out of the model of its record; a field named without
+a path is the first record's that has it. The flags among these fields that only hide or style a node (`noNotice`,
+`noSelection`, `toolLook`) are the nodes' own state, as above, and are in no model. Tests:
+`src/editor/EditorApp.test.ts` ("should keep each field in one namespace with a model and a binding of its own, apart
+from the lists", "should take each pane's flag to the pane's own hidden by its id"), `src/pages/own.test.ts` ("should
+give each marked node the first value and an id, take the fields out of the model of their record and list where each
+goes"), `src/pages/ownState.test.ts`, `e2e/`.
+
+The side panel and Your apps follow the same pattern. The side panel's data is seven records (`SIDE_RECORDS` in
+`src/side/SidePage.ts`: `part`, `links`, `form`, `code`, `dataset`, `model`, `connection`; `SIDE_FIELDS`, `sidePath`
+in `src/http/views.ts`). Your apps has five beside its card lists (`RECORDS` in `src/home/HomeApp.ts`: `page`,
+`newApp`, `waiting`, `person`, `usage`; `HOME_FIELDS`). Tests: `src/side/SidePage.test.ts`,
+`src/home/HomeApp.test.ts`. Theme, Logic, Statenet, the apps list, Screens, sign-in and Link keep one record each.
+
+**Writes by id** (stateui-app `runtime/createRuntime.ts`). A host `write` path may be `#<id>.<path>`: the runtime finds
+the one node of the app node or a screen with that id and writes below it; `optional: true` leaves the write out when
+no node has the id (a copy that dropped the node). Logic names a node by its `@id`, otherwise its key
+(`core/logic/documentIndex.ts`). Tests: `runtime/createRuntime.browser.test.ts`, `core/logic/logic.test.ts`.
+
+**The examples** (example, stateui-mcp `showcase/starters`). Northwind, Lumen and the two starter apps keep sections',
+windows' and task buttons' `hidden` and looks on the nodes; logic tables and rules write them, and host code writes a
+section's `hidden` by its id. Both validate with no warnings, and their tests and `npm run validate` fail on one.
 
 ### Known limits
 - A composed component's inner nodes and a row template's copies carry no marks of their own; marks are read from the
@@ -404,9 +463,12 @@ cannot read a sibling pane's `hidden`. The server reads pages through ids (`src/
 - Server logic lost `emit`; tests count server rules through data counters.
 - `SUI-LINK-OWN` is checked per tree, so a value bound to `hidden` on one screen and read on another warns.
 - Composed components no longer emit: a host gives their inner nodes an `@id` through overrides to hear them.
-- The editor's derived looks are not expressions yet, and its other `no…` flags are still fields of its record.
-- The example apps keep panel and view state in `$.data` (Northwind 27, Lumen 29 `SUI-LINK-OWN` warnings); their
-  browser tests ignore that warning only.
+- A node's derived state (a button's look that follows a pane, a line hidden while a list is empty) is written by the
+  page's script or by logic; a link cannot hold an expression.
+- A person's changed copy of the editor, the side panel or Your apps made before the namespaces keeps the paths of
+  the one record until they reset it.
+- The side panel's `form` field is at `$.data.form.form`: the field kept its name inside the namespace of the same
+  name.
 - A write IndexedDB refuses is reported and rolled back in memory but does not set the client's `saveFailed`, and
   what a browser kept in `localStorage` before is not read.
 

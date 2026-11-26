@@ -165,6 +165,10 @@ stack. The `MagneticDeployer` permission set needs `cloudformation:*` in the two
   it. The host script fetches the secrets, downloads the RDS certificate authority, makes the `vector` and `ltree`
   extensions and the `magnetic_app` role (its password from `magnetic/app-db-password`, set again on every deploy),
   writes two 0600 env files, pulls, and runs `docker compose -p magnetic up -d`.
+  - `node infra/aws/deploy.mjs --reset-database` is a fresh start (owner, 2026-11-26: "deploy it, fresh start, so
+    database as well"): the host stops the stack, drops the `magnetic` database and makes it again before the
+    extensions and the migration. Everything in it is lost; the roles and their passwords stay. While Magnetic has no
+    users, this is how a change to the baseline migration reaches the host.
   - `deploy.env` is for compose only: the image, the host names and both database URLs. The owner's URL reaches
     `migrate` alone; the servers get `magnetic_app`'s.
   - `magnetic.env` is the containers': the secret key, LinkedIn, Anthropic, the beta's budgets (org `beta`, $5 once

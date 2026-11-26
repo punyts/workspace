@@ -292,9 +292,9 @@ Asked for on 2026-11-23: "Design R3c".
   shown after a decision leaves the decided request out: `pending_request` is written by the save that follows the
   decision's answer.
 - **Home tells of waiting requests** as it tells of invites: a warning alert above the apps, "N changes people asked
-  for wait for your approval", with Review them (the emit `requests`, to `/requests`), shown while the count from
-  `pending_request` over the workspaces the person manages is above zero (`HomeApp`'s `noRequests` and
-  `requestsLine`, written when Your apps loads). The profile tab links Requests beside Data. The Data page shows the
+  for wait for your approval", with Review them (the id `review`, heard as `requests`, to `/requests`), shown while the count from
+  `pending_request` over the workspaces the person manages is above zero (`HomeApp`'s `requestsLine`, and `noRequests`,
+  the alert's own `hidden`, written when Your apps loads). The profile tab links Requests beside Data. The Data page shows the
   count per dataset beside the setting. E-mail is not part of this design.
 - **Text** for the Requests page goes in `src/http/requestsText.ts`, and the Data page's and home's new keys in
   `dataText.ts` and `text.ts`, each in English, German, French and Spanish.

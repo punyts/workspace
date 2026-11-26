@@ -67,13 +67,25 @@ page script acts on carries an `@id`; the runtime reports each of its events (`s
 row? }`), and the page's table (`src/http/raised.ts`, such as `SIGN_IN_HEARING`) reads `<id>.<event>` as the name the
 script acts on and its payload: the event's value, the node's row, or a value the script keeps as fields change. So any node can be
 moved, restyled, added or removed, and the page keeps working.
+- **Data has a record per namespace, and a node's own state is on the node** (state-definitions-and-instances.md, "As
+  built"). A page's spec lists its records (`PageSource.records`, each `{ path, model }`). A flag that only hides or
+  styles a node is no field of a model: the definition marks the node (`'own:hidden': 'noNotice'`), `pageSpec` gives
+  the node the flag's first value and an `@id`, and a write that names the flag reaches the node's `hidden` by that id
+  (`src/pages/own.ts`). The script and the server still name the flag.
 - **Sign-in:** `$.data.signin` holds `providers` and `devUsers` as records (`{ id, label }`) shown by a `list` of
-  buttons (ids `provider` and `devUser`) heard as `provider` / `dev` with the row's id, and flags (`noProviders`, `noDevUsers`, `noSso`, `noNone`,
-  `noError`, `noNotice`) that hide what the server lacks. The work email binds to `$.data.signin.workEmail`. What the
-  server signs in with is data, so an edited page follows a change of providers.
-- **Your apps:** `$.data.home` holds `noInvites`, `notAdmin`, `noMakeOrg`, `mode`, `language` and `make`; the nodes bind
-  to them. The page writes only `$.data`.
-- **Link:** `$.data.link` holds the title, the message and `noRemix`.
+  buttons (ids `provider` and `devUser`) heard as `provider` / `dev` with the row's id. The flags that hide what the
+  server lacks (`noProviders`, `noDevUsers`, `noSso`, `noNone`, `noError`, `noNotice`) are the nodes' own `hidden`. The
+  work email binds to `$.data.signin.workEmail`. What the server signs in with is data, so an edited page follows a
+  change of providers.
+- **Your apps:** five records beside the card lists: `$.data.page` (`tab`), `newApp` (`make`), `waiting`
+  (`requestsLine`), `person` (`name`, `email`, `mode`, `language`) and `usage` (the usage lines and cents); `HOME_FIELDS`
+  maps each field to its path. `noInvites`, `noRequests`, `notAdmin` and `noMakeOrg` are the nodes' own `hidden`, which
+  the server writes into the person's copy at the node it finds by id in the assembled document (`pathOfId`).
+- **Link:** `$.data.link` holds the title and the message; `noRemix` is the Remix part's own `hidden`.
+- **The editor:** eleven records (`$.data.app`, `chat`, `inspector`, `sharing`, `preferences`, `feedback`, `canvas`,
+  `rail`, `screensPanel`, `connectionsPanel`, `sharedPanel`; `RECORDS` in `src/editor/EditorApp.ts`) and its lists.
+  The page script names a field alone and `EDITOR_FIELDS` gives its path; whether a pane is open is the pane's own
+  `hidden` (`EDITOR_PANES`).
 - **The server acts only on the names its tables hear** (`appPage`'s `actions`, the editor's and Your apps' handlers): an
   edited page can do nothing the code page could not.
 - **Publish checks the contract** (`contractGaps`): each id in the spec's `required` must still be some node's `@id`, and

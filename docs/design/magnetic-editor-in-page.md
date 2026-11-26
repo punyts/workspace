@@ -90,7 +90,9 @@ are the page's contract (`required`):
   module's unit, a unit of the Logic view); a function's input and output schemas; a dataset's records as a `table`,
   one row per field of a record with its value an `input`; a model's fields, each a type to choose and a Remove; a
   connection's base URL, secret, Connect and endpoints with Try and Remove; and a form of a name, a choice, a second
-  line and a new record's fields, sent with its button, last. Its data is `$.data.side`: `views.ts` writes the blank
+  line and a new record's fields, sent with its button, last. Its data is seven records, one for each part of the panel
+  (`SIDE_RECORDS`: `$.data.part`, `links`, `form`, `code`, `dataset`, `model`, `connection`); `SIDE_FIELDS` maps each
+  field to its path, so `views.ts` names fields alone (`sidePath`). It writes the blank
   (`SIDE_BLANK`, every section hidden) and then the part's own fields, and keeps what each heard name does for the part
   shown (`sideActs`). `SIDE_HEARING` hears `close.press`, `link.press` with the row's id, each button's press by its id
   (`openApp`, `openLogic`, `editTheme`, `makeDefault`, `removeTheme`, `use`, `openConnections`), `code.change` as
@@ -108,8 +110,8 @@ show the old value over the new. The editor places the side panel (section 3) an
 ### 3. The side panel in the editor's document
 
 The editor document places the side panel. Its `stage` has a float keyed `side` (at the right below the corners, down
-to above the chat bar, 360px wide but at most 45% of the window; below 760px a sheet over the bottom half), hidden by
-`$.data.editor.sideHidden`. It holds a live `embeddedApp` of `magnetic-side` with `fill`, so the page takes the
+to above the chat bar, 360px wide but at most 45% of the window; below 760px a sheet over the bottom half), with the
+id `sidePane` and its own `hidden` (state-definitions-and-instances.md, "As built"). It holds a live `embeddedApp` of `magnetic-side` with `fill`, so the page takes the
 float's size and scrolls inside it. The `embeddedApp` stays mounted while the float is hidden, so the panel is mounted
 once per editor mount.
 
@@ -120,9 +122,9 @@ provider before the editor mounts; it knows `magnetic-side` and serves it from `
 the panel to the provider's `mounted(name, panel, element)` and calls `disposed(name, panel)` when the
 `embeddedApp` lets it go; the page's reports reach the `embeddedApp` (its event `raised`) and `stateui:raised` on its
 element. `magneticShell.page(name, { mounted, disposed })` passes them to the script that drives the page: `views.ts`
-takes the side panel's panel there, writes `$.data.side` through it, listens to `stateui:raised` on the element, and
-opens and
-closes it with `sideHidden`. What the panel covers of Statenet's canvas is read from where the editor placed it, so a
+takes the side panel's panel there, writes the side panel's records through it, listens to `stateui:raised` on the element, and
+opens and closes it by setting the flag `sideHidden`, which the editor's map (`EDITOR_PANES`) takes to the float's
+`hidden` by its id. What the panel covers of Statenet's canvas is read from where the editor placed it, so a
 copy that places it at the left moves the canvas's free area to the right.
 
 A person's copy of the editor can move, restyle or drop the side panel like any part of the editor.
@@ -132,9 +134,10 @@ A person's copy of the editor can move, restyle or drop the side panel like any 
 The editor document places the canvas. The first children of its `stage` are four live `embeddedApp`s with `fill`, so
 every panel after them lies over them: `board` (`magnetic-screens`) and `statenet` (`magnetic-statenet`) take the whole
 window, `theme` (`magnetic-theme`) and `logic` (`magnetic-logic`) the area right of the rail, below the corners and
-above the chat bar (on a narrow window below the rail along the top). Each is hidden by a flag of `$.data.editor`
-(`boardHidden`, `statenetHidden`, `themeHidden`, `logicHidden`), which `views.ts` writes as the view changes: one
-shows at a time. A hidden page stays mounted, so it keeps where the person left it and the next view shows at once. The
+above the chat bar (on a narrow window below the rail along the top). Each carries an id (`boardPane`,
+`statenetPane`, `themePane`, `logicPane`) and its own `hidden`. `views.ts` sets the flag it names each by
+(`boardHidden`, `statenetHidden`, `themeHidden`, `logicHidden`) as the view changes, and the write reaches the page's
+`hidden` by its id: one shows at a time. The view shown is data, `$.data.canvas.view`. A hidden page stays mounted, so it keeps where the person left it and the next view shows at once. The
 canvas pages set the `embed` tokens so their frames draw no border, corners or fill.
 
 `shell.ts`'s provider knows the four pages beside the side panel and serves each from its asset; the board's names

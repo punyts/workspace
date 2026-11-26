@@ -1,6 +1,7 @@
 // Deploys Magnetic to the AWS stack (docs/design/magnetic-hosting.md, H3): builds the image from the workspace, pushes
 // it to ECR, and through Session Manager puts the compose files on the host and runs infra/aws/host-deploy.sh there.
 //   node infra/aws/deploy.mjs            (with the magnetic SSO profile signed in: aws sso login --profile magnetic)
+//   node infra/aws/deploy.mjs --reset-database   (the same, on an empty database: everything in it is lost)
 // Plain Node, like the workspace scripts, so it runs from cmd, PowerShell and bash.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -55,12 +56,15 @@ const files = {
     Caddyfile: 'docker/Caddyfile',
     'host-deploy.sh': 'infra/aws/host-deploy.sh'
 };
+// --reset-database: the host drops the database and makes it again before it migrates (the owner's call: all data is lost)
+const RESET = process.argv.includes('--reset-database');
+if (RESET) console.log('The hosted database will be dropped and made again, empty.');
 const quote = (value) => `'${String(value).replace(/'/g, `'\\''`)}'`;
 const commands = [
     'set -eu',
     'mkdir -p /opt/magnetic/docker',
     ...Object.entries(files).map(([name, path]) => `echo ${readFileSync(new URL(`../../${path}`, import.meta.url)).toString('base64')} | base64 -d > /opt/magnetic/docker/${name}`),
-    `bash /opt/magnetic/docker/host-deploy.sh ${[image, outputs.DatabaseEndpoint, outputs.DatabaseMasterSecretArn, outputs.AppDbPasswordArn, outputs.AggregateDbPasswordArn, outputs.SecretKeyArn, OPERATOR, CONTACT].map(quote).join(' ')}`
+    `${RESET ? 'RESET_DATABASE=1 ' : ''}bash /opt/magnetic/docker/host-deploy.sh ${[image, outputs.DatabaseEndpoint, outputs.DatabaseMasterSecretArn, outputs.AppDbPasswordArn, outputs.AggregateDbPasswordArn, outputs.SecretKeyArn, OPERATOR, CONTACT].map(quote).join(' ')}`
 ];
 const sent = aws('ssm', 'send-command', '--instance-ids', outputs.InstanceId, '--document-name', 'AWS-RunShellScript', '--comment', `deploy ${tag}`, '--timeout-seconds', '600', '--parameters', JSON.stringify({ commands, executionTimeout: ['1800'] }));
 const commandId = sent.Command.CommandId;

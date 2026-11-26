@@ -73,7 +73,8 @@ Found by reading the code on 2026-11-18.
 - **Language and light/dark** belong to the editor, not the app. They sit in the preferences panel behind the
   top-right corner's icon.
 - **The canvas** is code: `shell.ts`, `screens.ts` and `inspect.ts`. **The panels** are a StateUI app
-  (`EditorApp.ts`), driven only through `$.data.editor` and its emits (`magnetic-editable.md`).
+  (`EditorApp.ts`), driven only through its data (a record per part of the editor: `$.data.canvas`, `$.data.rail`, …) and the ids of
+  its nodes (`magnetic-editable.md`).
 - **Logic belongs to the app**, not to a screen. What belongs to a screen is:
   - its nodes' links to state (`<-` and `<->`);
   - its nodes' `on` handlers;
@@ -242,7 +243,7 @@ pans the canvas keeps it.
 - **A part the app does not use** (a theme, a dataset, a module) has Use in this app.
 
 Theme and Logic reached from a card show "← Statenet" first in their head, back to the graph. A view picked with the
-selector does not. The selector echoes a view set by the page; an emit for the view already shown is ignored.
+selector does not. The selector echoes a view set by the page; a report of the view already shown is ignored.
 
 The graph follows the app: a new revision (`body.dataset.revision`) reloads it while Statenet shows, as it does the
 other views, so the head has no Refresh (owner, 2026-11-18: "normally you wouldn't need to refresh the statenet since
@@ -372,8 +373,9 @@ Asked on 2026-11-18, answered the same day:
 - **Every write goes through the agent's own tools** (or the Connections page's code for connections), with the
   revision the view read. A refusal shows its message, and the view reloads. No route writes a part's JSON directly.
 - **The canvas stays code; the panels stay the editor app's.** The selector and the layers are driven through
-  `$.data.editor` and emits (`view`, `layerLayout`, `layerData`, `layerLogic`), never node paths, so a person's edited
-  editor keeps the views working (`magnetic-editable.md`).
+  the editor's data (`$.data.canvas.view`, `$.data.rail.layers`) and the ids of its nodes (`views` and `viewMenu` heard
+  as `view`; `layerLayout`, `layerData`, `layerLogic`), never node paths, so a person's edited editor keeps the views
+  working (`magnetic-editable.md`).
 - **stateui never reads layout:** the boxes come from the runtime's `inspect` answer.
 - **Secrets are set, never read back:** `GET graph` and `GET part` return hosts, endpoint paths and whether a secret
   is set, never a key or a token.
