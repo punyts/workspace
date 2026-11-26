@@ -53,8 +53,8 @@ Every right is a **permission entry**, kept by the owner it is about:
 
 | Today | Entries |
 |---|---|
-| A person uses an app (`use`) | `read` on the app's definition (`$.apps.<app>` under the app's owner, and the definitions it reaches). Their own state of the app is at `$.apps.<app>` under their own number, which they own already |
-| A `view` link | `read` on the owner's instance of the app |
+| A person uses an app (`use`) | `read` on the app's definition (`$.components.<app>` under the app's owner, and the definitions it reaches). Their own instance of the app is at `$.apps.<app>` under their own number, which they own already; the owner's own use is an instance at `$.apps.<app>` too (state-definitions-and-instances.md) |
+| A `view` link | `read` on the owner's instance of the app (`$.apps.<app>` under the owner) |
 | A `remix` link | `read` on the app's definition, used once to copy it |
 | An `edit` entry in an org | `read` and `write` on the app's definition |
 | A `manage` entry in an org | `read`, `write` and `share` on the app's definition |

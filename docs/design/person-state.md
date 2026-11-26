@@ -16,9 +16,9 @@ Then, answering where a person's state for an app lives:
 
 ## The design
 - **A person's state for an app is at the app's own path, under the person's owner id.** The app `<app>` of owner
-  `<owner>` is at `<owner>/apps/<app>`; a person `<person>` keeps their state for it at `<person>/apps/<app>`, the
-  same path with their owner id as the root (app ids are unique, so the app's owner needs no segment). The owner's own
-  state of their app is `<owner>/apps/<app>` itself.
+  `<owner>` is defined at `<owner>/components/<app>`; a person `<person>` keeps their state for it at
+  `<person>/apps/<app>` (app ids are unique, so the app's owner needs no segment). The owner's own state of their app
+  is an instance like anyone's, `<owner>/apps/<app>` (state-definitions-and-instances.md).
 - **The state there is the delta over the definition**: reads lay it over the definition, writes go to it, reset
   deletes its entry, as the direction already says of the persona's copy.
 - **Data stays where it lives.** A change to data the person does not own goes to the data's owner

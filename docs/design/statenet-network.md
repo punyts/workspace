@@ -181,8 +181,8 @@ browser ──session──▶ node ══link══▶ relay ══link══�
 
 | Path | Under whose `$` | What it is |
 |---|---|---|
-| `$.apps.app1.form.open` | The app's owner | The application's default: what the app starts as |
-| `$.apps.app1.form.open` | The user | The user's current state of that app: only what differs from the default |
+| `$.components.app1.form.open` | The app's owner | The app's definition: what every instance starts as |
+| `$.apps.app1.form.open` | The user, the owner included | The user's instance of that app: only what differs from the definition |
 | `$.data.users.1.name` | The data's owner | The data itself; a user's view of it reads the data owner's tree |
 | `<user>/apps/<app>` | The user | The user's own state of an app (person-state.md) |
 | `$.functions` | The app's owner | The app's state: the functions it runs |
@@ -193,7 +193,8 @@ browser ──session──▶ node ══link══▶ relay ══link══�
   `<user>/<appId>/user`, with a `$` per app, is the older shape of exactly this: what it stores is already the
   difference from the definition.
 - What follows, to settle in S11b:
-  - An app's definition (its parts, in the `part` table today) is the app owner's `$.apps.<app>`, and a shared
+  - An app's definition (its parts, in the `part` table today) is the app owner's `$.components.<app>`
+    (state-definitions-and-instances.md, `<owner>/components/<app>` as an address), and a shared
     dataset (a part of kind `data` today) is its owner's `$.data.<dataset>`. Neither is statenet state yet.
   - A node that runs an app's server logic for a user lays the two trees as the browser does, and writes the
     difference to the user's tree.
@@ -579,9 +580,8 @@ person's own workspace and an org's workspace go by the person's and the org's n
   stateui-pg's storage, and `RunningMagnetic.owners` exposes it.
 - Checked: stateui-mcp 1086, stateui-pg 57, statenet 65, Magnetic 284 unit tests.
 - Not yet done:
-  - **When a person uses their own app, their state and the app's default are the same path of the same tree**
-    (`$.apps.<app>` under their own `$`). Today they are kept apart because the default is a part, not statenet
-    state. Where each lives once definitions are statenet state is not settled.
+  - Settled by state-definitions-and-instances.md: the definition is at `$.components.<app>` and every use, the
+    owner's included, is an instance at `$.apps.<app>`, so the owner's state and the default no longer share a path.
 
 ### S11: Magnetic's servers save through a separate aggregate (19 November 2026)
 - **stateui-pg**:
