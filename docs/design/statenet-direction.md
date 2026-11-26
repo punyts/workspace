@@ -17,8 +17,8 @@ Today's system is in `knowledge-base/design/stateui-state-sync.md` in AI Minion 
 - **Path shape.**
 
 ```
-[business].apps.[app]@2.3.0                         blueprint, published, immutable
-[user].apps.[business].[app]                        that person's state: the delta over the blueprint
+[business].components.[app]@2.3.0                   blueprint, published, immutable (an app is a composite component)
+[user].apps.[app]                                   that person's instance, the owner's own included: changes over the blueprint
 [user].data.…                                       the person's own data
 [business].data.marketing.contacts                  the business's data (a dataset, following a model)
 [business].data.marketing.contacts.c12@2.3.0+2      one record at one version
@@ -30,7 +30,7 @@ Today's system is in `knowledge-base/design/stateui-state-sync.md` in AI Minion 
 - **The blueprint** is the screens, the logic, the default values and the data sources the app needs. The publisher is a business; people who work there use its apps under their own ids, so a blueprint path is never anyone's state.
 - **The person's copy** holds only what differs from the blueprint's defaults (the split `snapshotState` already makes between document values and articulation), the blueprint version it extends, and the data each declared source is bound to. It is persisted and follows the person across devices; this needs sign-in (OAuth and JWT), which is secondary for the proof of concept.
 - **Reads overlay, writes go to the delta, reset deletes the delta entry.**
-- **Shared app state is data.** Something several people see together (Ana's cursor) is a value at a path that its owner shares and others listen to. Live updates for it travel as described in [Transport and encoding](#transport-and-encoding).
+- **Shared app state stays in its instance.** Something several people see together (Ana's cursor) is a value in Ana's instance that the blueprint shares with the app's other users, read through a `$peers` link ([state-definitions-and-instances.md](state-definitions-and-instances.md)). Live updates for it travel as described in [Transport and encoding](#transport-and-encoding).
 
 ### Models
 - State is data with a structure: a plain object or array, or a typed model.
@@ -113,7 +113,7 @@ Browsers cannot open raw UDP sockets. Their only UDP options are WebRTC data cha
 
 ## Rules and Constraints
 - Owner ids are unsigned 64-bit integers, `BigInt` in code and text in JSON; only owners are registered globally.
-- A person's state for an app is at the app's path under their own owner id; no path has a persona segment.
+- An app's blueprint is at `[owner].components.[app]`; every user's state of it, the owner's included, is an instance at `[user].apps.[app]`; no path has a persona segment.
 - Published blueprints are immutable and versioned; a person's state stores only its delta and the version it extends.
 - Blueprints use relative paths; global paths appear only in registration and bindings.
 - Every path has exactly one authority, the owner's edge; relays never decide.
