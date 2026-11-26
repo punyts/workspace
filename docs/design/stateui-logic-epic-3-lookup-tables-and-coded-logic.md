@@ -142,7 +142,7 @@ An effect turns **a request in state** into **a result in state**:
     "run": "orders.fetch",
     "status": "$.data.orders.status",
     "records": { "into": "$.data.orders.records", "key": "id" },
-    "window": "^orders",
+    "window": "#orders",
     "cache": 20
   }
 }
@@ -175,9 +175,9 @@ When no function is registered under the name, the request is queued for `ui_eve
 1. **The user scrolls or pages.** The grid writes its articulation property `window` (`{ first, count }`).
 2. **A rule writes the request:**
    ```json
-   "ordersRequest": { "when": { "path": "^orders.window" },
+   "ordersRequest": { "when": { "path": "#orders.window" },
      "do": [ { "command": "set", "target": "$.data.orders.request",
-               "value": { "pick": { "first": "{{ $trigger.first }}", "count": 50, "sort": "^orders.sort" } } } ] }
+               "value": { "pick": { "first": "{{ $trigger.first }}", "count": 50, "sort": "#orders.sort" } } } ] }
    ```
 3. **`fetchOrders` sees a new token.** The status becomes `loading`, any older call is cancelled, and `orders.fetch` runs.
 4. **The answer commits in one go:** records merge into `$.data.orders.records` by `id`, rows 0–49 fill the grid's records by position, and the status becomes `ready` with `total`.
@@ -186,7 +186,7 @@ When no function is registered under the name, the request is queued for `ui_eve
    "ordersView": {
      "inputs": { "state": { "path": "$.data.orders.status.state", "values": ["idle", "loading", "ready", "error"] },
                  "empty": { "value": "{{ $.data.orders.status.total == 0 }}" } },
-     "outputs": { "busy": "^orders.busy", "message": "^ordersMessage._text" },
+     "outputs": { "busy": "#orders.busy", "message": "#ordersMessage._text" },
      "rows": [ { "state": "loading", "busy": true, "message": "" },
                { "state": "error", "busy": false, "message": "{{ $.data.orders.status.reason }}" },
                { "state": "ready", "empty": true, "busy": false, "message": "No orders yet" },

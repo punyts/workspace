@@ -73,7 +73,7 @@ Building them found five gaps, fixed on 2026-11-24 (the starter apps keep their 
 - Logic on the server did not see a screen's definition values: `$.screens` is read through the document, as `$.app`
   is (stateui-mcp `AppLogic`).
 - `query` into `$.data` was refused for its position keys: there it writes a list in result order.
-- A link could reach only an exposed runtime property: `^name.prop` now reaches a stored property too (a field's
+- A link could reach only an exposed runtime property: `#name.prop` now reaches a stored property too (a field's
   `value`), at the node's state path.
 
 Two limits of the logic engine followed on 2026-11-24 (owner: "Fix the limits"):
