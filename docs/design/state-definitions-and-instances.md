@@ -29,7 +29,7 @@ fields: real data (app and workspace names, the budget, models), component state
 `tool`, `view`, `size`, `frame`) and values derived from other values (`toolLook`, `toolTone`, `budgetTone`, the
 `no…` flags). Its statenet is one wide branch. The starter apps do the same in a smaller way (Northwind's `view`,
 `ui`, `selectedOrder`, `wizard`; magnetic-starter-apps.md). And the owner's own state of an app is the app's
-definition itself (person-state.md), so using your own app changes it, which is why Magnetic needed test runs.
+definition itself (person-state.md), so using your own app changes it.
 
 ## The design
 
@@ -48,10 +48,11 @@ definition itself (person-state.md), so using your own app changes it, which is 
 > If you think about it, an app is like a composite component, it has a state that includes the state of it's
 > children and those children hold the state of their children, and so on.
 
-- A component's state is one branch, holding its content, style, logic and values together. Its children's state
-  is in branches under it, named by the component (a form's `fields`, a header's `toolbar`), not under a generic
-  `children` map. A node that only wraps others for layout goes away: layout is a prop of the component that owns
-  the region.
+- A component's state is one branch, holding its content, style, logic and values together. A component with a
+  fixed shape declares its child branches in its definition (a form's `fields`, a header's `toolbar`), and a prop
+  may not share a name with a declared branch. A container that holds whatever it is given (a panel, a grid) keeps
+  its children in an ordered `children` map, as nodes do now. A node that only wraps others for layout goes away
+  where a component owns the region: layout is a prop of that component.
 - A component's definition gives its structure and defaults. An app's definition is the same: its screens, their
   components, defaults, logic and the data it uses, at `<owner>.components.<app>`.
 
@@ -68,7 +69,13 @@ definition itself (person-state.md), so using your own app changes it, which is 
 - The owner follows the same rule as everyone else. Editing changes `7001.components.orders`; using the app changes
   `7001.apps.orders`, which nobody else loads. This closes the gap the owner named without a layer of its own: a
   definition is to an app instance what `$.components.field` is to a placed field.
-- An instance names its definition in `@from`, followed (the newest version) or pinned (`@v4`).
+- An instance names its definition in `@from`, followed (the newest published version) or pinned (`@v4`). Only the
+  owner's preview in the editor runs over the working definition; nobody else sees an edit before it is published.
+- **An instance changes values, never structure.** Its changes may set any value under a branch the definition has,
+  but never which component sits on a branch, and never add or remove a declared branch. Metadata is looked up by
+  the definition's structure, so no change of a person's can take a `@secret` off a value. Items a person adds to a
+  container's `children` or to a map the definition declares as open (a list's rows) are the exception, and take
+  the metadata of the component the definition allows there.
 - App ids stay unique (person-state.md), so an instance is at `<person>.apps.<app>` with no segment for the app's
   owner.
 
@@ -79,6 +86,10 @@ definition itself (person-state.md), so using your own app changes it, which is 
   inverts a change, replay applies the log again, and the log is the instance's history.
 - When the definition changes, every instance picks up the change except at the paths its person changed. A change
   in the log to a path the definition no longer has is kept in the log and not applied.
+- **Applying the log is not acting.** Logic reacts to live changes only: a person's, or another rule's. Changes
+  applied by loading an instance, replaying its log or undoing do not fire logic, so a replay never signs anyone in
+  or sends anything again. An effect runs once for the change that started it.
+- `@secret` and `@transient` values never enter the log.
 - How much history is kept follows the owner's versioning scheme per path pattern (statenet-direction.md, "Versions
   and history"); app state such as a scroll position keeps none. The aggregate compacts what falls out of the kept
   history into the base diff.
@@ -113,17 +124,30 @@ with 4242.data.ordersMine.records.o1042     # the same key; only 4242's fields
 
 A write to the original's fields goes through to its owner, if 4242 may write there (statenet-permissions.md). A write
 to an added field goes to the extension record. The extension never repeats or overrides the original's fields.
+Deleting the original record deletes its extension records, so a key used again later starts with none.
 
 ### State changes are the events
 > No events, remember that since we have server side logic we can't tie things to browser events. The state and
 > statenet provide the events through state changes.
 
-- A component writes its own state, and logic on the device or the server reacts to the change. A press is a count
-  or a time (`.signIn.pressed = 4`), so pressing twice is two changes.
+- A component writes its own state, and logic on the device or the server reacts to the change. A press records
+  when and on which device (`.signIn.pressed = { at, device }`), so pressing twice is two changes even when two of a
+  person's devices press at once. A press is `@transient`: it reaches the logic that listens and is never stored.
 - Every change goes to the node's server half by default. The server listens to the paths its logic declares, and an
   external listener is a relay on a path.
-- Emits go, and with them Magnetic's page contract of data in and emits out (magnetic-editable.md). The server reads
-  a page's state at its paths.
+- **Logic addresses components by id, not by path.** A branch in a definition may carry an id unique in its app
+  (`@id = "signIn"`), and logic, relays, links and expressions name it as `#signIn` (`#signIn.pressed`,
+  `"<-busy": "#signIn.busy"`, `{{ #signIn.busy ? 'Signing in…' : 'Sign in' }}`); the engine resolves the id to the
+  branch's current path. A component can then be moved or renamed without breaking the logic, which is what
+  Magnetic's page contract of data in and emits out protected (magnetic-editable.md). Publishing checks that every
+  id the logic, relays and links name exists, on a component that has the prop they read.
+- `#` means what an HTML id and the CSS `#id` selector mean: one name in the document, found wherever it is now.
+  Every state path starts with `$`, so `#signIn` never reads as a place in state. `@punyts/expression` gains `#name`
+  as a path root. The metadata is `@id`, not `@key`, because StateUI's `key` already names a repeated item.
+- **Ids in a repeat.** A component in a repeated template has a copy per row. Inside the template, `#delete` is the
+  copy in the same row. Outside it there is no `#delete`: logic reads the list through the list's own id
+  (`#orders.selected`). Publishing refuses an id used twice in one scope.
+- Emits go, and with them that page contract: the server reads a page's state through ids.
 
 ### Metadata on a branch
 > I'm wondering if we can get similar results by added metadata properties to state branches?
@@ -134,10 +158,11 @@ of the children it marks:
 
 | Key | Effect |
 |---|---|
-| `@local` | Stays on the device, in localStorage. Never sent. |
-| `@secret` | Sent to the node's server half; only logic that declares the path reads it. Never stored, logged or relayed. |
+| `@local` | Stays on the device, in its store. Never sent. |
+| `@secret` | Sent to the node's server half, and only while the device is online; only logic that declares the path reads it. Never stored, logged or relayed, and never in the device's store, its queue of unsent changes or an instance's log. |
 | `@transient` | Synced and seen by listeners, never stored: the direction's no-history path class. |
-| `@share` | Who besides the person may read the branch of each instance; `peers` is everyone using the same app. |
+| `@share` | Who besides the person may read the branch of each instance: `peers of <path>`, the people whose instances are on the same data (see below). |
+| `@id` | The name logic, relays, links and expressions use for the branch (see "State changes are the events"). |
 
 Metadata is read from definitions only (a component's defaults, an app's definition). An instance cannot set or clear
 it, so a person cannot unmark a secret. On the edge, metadata becomes entries in the owner's path-pattern tables
@@ -149,9 +174,9 @@ with $.components.secretField
 .@secret  = ["value"]
 
 with $.components.button
-.pressed    = 0
+.pressed    = null              # { at, device } on each press
 .busy       = false
-.@transient = ["busy"]
+.@transient = ["pressed", "busy"]
 ```
 
 The password is the case `@secret` covers:
@@ -159,30 +184,41 @@ The password is the case `@secret` covers:
 > The password example brings to mind the fact that the password needs to make it's way to the server.
 
 ```
+with 7001.components.orders.screens.login.form
+.fields.username.@id    = "username"
+.fields.password.@id    = "password"
+.actions.signIn.@id     = "signIn"
+
 with 7001.logic.auth.signIn
-.listens = $.apps.orders.screens.login.form.actions.signIn.pressed
-.reads   = .form.fields.username.value, .form.fields.password.value     # declared, so readable here
-.sets    = .form.actions.signIn.busy = true
-           ok   → .form.fields.password.value = "", .screen = "orders"
-           fail → .form.fields.password.error = "auth.failed"
+.listens = #signIn.pressed
+.reads   = #username.value, #password.value      # declared, so the secret is readable here
+.sets    = #signIn.busy = true
+           ok   → #password.value = "", .screen = "orders"
+           fail → #password.error = "auth.failed"
 ```
 
 ### Seeing other people's app state
 > For example if we have a shared drawing board, we'll want to share cursor position state from each user to each
 > user. Each user would share their mouse coordinates over the diagram.
 
-Each cursor stays in its person's instance. The definition shares the branch with the app's other users, and a link
-rooted at `$peers` reads the same branch in every instance it may read, keyed by owner:
+Each cursor stays in its person's instance. People work together around data, not around an app: the people looking
+at one board are peers, not everyone who uses the board app. So the definition shares the branch with the peers of a
+path, the people whose instances have the same value there (the board open), and a link rooted at `$peers` reads the
+same branch in every instance it may read, keyed by owner:
 
 ```
 with 7001.components.board.screens.diagram
+.board         = null                                   # the key of the board open
 .mousePosition = { x: 0, y: 0 }
 .@transient    = ["mousePosition"]
-.@share        = { mousePosition: peers }
+.@share        = { mousePosition: "peers of .board" }
 "<-cursors"    = "$peers.mousePosition"
 
 $.apps.board.screens.diagram.cursors = { o4242: { x: 412, y: 188 }, o5150: { x: 90, y: 301 } }
 ```
+
+A person may narrow what they share (hide their cursor) by a value in their instance; no instance can widen it. Only
+people who may read the board itself are peers of it.
 
 The strokes on the board are not app state: they are data in `$.data`, written through to their owner. To share a
 whole branch of app state with one person (looking at the same screen together), the owner grants it and the other
@@ -193,52 +229,75 @@ with 4242.mounts
 .apps.orders.screens.orders = 5150.apps.orders.screens.orders     # granted by 5150, read and write
 ```
 
+Mounts are layered in their order in `$.mounts`, the person's own instance among them: a layer mounted later
+overrides an earlier one at the paths both set. A shared branch mounted first can be overridden by the mounts after
+it. The layers stay apart, so what a person's own instance holds under a branch mounted over it is still there when
+the mount ends. A write to a path goes to the layer that wins there: through to the shared branch's owner when that
+mount wins, to the person's instance when theirs does.
+
 ### Offline
-localStorage holds the device's copy of the composed `$`, the `@local` branches and the changes not yet sent. On
-reconnect the device sends them in order. Changes to the person's own instance cannot conflict with anyone's. Writes
+The device's store holds its copy of the composed `$`, the `@local` branches and the changes not yet sent, never a
+`@secret` value. The store is IndexedDB: a composed copy with datasets outgrows localStorage's few megabytes, which
+can still hold small settings. On reconnect the device sends the queued changes in order. Changes to the person's own instance cannot conflict with anyone's. Writes
 through to shared data or a shared branch can be refused, and the app shows them as refused.
 
 ### The editor's record, under this design
 ```
 with magnetic.components.editor.screens.edit
-.chat.hidden   = true
-"<-chat.messages" = "$.data.chat.messages"
-.toolbar.tool  = "pick"
-"<-toolbar.tools.use.look" = "..tool == 'use' ? 'solid' : 'ghost'"
+.chat.hidden            = true
+.chat."<-messages"      = "$.data.chat.messages"
+.toolbar.tool           = "pick"
+.toolbar.tools.use.look = "{{ toolbar.tool == 'use' ? 'solid' : 'ghost' }}"
 
 with 4242.apps.editor.screens.edit
 .chat.hidden  = false
 .toolbar.tool = "use"
 ```
 
-The `…Hidden` flags become the state of the panels they hide, derived looks become links, and what is left in
+The `…Hidden` flags become the state of the panels they hide, derived looks become expressions, and what is left in
 `$.data` is data: chat messages, the budget, the models, the feed.
 
 ## Stages
-1. **state**: metadata keys read from definitions; the composed view of an instance over its definition, generalizing
-   `layInstance`; the `$peers` link root.
-2. **stateui-app**: definitions at `$.components.<app>`; a node's children in the branches its component names, with
-   layout as a prop; emits removed, presses as state; the validator warns when a model field is bound only to a
-   component's own props (`hidden`, `open`, a look).
-3. **state-sync and statenet**: an instance's change log kept per the owner's history scheme, with undo and replay;
-   `@transient` never persisted, `@secret` to the server half only, `@local` never sent; offline changes queued in
-   localStorage.
-4. **Permissions**: accepting a share makes the instance and its entries; `@share` entries made from the definition.
+1. **state**: metadata keys read from the definition's structure; the composed view of an instance over its
+   definition, generalizing `layInstance`, refusing changes to structure; ids resolved to paths; the `$peers` link
+   root.
+2. **stateui-app**: definitions at `$.components.<app>`; declared child branches for fixed-shape components,
+   `children` for containers, layout as a prop; emits removed, presses as transient state; logic that fires on live
+   changes only and names components by id (`#name`, a new path root in `@punyts/expression`); publishing checks ids; the validator warns when a model field is bound
+   only to a component's own props (`hidden`, `open`, a look).
+3. **state-sync and statenet**: an instance's change log kept per the owner's history scheme, with undo and replay
+   that fire no logic; `@transient` never persisted, `@secret` to the server half only while online and never in a
+   store, queue or log, `@local` never sent; the device's store and its offline queue in IndexedDB.
+4. **Permissions**: accepting a share makes the instance and its entries; `@share` entries for the peers of a path,
+   made from the definition. statenet-permissions.md (the `use`, `view`, `remix`, `edit` and `manage` entries read
+   `$.components.<app>`), statenet-network.md (its table of what `$.apps` means) and magnetic-show-views.md (the
+   Statenet view's branches) change with it.
 5. **stateui-mcp and stateui-pg**: tools write definitions at `components` and instances at `apps`; stored instances
    keep their log.
-6. **Magnetic**: the editor edits the definition and its preview runs the owner's instance; the page contract reads
-   state at paths; the editor's own record splits as above; the Statenet view draws an instance's tree, branching at
-   components. Whether test runs remain, now that the owner has an instance of their own, is decided here.
+6. **Magnetic**: the editor edits the definition and its preview runs the owner's instance over the working
+   definition; the server reads pages through ids; the editor's own record splits as above; the Statenet view draws
+   an instance's tree, branching at components. Test runs stay: they keep trying an app from changing its seed
+   records (stateui-test-runs.md), which the owner's own instance would still do.
 
 ## Rules and Constraints
 - An app's definition is at `<owner>.components.<app>`; every user's state of it, the owner's included, is an
   instance at `<person>.apps.<app>`. Nothing that runs the app writes the definition.
-- An instance stores changes over its definition, never a copy.
+- An instance stores changes over its definition, never a copy. It changes values, never which component sits on a
+  branch or which branches a definition declares.
+- Instances follow published versions; only the owner's preview runs over the working definition.
+- Loading, replaying or undoing changes fires no logic; an effect runs once.
+- Logic, relays, links and expressions name components by id (`#name`, set by `@id`); publishing checks every id
+  they name, and refuses an id used twice in one scope.
+- Peers are the people on the same data, never every user of an app; a person may narrow what they share, never
+  widen it.
 - Data is never shadowed: a write to another owner's data goes through to that owner; added fields go to an
-  extension record.
+  extension record, which is deleted with the record it extends.
+- Mounts are layered in their order in `$.mounts`; a later mount overrides an earlier one, and a write goes to the
+  layer that wins at its path. `$.mounts` is an ordered map, so its keys are never integer-like.
 - No events: components write their own state, and logic reacts to state changes.
 - Metadata (`@local`, `@secret`, `@transient`, `@share`) is read from definitions only.
-- A `@secret` value is never stored, logged or relayed; a `@local` value never leaves the device.
+- A `@secret` value is never stored, logged or relayed, never kept on the device, and sent only while online; a
+  `@local` value never leaves the device.
 
 ## Decisions
 - An app is a composite component; a consumer's instance starts from the owner's definition and every user gets
@@ -251,9 +310,27 @@ The `…Hidden` flags become the state of the panels they hide, derived looks be
 - A component's state stays one branch: content, logic, definition and style together (owner, 2026-11-25).
 - No events; state changes are the events, and the server listens to paths (owner, 2026-11-25).
 - Behaviour that differs from the default is metadata on branches, not separate structure (owner, 2026-11-25).
-- Device-only and offline state exist: localStorage holds them and the changes not yet sent (owner, 2026-11-25).
+- Device-only and offline state exist: the device's store holds them and the changes not yet sent (owner,
+  2026-11-25).
 - Reading peers' state is a link root, `$peers`, not an expression function: it needs the engine's permission check
   and a listener at the edge, which expressions do not do. The owner left the choice to design (2026-11-25).
+- From a review of this design, accepted by the owner ("Yes, revise the doc with those fixes", 2026-11-25):
+  - An instance changes values, never structure, so metadata cannot be taken off.
+  - `@secret` values stay out of the device's store, the offline queue and the log, and are sent only online.
+  - Loading, replay and undo fire no logic; effects run once.
+  - A press is `{ at, device }` and transient.
+  - Instances follow published versions; only the owner's preview runs over the working definition.
+  - Peers are scoped to a path's value (the people on the same board), and a person may narrow their share.
+  - Logic names components by id, which keeps what the page contract protected; publishing checks the ids.
+  - Test runs stay, for the seed records they protect.
+  - Containers keep an ordered `children` map; props and declared branches never share a name.
+  - The device's store is IndexedDB.
+- Extension records do not survive the deletion of the record they extend (owner, 2026-11-25).
+- Components are named by id as `#name`, set by `@id`; inside a repeated template an id is the copy in the same
+  row (owner, 2026-11-25: "Let's do it", on the recommendation).
+- Shared branches are layered in mount order: one mounted first can be overridden by later mounts (owner,
+  2026-11-25). That the person's own instance is a layer in the same order, and that writes go to the winning layer,
+  follows from it in design.
 
 ## Open questions
 - The form of metadata on a leaf: a list on the parent (as above) or a mark on the key's name, as `_` is.
