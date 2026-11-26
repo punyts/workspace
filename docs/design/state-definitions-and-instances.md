@@ -1,6 +1,6 @@
 # Apps are composite components: one definition, an instance per person
 
-Status: designed 2026-11-25; nothing built. It changes the statenet's direction (statenet-direction.md, "Owners and
+Status: designed 2026-11-25; built 2026-11-26 (As built), with the limits listed there. It changes the statenet's direction (statenet-direction.md, "Owners and
 paths") and the owner's own state in person-state.md.
 
 Asked for on 2026-11-25, looking at the editor's statenet:
@@ -331,6 +331,84 @@ The `…Hidden` flags become the state of the panels they hide, derived looks be
 - Shared branches are layered in mount order: one mounted first can be overridden by later mounts (owner,
   2026-11-25). That the person's own instance is a layer in the same order, and that writes go to the winning layer,
   follows from it in design.
+
+## As built
+Built on 2026-11-26 in the order of the stages, with these judgement calls made while the owner was away; each can be
+changed.
+
+**Metadata and ids** (stateui-app `core/meta/`, `core/on/ids.ts`). A node takes `@id`, `@local`, `@secret`,
+`@transient` and `@share` (`META_KEYS`). `#name` is the node reference in links, `on` targets and logic; a node's id
+is its `@id`, else its key, and an `@id` used twice in a tree is `SUI-NODE-ID-TWICE`. Assembly compiles the marks
+into the document's `local`, `secret` and `ephemeral` lists (`metadataPaths`), and a component's `state.json` may
+mark its own properties (`Shape.marks`: the button's `pressed` is `@transient`). Tests: `core/on/ids.test.ts`,
+`core/meta/metadataPaths.test.ts`, `core/assemble/assemble.test.ts`.
+
+**Instances, history and undo** (state-sync `authority/Authority.ts`, stateui-mcp `AppAuthorities.ts`). An app
+authority keeps the last `INSTANCE_HISTORY` (100) client changes with what their paths held; the `undo` and `redo`
+commands post `history`, the host calls the sync client's `undo()`/`redo()`, and the authority applies the step as a
+server write, so no logic runs for it (live changes only). statenet passes both through its authority tunnel. Tests:
+state-sync `authority/History.test.ts`, stateui-mcp `AppLogic.test.ts` ("should run no logic for an undo …").
+
+**Labels** (stateui-app `dom/locale/switchLocale.ts`, `core/snapshot/instance.ts`). A language's labels are written
+as sync writes, so they never reach the instance; an instance lays `_` content only where the definition has the key.
+
+**Presses** (stateui-components `button`). `pressed` is `{ at, device }`, marked `@transient`, with
+`$.runtime.device` a random id per mount unless the host names it.
+
+**Definitions at `components`** (stateui-mcp `StateAddress.ts`, Magnetic grants). An app's definition is addressed
+`<owner>/components/<app>`; instances stay at `<person>/apps/<app>`. Grants accept the definition's address.
+
+**Peers** (stateui-app `core/links/references.ts`, stateui-mcp `PeerShares.ts`). `@share` maps a node's properties
+to `"peers of .<path>"`; `PeerShares` groups an app's running instances by that value and writes each one's
+`$.peers.<path>`, keyed by owner; `"<-x": "$peers#name.prop"` reads it. `$.peers` is ephemeral and refused to clients.
+
+**No emits** (stateui-app `dom/on/dispatcher.ts`, `runtime/`; stateui-mcp `browser/host.ts`). The `emit` command,
+`onEmit` and the runtime's `emit` message are gone. Every event of a node with an `@id` (shapes and row copies
+included) reaches `DispatchHooks.onRaised` as `{ id, event, value?, row? }`, posted as `raised`; the stateui-mcp host
+queues it for `ui_events_read` as `<id>.<event>` and raises `stateui:raised`, and `AppOpenRequest.onRaised` serves an
+app inside an app (`embeddedApp` raises `raised`). Magnetic's pages are heard through the ids of their nodes
+(`src/http/raised.ts`, a `Hearing` per page). The sync protocol's own emit (bound requests, relays) is transport and
+stays.
+
+**Declared branches** (stateui-app `core/validate/tree.ts`). A component whose shape has `node` properties and does not
+lay out, place or name children (`layout`, `placement`, `childComponents`) refuses `children` (`SUI-NODE-BRANCH`);
+`nav` and `menu` name `menuItem`. A `$.data` value bound only to `hidden`, `open` or a shared look warns
+`SUI-LINK-OWN`. Test: `core/validate/validate.test.ts` ("validateDocument: declared branches and own state").
+
+**Offline** (state-sync `IndexedDbLocalStore.ts`, stateui-mcp `browser/host.ts`). `openIndexedDbLocalStore` reads the
+namespaces it opens for into memory and writes through in order; the view host opens it before it starts. `@secret`
+changes never reach it, `@local` changes are kept in its `local` part and never sent. Test: state-sync
+`IndexedDbLocalStore.browser.test.ts`, stateui-mcp `browser.integration.test.ts` ("should keep a change made offline
+across a reload …").
+
+**Magnetic** (`src/inspector/viewInfo.ts`, `src/editor/EditorApp.ts`). The Statenet view puts the owner's apps under
+`$.components` and draws the instance of the app being edited with its own tree: its screens, and in each the nodes
+with an `@id` or a composed component, hung from the nearest such node (`views.kind.node`). Test:
+`src/inspector/viewInfo.test.ts` ("should draw the instance of the app being edited …").
+The editor's eighteen `…Hidden` fields left the `magnetic-editor` model: each pane carries an `@id` (`chatPane`,
+`boardPane`, …; `EDITOR_PANES`) and its own `hidden`, which the page script writes at the node's path, found by its
+id, when it sets the flag it always set (`src/http/shell.ts`, `ed`). The rail's looks and tones (`libraryLook`,
+`toolLook`) are still data the script writes: a `#name` reference reaches only a node's ancestors, so a rail button
+cannot read a sibling pane's `hidden`. The server reads pages through ids (`src/http/raised.ts`). Tests:
+`src/server/editor.browser.test.ts`, `e2e/`.
+
+### Known limits
+- A composed component's inner nodes and a row template's copies carry no marks of their own; marks are read from the
+  app's and screens' nodes and the component definitions.
+- A person's label override is replaced when the language changes.
+- The instance history is a count of changes, never compacted; an owner node (statenet `OwnerNode`) keeps no history,
+  so undo through a relay finds nothing yet.
+- `busy` and other derived states are not marked `@transient`.
+- Peers are grouped per app server, with no narrowing by the person and no permission check of the board itself; a
+  component's `state.json` cannot declare `@share`; no browser test covers `$peers` end to end.
+- Server logic lost `emit`; tests count server rules through data counters.
+- `SUI-LINK-OWN` is checked per tree, so a value bound to `hidden` on one screen and read on another warns.
+- Composed components no longer emit: a host gives their inner nodes an `@id` through overrides to hear them.
+- The editor's derived looks are not expressions yet, and its other `no…` flags are still fields of its record.
+- The example apps keep panel and view state in `$.data` (Northwind 27, Lumen 29 `SUI-LINK-OWN` warnings); their
+  browser tests ignore that warning only.
+- A write IndexedDB refuses is reported and rolled back in memory but does not set the client's `saveFailed`, and
+  what a browser kept in `localStorage` before is not read.
 
 ## Open questions
 - The form of metadata on a leaf: a list on the parent (as above) or a mark on the key's name, as `_` is.

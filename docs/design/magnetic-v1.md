@@ -59,7 +59,7 @@ These pieces are new:
 - A board of all the apps, each a live frame on one canvas, was planned and dropped: too heavy (a runtime and
   a sync connection per frame) for what it gave. Instead:
   - **Your apps** is a StateUI app, `your-apps`, in each workspace: a grid of cards. Magnetic writes the lists
-    into its data on each visit, and the page acts on its `emit`s (open, create, sign out). It is Magnetic's
+    into its data on each visit, and the page hears its nodes' ids (`appCard`, `create`, `signout`). It is Magnetic's
     own UI built with StateUI. A stamp of its definition per person makes it again when the definition changes.
   - **A card opens the app** at `/apps/<appId>`, alone in the window; that page loads no editor.
   - **Ctrl+Shift+-** (Cmd on a Mac) zooms out of the app to the editor: the canvas, so the app can be panned and
@@ -67,7 +67,7 @@ These pieces are new:
     `/edit/<appId>`. The chords, each loading the other page, are in magnetic-zoom.md.
   - The app runs in a frame of another origin, so the page cannot hear a key pressed in it. stateui-app's `load`
     now takes `keys`, and the runtime posts a matching key to the host as `key`. stateui-mcp's host script
-    reads them from `data-host-keys` and raises `stateui:key` and `stateui:emit` on the page.
+    reads them from `data-host-keys` and raises `stateui:key` and `stateui:raised` on the page.
   - Checked in the browser: a card opens its app, the key opens and closes the editor from inside the app and
     from the page, the board pans and zooms, Make makes an app and opens its editor, an empty name shows a
     notice, and Sign out signs out.
@@ -402,7 +402,7 @@ data volume.
   app, `inspector`, that floats at the right of the editor. Magnetic keeps it in a system workspace no one signs in
   to, makes it again when its definition changes (a stamp, as for Your apps), and serves its assembled document at
   `/assets/inspector.json`. The page drives it: `stateuiHost.mount` runs it in a second runtime frame in
-  `standalone` mode, the page writes records and whole nodes into it, and acts on its emits. It has no instance and
+  `standalone` mode, the page writes records and whole nodes into it, and hears its nodes' ids. It has no instance and
   no socket. The chat, Share and the canvas stay hand-written.
 - **The page asks the app frame about its nodes.** A runtime message pair, `inspect` / `inspected`, answers for a
   point or for paths: each node's path, component, layout, rect and children's rects, and for a point the chain of
@@ -432,7 +432,7 @@ data volume.
   - M5: Playwright tests in `magnetic/src/server/editor.browser.test.ts`: select by click and by breadcrumb with
     no write; place into a column, a grid and an `adhoc` layout; Alt+Arrow; each one revision.
 - **What building it found.**
-  - **A field reports its first value.** Writing generated fields into the inspector made each one emit `change`
+  - **A field reports its first value.** Writing generated fields into the inspector made each one raise `change`
     with the value it was given, which saved every property again. Only a value that differs from the node's is
     saved now.
   - **The app re-renders after the answer.** A write's answer comes before the frame shows the change, so the

@@ -147,8 +147,10 @@ so a return to Screens finds the screens where they were.
 **The graph is the owner's tree by state path** (`ownerTreeOf` in `viewInfo.ts`; `cardOf` and `drawGraph` in `views.ts` write
 its records to `$.data.statenet.nodes`, and `layoutTree` places them). Each node's id is its path, which the card
 carries as `data-id`.
-- **`$`**, then a pill per branch: `$.apps`, `$.themes`, `$.data`, `$.models`, `$.logic`, `$.components`, `$.patterns`
-  (when the owner has any), `$.connections` and `$.people`.
+- **`$`**, then a pill per branch: `$.components`, `$.themes`, `$.data`, `$.models`, `$.logic`, `$.patterns`
+  (when the owner has any), `$.connections` and `$.people`. An app's definition is a component
+  (state-definitions-and-instances.md), so the owner's apps are under `$.components`, before its composed and
+  library components.
 - **Every part of the owner** under its branch. A part the app being edited does not use is flat with its label
   muted ("Not used by this app"). The app being edited is selected; the owner's other apps open in their own editor.
 - **One level below a part:**
@@ -161,7 +163,9 @@ carries as `data-id`.
   - a connection: its endpoints, plus endpoints the logic calls that are missing from it;
   - the person editing: the apps of the workspace they have state in (`$.people.<person>.apps.<app id>`), the most
     recently used first: the app being edited and the most recent others, eight in all (`TREE_RECORDS`), and how many
-    more. A dashed edge joins an app to its instance.
+    more. A dashed edge joins an app to its instance. The instance of the app being edited has its own tree, branching
+    at components: a `screens` branch, each screen, and in it each node with an `@id` (labelled `#id`) or a composed
+    component, hung from the nearest such node above it (kind `node`).
 - **`$.people` holds the person editing only**, at their own id and labelled with their name. Another person's state is
   theirs: an org's admins reach it only through the audited support view. A person's state of an app is at
   `<their owner number>/apps/<app id>` (`personApps`, from `namespace_head`; person-state.md).
@@ -181,7 +185,7 @@ carries as `data-id`.
 
 **The +** on a branch or a part makes what it holds, through the person's tools, and puts it to use in the app. It is
 a small round button with an accent `plus` at the card's end, named "Add to <path>". Its form opens in the side panel; after Create the panel closes and the tree shows the new node.
-- `$.apps`: a new app (`POST /new`), which opens in the editor.
+- `$.components`: a new app (`POST /new`), which opens in the editor.
 - The app's `screens`: a blank screen (`POST /edit/<id>/screens`, `ui_screen_create`).
 - The app's `uses.data`: binds a dataset of the owner the app does not bind, under a name made from the dataset's (or
   one given).
@@ -331,7 +335,7 @@ person's own tools (`src/server/viewRoutes.ts`):
 - Four views, chosen in the top-right corner beside the preferences (owner, 2026-11-18).
 - Layout, Data and Logic are layers of the screen tiles. Theme, Statenet and Logic are app-level views that replace
   the canvas (owner, 2026-11-18).
-- The graph is the owner's tree by state path (`$.apps`, `$.themes`, `$.data`, …), with every part of the owner and
+- The graph is the owner's tree by state path (`$.components`, `$.themes`, `$.data`, …), with every part of the owner and
   what the app does not use dimmed, one level below a part, and a + on each branch that makes the part and puts it to
   use in the app (owner, 2026-11-18).
 - A branch shows six parts the app does not use, then a pill for the rest: an owner's hundreds of apps drew a board

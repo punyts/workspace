@@ -60,11 +60,11 @@ A component that mounts another StateUI app inside itself, in the same page.
 
 Events: `press` on a preview (pressed, Enter or Space on it) and `menu` (a right press, the context-menu key,
 Shift+F10), both with `{ app, screen }`; `navigated` with `{ screen }` when a live app moves to another screen itself;
-`emit` with `{ name, payload }` for each emit of the app inside.
+`raised` with the report `{ id, event, value?, row? }` for each event of a node with an `@id` in the app inside.
 
 The component asks for the app with an event, as `scene3d` asks for its chunk: it raises the bubbling, composed
 `ui-app-open` (`APP_OPEN_EVENT`) on its element with an `AppOpenRequest`, what it asks (`AppAsk`: `app`, `screen?`,
-`live`), the element to mount in, `onEmit`, `onNavigate`, and `respond`, which takes the promise of an
+`live`), the element to mount in, `onRaised`, `onNavigate`, and `respond`, which takes the promise of an
 `EmbeddedApp` (`navigate(screen)`, `dispose()`). The `mountApp` of the page answers it when it was given an **app
 host** (`MountOptions.apps`, an `AppHost`), as the function catalogs are passed: `answerAppRequests`
 (`stateui-app/src/dom/embed/`) stops the event and calls `apps.open(ask)`, which resolves to an `OpenedApp` (the
@@ -99,8 +99,8 @@ What the frames did for the page, and what replaces it:
   the mounted app's elements directly, and its overlay sits inside the `embeddedApp` node, so it pans and zooms with it.
 - **Host keys** (`data-host-keys`) were chords the frame gave back to the page. In the page a key goes to whatever has
   focus, and the editor's chords are handled where they are pressed.
-- **`stateui:emit` and `stateui:change`** were raised on the window by the frame host. The `embeddedApp` component raises
-  `emit`, and the app host gives the page the live store's changes.
+- **`stateui:raised` and `stateui:change`** are raised on the window by the frame host. The `embeddedApp` component
+  raises `raised`, and the app host gives the page the live store's changes.
 
 ### 4. The board as a page
 
@@ -137,13 +137,16 @@ and icon sizes (the corner's buttons), the panel padding (the head's sides) and,
 (`text.title.size`), so a name stays 20px on the screen at any zoom.
 
 The page script (`screens.ts`) writes these and sets `active` for the live tile only, so one app is mounted at a time
-(owner, 2026-11-20: "Let's just have one screen showing at a time, the one with the most in the screen"). It acts on
-the emits: `press` makes the screen the one worked on (or in names selects it), `menu` opens the tile menu at the
-pointer, `deselect` ends a selection, `canvas` (a press on the empty canvas) does too, `board`'s `move` posts the new
-order, `navigated` follows the live app to its screen, `view` keeps the view, updates the zoom control and, out of
-names, makes the screen with the most of its card in view (`mostInView`, measured from the places in the board's
-columns; the screen worked on keeps a tie, so a zoom out that shows every card whole changes nothing) the one worked on, as it does once the cards are placed when the board opens on a kept view, and `add` adds the first screen. With no screens the board
-holds one card, Add a screen.
+(owner, 2026-11-20: "Let's just have one screen showing at a time, the one with the most in the screen"). It hears the
+page through its nodes' ids (`SCREENS_HEARING`): `app.press` (a card's `embeddedApp`) is `press`, which makes the screen
+the one worked on (or in names selects it); `app.menu`, and `headMore.press` and `cornerMore.press` with the row's id, are
+`menu`, which opens the tile menu at the pointer; `close.press` is `deselect`, which ends a selection; `canvas.press` (a
+press on the empty canvas) is `canvas`, which does too; `board.move` is `move`, which posts the new order;
+`app.navigated` is `navigated`, which follows the live app to its screen; `canvas.change` is `view`, which keeps the
+view, updates the zoom control and, out of names, makes the screen with the most of its card in view (`mostInView`,
+measured from the places in the board's columns; the screen worked on keeps a tie, so a zoom out that shows every card
+whole changes nothing) the one worked on, as it does once the cards are placed when the board opens on a kept view; and
+`add.press` is `add`, which adds the first screen. With no screens the board holds one card, Add a screen.
 
 The zoom control drives the canvas through `command` on the node keyed `canvas`, as for Statenet. With none kept, the
 view fits the live card into the room the panels leave. Without the editor the live app is attached in `#alone`, a
@@ -227,7 +230,8 @@ Steps:
 - A document names an app and a screen, never a URL. The app host resolves the name for the signed-in person and
   refuses what they may not open.
 - A child app's state is its own: the parent never links into it, and it never writes the parent's.
-- The page talks to Magnetic only through `$.data` and emits; the canvas found by its key is the one exception.
+- The page talks to Magnetic only through `$.data` and the events of its nodes' ids; the canvas found by its key is the
+  one exception.
 - No backwards compatibility: the module-wide resolver and options are gone, and the board's code in `shell.ts` and
   `screens.ts` goes when the page replaces it.
 
@@ -252,7 +256,7 @@ B2:
 - `stateui-components/components/composites/embedded-app/`: the component. `components/composites/app/app.controller.ts`
   leaves the title alone when embedded. `test/harness/createMountComponent.ts` passes `apps`. Tests:
   `stateui-components/test/composites/embedded-app.browser.test.ts` (mounts and follows `appScreen`, the label without a
-  host or when refused, `active`, `emit` and `navigated` without running the page node, a preview that is inert,
+  host or when refused, `active`, `raised` and `navigated` without running the page node, a preview that is inert,
   follows the live data and raises `press` and `menu`).
 - `example/src/document/main.json` places an `embeddedApp`; `stateui-mcp/showcase/examples/layout.json` shows one.
 
@@ -287,7 +291,7 @@ B3b:
   page bundle under `shellPageCsp` and keeps the zoom control, the frame size and the panels' free area;
   `src/http/text.ts` `screens.board` and `screens.canvas`. `src/server/startMagnetic.ts` refuses to start without a page
   bundle. Tests: `src/screens/ScreensPage.test.ts` ("should serve a signed-in person the canvas around the board of
-  screens, in every language, with the emits the page script acts on").
+  screens, in every language, with the node ids the page script hears").
 
 B3c:
 - `stateui-app/src/runtime/inspect.ts`: `nodesAt` and `deepElementAt` take `within`, the app's element, and look

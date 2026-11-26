@@ -29,8 +29,10 @@ Both are documents of the older single-document form, run by code, and neither c
   `selectedOrder`, `detail`, `draft`, `wizard`, `stats` and more beside its orders and customers, and its
   383 KB screen links into all of it. `splitDocument` (stateui-app `core/convert`) would make each key a dataset,
   but it refuses a document that already has screens, and the keys that are not records would not make datasets anyway.
-- **Northwind runs on code.** `example/src/bootstrap.ts` answers 19 kinds of emit (`nav.goto`, `order.ship`,
-  `order.create`, `board.move`, the assistant's and support's, and others), derives each section's hidden flag
+- **Northwind runs on code.** `example/src/bootstrap.ts` hears the events of its nodes' ids through `onRaised`, read by
+  its `HEARING` table as 25 names (`ordersTrail.select` and `palette.run` as `nav.goto`, `rowShip.press` as
+  `order.ship`, `newOrderForm.submitted` as `order.create`, `fulfilmentBoard.move` as `board.move`, the assistant's and
+  support's, and others), derives each section's hidden flag
   (`sections.ts`), mirrors store writes into component commands ("bridges"), and generates its orders and customers
   (`data.ts`, `seed.ts`; deterministic). The archive section asks a host effect (`archive.ts`), Ridgeline a host
   game (`ridgeline.ts`), the warehouse loads models through the host's `load3d`.
@@ -95,8 +97,8 @@ instance, not them. Test runs now write copies that a reset throws away (stateui
   design, 2026-11-23).
 - Both are rebuilt as parts apps, with no closed catalog of host functions: the owner said to build what was planned
   (2026-11-24), and the recommendation was parts apps.
-- No starter copy that drops the code-run parts: Northwind without its emits and section flags cannot change section,
-  and the desktop without its functions opens no window. Made on 2026-11-23 after trying the conversion.
+- No starter copy that drops the code-run parts: Northwind without the events it hears and its section flags cannot change
+  section, and the desktop without its functions opens no window. Made on 2026-11-23 after trying the conversion.
 
 ## As built
 - Magnetic `src/server/startMagnetic.ts` (`appsBoardRoute`): the person's editor copy first on `/orgs/me`; text

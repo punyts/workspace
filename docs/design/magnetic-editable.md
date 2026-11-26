@@ -61,22 +61,26 @@ Draft and Publish, not live edits (owner, 2026-11-18).
   new on each publish, so every person's untouched copy is made again from it.
 - **Reset** deletes the published row, so Magnetic's own is served at once, and makes the draft again from the code.
 
-### The page contract: data in, emits out
-Every page is driven only through its data and its emits, never through the paths of its nodes. So any node can be
+### The page contract: data in, node ids out
+Every page is driven only through its data and the ids of its nodes, never through the paths of its nodes. A node the
+page script acts on carries an `@id`; the runtime reports each of its events (`stateui:raised`, `{ id, event, value?,
+row? }`), and the page's table (`src/http/raised.ts`, such as `SIGN_IN_HEARING`) reads `<id>.<event>` as the name the
+script acts on and its payload: the event's value, the node's row, or a value the script keeps as fields change. So any node can be
 moved, restyled, added or removed, and the page keeps working.
 - **Sign-in:** `$.data.signin` holds `providers` and `devUsers` as records (`{ id, label }`) shown by a `list` of
-  buttons that emit `provider` / `dev` with the row's id, and flags (`noProviders`, `noDevUsers`, `noSso`, `noNone`,
+  buttons (ids `provider` and `devUser`) heard as `provider` / `dev` with the row's id, and flags (`noProviders`, `noDevUsers`, `noSso`, `noNone`,
   `noError`, `noNotice`) that hide what the server lacks. The work email binds to `$.data.signin.workEmail`. What the
   server signs in with is data, so an edited page follows a change of providers.
 - **Your apps:** `$.data.home` holds `noInvites`, `notAdmin`, `noMakeOrg`, `mode`, `language` and `make`; the nodes bind
   to them. The page writes only `$.data`.
 - **Link:** `$.data.link` holds the title, the message and `noRemix`.
-- **The server acts only on the emits it maps** (`appPage`'s `actions`, the editor's and Your apps' handlers): an
+- **The server acts only on the names its tables hear** (`appPage`'s `actions`, the editor's and Your apps' handlers): an
   edited page can do nothing the code page could not.
-- **Publish checks the contract** (`contractGaps`): each emit in the spec's `required` must still be raised by some
-  node, and each key in its `keys` must still be some node's key. Sign-in: `provider`, `dev`, `sso`. Link: `home`,
-  `remix`. Your apps: `open`, `create`, `signout`, `editHome`, `resetHome`. The editor: `chat.send`, `home`, and the
-  keys `stage` and `propertyFields`.
+- **Publish checks the contract** (`contractGaps`): each id in the spec's `required` must still be some node's `@id`, and
+  each key in its `keys` must still be some node's key. Sign-in: `provider`, `devUser`, `workEmail`, `sso`. Link:
+  `home`, `remix`. Your apps: `appCard`, `create`, `signout`, `editHome`, `resetHome`, `shareAccept`, `shareReject`.
+  The editor: `request`, `home`, and the keys `stage` and `propertyFields`. A copy that lost one is refused with
+  `No part has the id "<id>"`.
 
 ### Languages
 - Every page is made in English with the other languages as locales (`writeLocales`). Your apps changed to this: one
@@ -95,7 +99,7 @@ Keep an edited version and flag it (owner, 2026-11-18).
   is kept. Pages says when the published version's draft was made from older code; Reset takes the new one.
 - A person's copy nobody changed (its revision is the one it was made at) is made again from the published version, or
   the code's; a changed copy is kept.
-- The models are always brought up to date (`ensureModels`), so new data fields exist in an old design. A new emit
+- The models are always brought up to date (`ensureModels`), so new data fields exist in an old design. A new id
   that an edited page lacks is unreachable until the page is changed, and nothing breaks.
 
 ### The editor editing itself
@@ -119,14 +123,14 @@ Keep an edited version and flag it (owner, 2026-11-18).
   (owner, 2026-11-18): they are forms with CSRF tokens and secrets that are never read back.
 - Drafts live in a workspace of their own, and a publish stores the app's parts, so a draft, the code version and a
   person's copy never share a model or theme that one of them changes.
-- No new route for a page's actions: the existing `actions` of `appPage` and the emit handlers stay the only things a
+- No new route for a page's actions: the existing `actions` of `appPage` and the page scripts' handlers stay the only things a
   page can trigger.
 - Your apps moved to English with locales, as the editor and sign-in are.
 
 ## Rules and Constraints
 - **The canvas stays code:** `shell.ts`, `screens.ts`, `inspect.ts`, the frame clipping and the pointer handling. A
   page edits what is inside its frame only.
-- **A page can trigger only the emits the server maps,** to fixed actions. No page carries a URL the server follows, a
+- **A page can trigger only the names the server's tables hear,** to fixed actions. No page carries a URL the server follows, a
   script, an `on*` attribute or `innerHTML` (the library's rules already refuse them).
 - **The vocabularies stay closed:** components, layouts, commands and tokens are the catalog's. Editing a page cannot
   add a component.
@@ -140,7 +144,7 @@ Keep an edited version and flag it (owner, 2026-11-18).
 ## Checks
 - An admin edits sign-in in the editor, publishes, and a signed-out visitor sees it; a non-admin cannot open the draft.
 - Adding a provider to the server shows its button on an edited sign-in page.
-- A draft without a required emit is refused at Publish with the reason.
+- A draft without a required node id is refused at Publish with the reason.
 - A published sign-in that never becomes ready falls back to the code's page; `?page=default` serves it.
 - Magnetic shipping a new sign-in leaves an edited draft and its published page as they are, and Pages says so; Reset
   brings the new one.
@@ -163,7 +167,7 @@ Built 2026-11-18.
   `src/http/shell.ts` (the editor's fallback steps), `src/http/text.ts`.
 - stateui-mcp `src/domain/overlayCarry.ts` and `WriteNodes`: overlays follow a node write.
 - Tests: Magnetic `src/server/sitePages.test.ts` (the contract check; Pages for an admin only; a draft open to an admin
-  only; publish, the dropped translations and `?page=default`; a refusal naming the missing emit; Reset; a person's
+  only; publish, the dropped translations and `?page=default`; a refusal naming the missing id; Reset; a person's
   changed Your apps kept and reset; an untouched one made again from a publish), `agentRoutes.test.ts`, `beta.test.ts`,
   `providerSignIn.test.ts`; `e2e/pages.spec.ts` (the admin's flow at desktop size; a person editing Your apps, in
   German, and resetting it, at both sizes); stateui-mcp `test/nodeTools.test.ts`.

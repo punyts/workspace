@@ -67,7 +67,8 @@ Built 2026-11-23.
 - **The page**: `GET /orgs/<org>` for a member of the org, `GET /orgs/me` for the person's own space. Anyone else gets
   404. The page holds Magnetic's page `magnetic-apps` (a `PageSpec`, served at `/assets/apps.json` like the editor's
   board, editable by admins as the other pages are) and a level bar over it, and `/assets/apps.js` drives it through
-  `$.data.apps` and its emits, as `screens.js` drives the screens board.
+  `$.data.apps` and hears it through its nodes' ids (`APPS_HEARING`: `card.press` as `press` with the row's id,
+  `canvas.press` as `canvas`, `canvas.change` as `view`), as `screens.js` drives the screens board.
 - **The tiles** are in the page, as JSON the server writes (`#apps-tiles`), so the board needs no second request.
   An org's hold the apps of its workspace the person may open. Their own space holds their own apps and the apps shared
   with them by link, less those they rejected, newest first; Your apps and Magnetic's editor are not tiles. The apps of

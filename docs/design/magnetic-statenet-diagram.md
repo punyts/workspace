@@ -28,7 +28,8 @@ through state, and Statenet is a page of Magnetic's that holds both.
 `card` is a node with `row: true`, as `board`'s `card` is: the consumer's template, drawn once per record with `$row`
 linked to the record. The card decides its look; the record carries what the look depends on (Statenet's records hold
 `corners`, `elevation`, `muted`, `current`, `noAdd` and the texts). A press inside the card acts through the card's own
-`on`, with `$row` in its commands and emits. With no `card` the diagram draws a label-and-note card, a template node in
+`on`, with `$row` in its commands, and a node of the card with an `@id` is reported to the host with the record as
+its `row`. With no `card` the diagram draws a label-and-note card, a template node in
 the controller (`DEFAULT_CARD`), so it takes the consumer's path.
 
 What stays the diagram's:
@@ -91,8 +92,8 @@ The controllers of `viewport` and `treeDiagram` read layout. The renderer in `st
 person at `/assets/statenet.json`, as the editor's page is. Its one screen is a panel around a `viewport` keyed `canvas` (`grid`,
 the window's height less the panel's border, so the frame does not scroll) holding a `treeDiagram` with `twoSided: true`, `columns: 2`, `leafBlock: 420` and a `card`: a `card`
 component whose `padding` (md for a part, sm for a pill or a leaf), `corners`, `elevation` and `selected` come from the record, with the kind (an accent caption), the label
-(muted when unused) and the note, and a small round + (`plus`, named by `addLabel`, hidden by `noAdd`) that emits `add`
-with the record's id.
+(muted when unused) and the note, and a small round + (`plus`, id `add`, named by `addLabel`, hidden by `noAdd`) whose
+press is reported with the record as its row. The viewport has the id `canvas` and the diagram the id `tree`.
 
 Its data is `$.data.statenet`, written by the page script (`magnetic/src/http/views.ts`):
 - `nodes`: one record per card (`id`, `parent`, `wrap`, `label`, `kind`, `note`, the flags and the look), from the
@@ -103,15 +104,19 @@ Its data is `$.data.statenet`, written by the page script (`magnetic/src/http/vi
 - `view`: `{ x, y, zoom }`, linked to the viewport's `x`, `y` and `zoom`.
 - `inset`: what the editor's panels and the side panel cover.
 
-The page's emits, and what the script does:
-- `select` with `{ id, box }`: the side panel opens on the card (a branch or the owner gets a small one with its path);
-  an empty id closes it. `open` does the same.
-- `add` with the record's id: the + form in the side panel.
-- `press`: the side panel closes. Escape also closes it.
-- `view` with `{ x, y, zoom }` after a pan or a zoom: shown in the editor's zoom control, and kept per person and app on
-  the server half a second after the last one (`POST /edit/<id>/views/kept`). Mounting the page reads it
-  (`GET …/kept?view=statenet`), so Statenet opens where the person left it, in any browser.
-- `layout`: the first one fits the tree, unless a view was kept.
+What the script hears through the page's ids (`STATENET_HEARING` in `StatenetPage.ts`, read by `src/http/raised.ts`),
+and what it does:
+- `tree.select`, heard as `select` with `{ id, box }`: the side panel opens on the card (a branch or the owner gets a
+  small one with its path); an empty id closes it. `tree.open`, heard as `open`, does the same.
+- `add.press`, heard as `add` with the row's id: the + form in the side panel.
+- `canvas.press`, heard as `press`: the side panel closes. Escape also closes it.
+- `canvas.change`, heard as `view` with `{ x, y, zoom }` after a pan or a zoom: shown in the editor's zoom control, and
+  kept per person and app on the server half a second after the last one (`POST /edit/<id>/views/kept`). Mounting the
+  page reads it (`GET …/kept?view=statenet`), so Statenet opens where the person left it, in any browser.
+- `tree.layout`, heard as `layout`: the first one fits the tree, unless a view was kept.
+
+These ids are the page's contract (`required`): a copy of the page that lost one is refused with
+`No part has the id "<id>"`.
 
 The script fetches `/graph` once per revision: a load already running is reused, and the revision the editor writes again
 at startup does not fetch it again. The server reads the graph's parts together, not one after another.
@@ -120,7 +125,8 @@ at startup does not fetch it again. The server reads the graph's parts together,
 with the number of cards rather than its square (about 1.3 s for 300 of Statenet's cards).
 
 The editor's zoom control drives the canvas while Statenet shows: `shell.ts`'s `magneticShell.canvas.drive(driver)` makes
-its emits and keys (`=`, `-`, `0`, `1`) call the driver, which runs the viewport's commands through the host panel
+its buttons (`zoomIn`, `zoomOut`, `zoomReset`, `zoomFit`, heard by their ids) and keys (`=`, `-`, `0`, `1`) call the
+driver, which runs the viewport's commands through the host panel
 (`command` on the node keyed `canvas`); `drive(null)` gives them back to the board. `showZoom` writes the shown zoom.
 Finding the canvas by its key is the one place the script names a node, as the editor's page does with `stage`.
 
@@ -155,11 +161,11 @@ Moving them under a `viewport` needs apps in the page rather than in frames, des
 
 - The renderer (`stateui`) never reads layout. Controllers may, and only `treeDiagram` and `viewport` measure here.
 - The card template is JSON: no code, no `innerHTML`, no `on*` attributes. A card acts only through `on` commands and
-  emits.
+  the events of its nodes' ids.
 - `x`, `y` and `zoom` are written by the component at most once per frame during a gesture; a consumer that saves them
   saves on `change`.
-- Statenet's page talks to Magnetic only through `$.data` and emits; the canvas found by its key is the one exception
-  (`magnetic-show-views.md`). Every write to the owner's parts still goes through the person's tools on the server.
+- Statenet's page talks to Magnetic only through `$.data` and the events of its nodes' ids; the canvas found by its key
+  is the one exception (`magnetic-show-views.md`). Every write to the owner's parts still goes through the person's tools on the server.
 - Texts are in four languages; the `/graph` answer holds data, never words.
 - Node keys of the graph are state paths, never integer-like.
 - No backwards compatibility: `treeDiagram`'s removed properties are removed, and documents that use them fail
@@ -184,9 +190,9 @@ stateui-mcp: the showcase has both components (`showcase/examples/graphics.json`
 
 magnetic:
 - `src/statenet/StatenetPage.ts`, the page; `src/statenet/StatenetPage.test.ts` ("should serve a signed-in person the
-  canvas around the tree, in every language, with the emits the page script acts on").
+  canvas around the tree, in every language, with the node ids the page script hears").
 - `src/server/startMagnetic.ts`: `GET /assets/statenet.json`, and the page in `SitePages`.
-- `src/http/views.ts`: the Statenet section (mount, records with their padding, emits, the kept view, the inset, one
+- `src/http/views.ts`: the Statenet section (mount, records with their padding, `netHeard`, the kept view, the inset, one
   `/graph` load per revision); the DOM graph is gone.
 - `src/server/viewRoutes.ts`: `graph()` reads its parts in parallel.
 - `editor_view` in `migrations/0001_baseline.sql`, `src/editor/EditorViews.ts` and the `kept` routes in
