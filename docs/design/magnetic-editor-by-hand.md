@@ -16,7 +16,7 @@ it). A step the editor cannot do is a `test.fixme` in the spec that names the ga
 |---|---|---|
 | Screens | Make the app; place parts from the library; edit text, labels and looks in the inspector | yes |
 | Screens | Move a part (Alt+Arrow), delete it, add and rename a screen, set the home screen | yes |
-| Screens | Go from one screen to another | only with a `link`'s Screen property; a button cannot |
+| Screens | Go from one screen to another | yes: a button's "When pressed" > Go to a screen, or a `link`'s Screen |
 | Theme | Make a theme from a preset, set a token for all modes and for one, make it the default | yes |
 | Statenet | Make a model with fields of several types, remove a field | yes |
 | Statenet | Make a dataset with a first record, add and edit records | yes |
@@ -27,10 +27,9 @@ it). A step the editor cannot do is a `test.fixme` in the spec that names the ga
 | Locale | Add a language, translate a label, switch | no control at all |
 
 ## Gaps
-- **What a press does.** The inspector draws string, number, boolean and icon properties (`fieldsOf`,
-  `src/http/inspect.ts`) and nothing for `on`. An "On press" section belongs in the Properties tab (`propertiesTab`,
-  `src/editor/EditorApp.ts`); `/node` already lists each component's events.
-- **Links to state.** No control writes `<-` or `<->`; a linked property shows read-only; a list's `items` and `row`
+- **What a press does.** Go to a screen, Undo and Redo are built (links-and-presses L2); setting a value, telling a
+  part to do something and saving a record are not (L5, L6).
+- **Links to state.** No control writes a link (`<-`); a linked property shows read-only; a list's `items` and `row`
   and a table's `columns` are not fields. The State tab (`stateTab`) only offers to ask the agent.
 - **Logic a visitor reaches.** Follows from the two above. A unit's body is JSON (`unitEditor`, `src/http/views.ts`).
 - **Locale.** "Appearance and language" sets the editor's language. An app's locales are written only by the agent

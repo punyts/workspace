@@ -1,6 +1,7 @@
 # Links to state and what a press does, by hand in the editor
 
-Status: proposed (design only; nothing is built)
+Status: L0 to L2 built (owner, 2026-11-27: "Build L0 and L1", "Continue with L2 when the tests pass"); L3 to L7
+proposed (owner, 2026-11-27: "Keep going through L7 when L2 passes")
 
 Asked for on 2026-11-26: "it would be good for you to articulate the editor like a human would and see if you can do
 everything you need to make an app. Screens, Theme, Statenet, Logic, and even Locale"
@@ -289,8 +290,8 @@ Rules of the section:
   button in a form's `actions` slot), and "This row" inside a row template.
 - When `commandValues` names a map property for a command, Value is a choice of that map's keys.
 - An existing action the sentences do not cover (`from`, `request.*`, route params, `$row` values, a target the scope
-  does not list) is shown as one read-only line in the Logic view's wording (`commandsText` in `src/http/views.ts`,
-  moved where both scripts reach it), with Move up and Remove. The form never rewrites it.
+  does not list) is shown as one read-only line in the Logic view's wording (`commandsText` in `src/http/pressActions.ts`,
+  which both page scripts include), with Move up and Remove. The form never rewrites it.
 - "Save a record" is offered where the component has a `pressed` property (a button). It is listed in the section but
   lives in logic. It is always listed last, has no Move up, and while a save is listed the other actions carry the
   note "Runs at once, before the save".
@@ -550,11 +551,14 @@ All under `/edit/<id>`. Answers hold data, never words.
   already takes a list of operations).
 - `GET /screens`, `GET /state`, `GET views/logic`, `POST views/state` are unchanged.
 
-**One revision for the page.** The shell object holds the app's revision. It is set from the answer of every write
-the page makes (`/nodes`, `/screens`, `views/logic`, Statenet's binding of a dataset) and from `GET /node` and
-`GET /scope`, which are what the inspector draws from. `writeNodes` and the views' writes read it there. A person who
-adds a screen in the Screens panel and then changes a property does not get a 409 for their own change; a write by
-the agent in between still does.
+**One revision for the page.** The shell object holds the app's revision (`magneticShell.revision`, `revised`,
+`onRevision`, `write`). It is read at load and set from the answer of every write the page makes (`/nodes`,
+`/screens`, `views/logic`, and the `views/add` and `views/theme` actions that write the app, which answer
+`appRevision`), from `GET /node` and `GET /scope`, and from the Screens panel each time it reloads its list for a new
+document. It never moves back. Every write of the app carries it and goes through `magneticShell.write`, one at a
+time; a write without a whole-number revision is a 400. So the page follows the app: after an agent turn the page
+has read the new revision and the inspector reads its selected part again. A 409 remains only when the app changed
+and the page has not read it yet; it reads again and says `views.changedElsewhere`.
 
 ### Validation
 The tools are the only judge. `ui_nodes_write` applies the operations to a copy, checks the whole app and writes once
@@ -929,4 +933,93 @@ Not settled by reading; each is settled by the test or spike named, at the start
 - Each stage carries CHANGELOG entries with the covering test, and the docs describe the code as it then is.
 
 ## As built
-Nothing is built.
+L0 to L2 are built. L3 to L7 are not.
+
+**L0, a trigger on a node's state by its name** (stateui-app `src/core/logic/read.ts`, `engine.ts`, `modules.ts`). A
+rule's, a guard's and a machine transition's `when.path` may be `#name.property`. The validator refuses one with
+`*`, a capture or a template, one that finds no node or several, and one on a property the node links (it names the
+link's target to use), all as `SUI-LOGIC-PATH`; a logic module with one is `SUI-MODULE-NODE`. The engine keeps the
+reference and resolves it through its host as a command's reference is (the screen shown, the app node, the other
+screens), again whenever `$.route.screen` changes; a changed document gets a new engine. A reference that finds no
+node or several listens to nothing and is reported once through `LogicHost.failed`. A rule with such a trigger never
+runs in the start pass, so a press rule runs on a press only. Tests: `src/core/logic/triggerReference.test.ts`,
+`src/dom/mount/screens.browser.test.ts`.
+
+It differs from the design above in these ways:
+- The engine resolves on every screen change, not once at start: the hosts expose only the resolve of the screen
+  shown. A name one node of the app has resolves the same on every screen, which is what the editor writes.
+- A name held once in the app node and once on a screen validates and means the screen's node while that screen
+  shows (Risk 2's fallback is not built).
+- A rule at the absolute path of a node's transient state with only `set`, `merge`, `copy` or `query` commands still
+  runs in the start pass.
+
+**L1, the groundwork** (magnetic `src/inspector/editInfo.ts`, `src/inspector/viewInfo.ts`, `src/http/inspect.ts`,
+`src/http/shell.ts`, `src/server/startMagnetic.ts`, `src/server/viewRoutes.ts`).
+- `WRITE_PATH`: a node write may end in `<-<name>` or `@id`. `POST /nodes` takes 50 operations
+  (`MAX_NODE_OPERATIONS`), refuses `__proto__` anywhere, and refuses a name another node of the app has
+  (`nameClashes`, `SUI-NODE-ID-TWICE`).
+- `GET /edit/<id>/scope` (`scopeOf`): `revision`, `screens`, `parts`, `parent`, `takenNames`, `namedBy`. A `namedBy`
+  entry also carries `node`, `value` and, for an `on` entry, `at` (the exact places that name the part).
+  `takenNames` leaves out the selected node's own key and `@id`. `/node` adds `id`, `slots`, `component.commands`
+  and `component.commandValues`.
+- One revision for the page, as described above.
+- The inspector hears `press`, does not draw runtime properties, and shows the name line ("Named x, used in N
+  places") with Rename. Rename rewrites the `@id` and the places of the part's own tree that name it in one write; a
+  text that only mentions `#name` is left alone; it is disabled while a logic unit names the part.
+- Undo is one step and covered name writes (L2 adds action writes); any other write of the page drops it.
+- `<->` is gone from Magnetic. `screenInfoOf` and `bindingsOf` take the shapes and count a link as a write when the
+  property is neither content nor runtime.
+- Texts: the keys of this stage plus `inspect.nameInUse` and `inspect.nameTooMany`, in four languages.
+
+Tests: `src/inspector/editInfo.test.ts`, `src/inspector/viewInfo.test.ts`, `src/server/inspectRoutes.test.ts`,
+`src/server/viewRoutes.test.ts`, `e2e/inspector.spec.ts`.
+
+Known limits of L1:
+- Copying a screen copies its `@id`s; the name check is on `POST /nodes` only.
+- When the page reads a later revision, the inspector redraws the selected part; text being typed in a property
+  field at that moment is lost (Risk 8).
+- A logic place on the name line is text, not a link to the Logic view (L6).
+- The Rename walker of the page script is covered by e2e only.
+
+**L2, what a press does** (magnetic `src/http/pressActions.ts`, `src/http/inspect.ts`, `src/http/text.ts`,
+`src/inspector/editInfo.ts`, `src/http/screens.ts`; stateui-mcp `src/application/use-cases/DeletePart.ts`).
+- The Properties tab reads, in order: Undo, the "When …" sections, Layout, Place in its parent, the properties, "Add
+  something that happens when…", the name line. A part with a `press` event shows "When pressed" first; another event
+  gets a section when chosen from the Add list. Event words are `inspect.event.<name>` (change, input, select,
+  activate, submit, invalid); `changed` and `submitted` use the words of `change` and `submit` unless the component
+  has both, and an event with no words is named through `labelFor`.
+- Actions: Go to a screen, Undo and Redo. Go to a screen is one choice ("Go to {screen}") whose accessible name says
+  which action of which event it is; nothing is written until a screen is chosen. Undo and Redo are a line with no
+  field. Each action has Remove, and Move up from the second on, as icon buttons named for their action. An action
+  the sentences do not cover is one read-only line in the Logic view's wording ("Does: …"); it moves and is removed
+  but is never rewritten. Removing the last action removes the event's key, and the last event removes `on`.
+- The shared functions `commandsText`, `actionsOf`, `actionKind`, `actionWrites` and `screenFits` are in
+  `pressActions.ts`; both page scripts include their text.
+- `/scope` screens carry `params` and `needs` (required params with no default). Go to a screen offers only screens
+  that need none; a link's Screen offers only screens its params fit (not checked when params is an expression). The
+  `link`'s Screen is a choice with "Not set" first; a refused choice is drawn again from what the part holds.
+- Action changes made while a write is in progress wait in a queue and run on the part as read again.
+- One-step Undo covers actions added, changed, moved and removed.
+- Refusals in words: `SUI-ROUTE-SCREEN` and `SUI-ROUTE-PARAMS` caused by the write's own operations are said as the
+  screen being gone or needing values; one caused elsewhere names its path ("Another part of the app goes to a screen
+  that is not there: {path}").
+- Deleting a screen that a press or a link still goes to is refused with the paths (stateui-mcp `DeletePart` checks
+  the app without the screen with `checkPartApp`; only `SUI-ROUTE-SCREEN` blocks, so earlier errors do not).
+- A click on a button or link of the live app that leaves the screen no longer reaches the screen card behind it.
+- The by-hand spec's "a button leads to another screen" step is on; e2e presses wait for the live app to have
+  rendered the action (`stateuiHost.snapshot()` and the body's `data-revision`), not on a fixed time.
+
+It differs from the design above in these ways:
+- Go to a screen is one choice, not a sentence with a separate Screen field.
+- Undo's labels name the action ("Undo: Go to a screen", "Undo: Move up", "Undo: Remove"), not its target in words.
+- The command words of "Tell a part to…" (submit, reset, validate, clear, focus, open, close) come with L5.
+- A link whose screen no longer exists keeps it listed by its raw name until another is chosen; "Not set" writes an
+  empty string.
+
+Tests: `src/http/pressActions.test.ts`, `src/inspector/editInfo.test.ts`, `src/server/inspectRoutes.test.ts`,
+`e2e/inspector.spec.ts` (desktop and phone, section order, Redo, event words, refusals), `e2e/address.spec.ts`,
+`e2e/build-by-hand.spec.ts`; stateui-mcp `test/partTools.test.ts`.
+
+Known limits of L2:
+- The case-4 sequence (merge then set) is checked through `/node` settings, not the exact operations sent.
+- Route params of a screen cannot be set from the editor, so a screen that needs them is not offered.

@@ -76,7 +76,7 @@ Found by reading the code on 2026-11-18.
   (`EditorApp.ts`), driven only through its data (a record per part of the editor: `$.data.canvas`, `$.data.rail`, …) and the ids of
   its nodes (`magnetic-editable.md`).
 - **Logic belongs to the app**, not to a screen. What belongs to a screen is:
-  - its nodes' links to state (`<-` and `<->`);
+  - its nodes' links to state (`<-`);
   - its nodes' `on` handlers;
   - the units that read or write its paths;
   - its `navigate` commands.
