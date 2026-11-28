@@ -1,8 +1,8 @@
 # Magnetic: how the agent is run, what to improve, and web access
 
-Status: web access W1 to W3 and improvements 1 to 4 built (magnetic, 2026-11-28); the live check per model is pending,
-so `--agent-web` stays `off` and Haiku 5.5 keeps the basic web tool versions until it runs. W4, W5, improvements 5 to
-10 and Decision 6 are not built. "How the agent works now" describes the code as it was on 2026-11-26, before these
+Status: web access W1 to W3 and improvements 1 to 4 built (magnetic, 2026-11-28); the live check per model passed on
+2026-11-28 with the versions as built. `--agent-web` stays `off` until the owner turns it on for the host. Decision 6
+is decided (refuse) and not built yet. W4, W5 and improvements 5 to 10 are not built. "How the agent works now" describes the code as it was on 2026-11-26, before these
 stages; "As built" lists what changed.
 
 Asked for on 2026-11-26:
@@ -456,7 +456,8 @@ the path or query, the search words, or any of the result. The person's own chat
 
 ## Decisions
 
-Decisions 1, 3 and 4 are the owner's (2026-11-27). The others are recommendations, open for the owner.
+Decisions 1, 3 and 4 are the owner's (2026-11-27); the owner took the recommendation on Decision 6 (2026-11-28:
+"everything else I'll take your recommendation"). The others are recommendations, open for the owner.
 
 1. Web access uses the Claude API's server tools, not tools Magnetic runs and not an MCP server (owner,
    2026-11-27).
@@ -467,7 +468,8 @@ Decisions 1, 3 and 4 are the owner's (2026-11-27). The others are recommendation
    to on, as `connections` does (recommendation).
 5. Web calls count against the 40 tool calls of a turn; `max_uses` is 5 fetches and 3 searches per turn, and
    `max_content_tokens` is 20,000.
-6. The image-URL path under "Prompt injection": accept for the beta, or refuse such writes in turns that used the web.
+6. The image-URL path under "Prompt injection": a turn that used a web tool refuses node writes whose image URLs are
+   not on a host named in the person's request (owner, 2026-11-28).
 7. Improvements 1 to 4 are built first, in that order; 5 follows; 6 to 10 as time allows.
 8. The server validates at the end of a turn at most twice, and its validate is not counted as a tool call.
 9. The price corrections of improvement 4 are applied once checked against the pricing page; nobody is credited for
@@ -557,12 +559,15 @@ fallback model took over at the dearer of the two models" in `src/agent/AgentMod
 
 ### Known limits
 
-- The live check per model has not run: no API key on the development machine. It is to confirm the tool versions
-  (Haiku 5.5's in particular), the error shapes, `pause_turn`, the dynamic-filtering blocks and the container,
-  fallback echo, the closing request's cache reads and `usage.iterations`. A script that sends two requests per model
-  at a few cents is ready. `--agent-web` stays `off` until it passes (Decision 3).
-- The `web_searches` column was added to `migrations/0001_baseline.sql`: the local database needs
-  `npm run magnetic:reset`, and resetting the hosted one is the owner's.
+- The live check per model (2026-11-28, one fetch and one search per model, about $0.19) accepted every version in
+  the table on the first try: Haiku 5.5 `web_fetch_20250910` and `web_search_20250305`; Sonnet 5.5 and Opus 5.5
+  `web_fetch_20260209` and `web_search_20260209`. With the newer versions the API ran dynamic filtering: answers held
+  `server_tool_use` blocks named `code_execution` with `code_execution_tool_result` (some encrypted), a container id,
+  and `usage.iterations`; `usage.server_tool_use.web_search_requests` was 1 per search. The check did not cover error
+  results, `pause_turn` or fallback echo, which no request triggered. `--agent-web` stays `off` until the owner turns
+  it on (Decision 3).
+- The `web_searches` column was added to `migrations/0001_baseline.sql`: both databases are reset (owner,
+  2026-11-28: "You can reset both local and hosted dbs"), the hosted one with the next deploy.
 - A stopped request is charged only for what the stream's last usage reported: input and cache tokens from
   `message_start`, output as of the last `message_delta`. Output streamed after that is not charged.
 - A refusal before any output is billed by Anthropic only for some categories, and usage does not say which, so the
@@ -573,4 +578,4 @@ fallback model took over at the dearer of the two models" in `src/agent/AgentMod
   tools run inside the API request. Those calls are bounded by the turn's `max_uses`, charged, and shown as tool
   lines. After a `pause_turn` at the limit, the closing request carries no limit note, so nothing tells the model the
   turn is over; a client tool call it makes is not run.
-- Decision 6 (image URLs carrying data after a web turn) is open; nothing is built for it.
+- Decision 6 (refuse image URLs on unnamed hosts after a web turn) is decided and not built.

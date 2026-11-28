@@ -1301,9 +1301,12 @@ validates with no error or warning), `src/server/inspectRoutes.test.ts`, `e2e/in
 - Unknown functions in an expression are checked only in the inspector's page script, not in `readLogic` or
   `POST views/logic`, so a rule typed in the Logic view is not checked for them. A typo inside a bound dataset's path
   (`$.data.menu.r9`) is not caught; only the binding name is.
-- An empty required text field is saved as `""`; refusing it needs a guard rule or form validation, not designed.
+- An empty required text field is saved as `""`. Decided, not built: the save is refused and the field shows
+  "Required", so an empty value never reaches the record (owner, 2026-11-28: "everything else I'll take your
+  recommendation").
 - Why a durable save result is lost after the view reconnects in Magnetic is not diagnosed; the editor avoids it with
-  `await: 'applied'`.
+  `await: 'applied'`. Decided, not built: on reconnect the editor asks the server for the latest revision and shows
+  "Saved" or "Not saved" from its answer (owner, 2026-11-28).
 - The editor page logs 84 select-controller errors ("Cannot use 'in' operator to search for '_label' in undefined") on
   every load, and one "could not write value" error while a Set a value text is typed; the value is written. Neither
   cause is found.
