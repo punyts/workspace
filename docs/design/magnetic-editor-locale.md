@@ -1,6 +1,6 @@
 # An app's languages, by hand in the editor
 
-Status: proposed
+Status: designed; decisions accepted (owner, 2026-11-27: "Accept all"); nothing is built
 
 Asked for on 2026-11-26: "it would be good for you to articulate the editor like a human would and see if you can do
 everything you need to make an app. Screens, Theme, Statenet, Logic, and even Locale"
@@ -466,7 +466,7 @@ named under Risks.
 - Locales in Statenet's tree (`graph`).
 
 ## Decisions
-None of these is the owner's yet; they are recommendations of this design, open for the owner.
+All twelve are the owner's, each with its recommendation where it gives a choice (owner, 2026-11-27: "Accept all").
 
 1. **A view of its own, not a column in the inspector only.** "Every text and what is missing" is a list over the
    whole app, which the inspector, scoped to one part, cannot show. The inspector gets per-part fields as well (LC6).
