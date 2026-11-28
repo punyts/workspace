@@ -1,12 +1,15 @@
 # Magnetic: how the agent is run, what to improve, and web access
 
-Status: proposed. Nothing here is built. Part 1 describes the code as it is on 2026-11-26.
+Status: proposed; the shape of web access is decided (owner, 2026-11-27). Nothing here is built. Part 1 describes the
+code as it is on 2026-11-26.
 
 Asked for on 2026-11-26:
 
 > we need to check how the magnetic agent works, and see if there are any improvements we can make to the
 > orchestration, and if we can add a couple more mcps (we need to look up urls on the web, and potentially search the
 > web, maybe we make a playwright mcp)
+
+Decided on 2026-11-27: "Claude API's own web fetch and web search, behind a flag and org policy."
 
 File references are to `magnetic/src/…` unless they name another library. Line numbers are those of 2026-11-26.
 
@@ -386,12 +389,15 @@ the path or query, the search words, or any of the result. The person's own chat
 
 ## Decisions
 
-None of these is decided. Each is the recommendation, open for the owner.
+Decisions 1, 3 and 4 are the owner's (2026-11-27). The others are recommendations, open for the owner.
 
-1. Web access uses the Claude API's server tools, not tools Magnetic runs and not an MCP server.
+1. Web access uses the Claude API's server tools, not tools Magnetic runs and not an MCP server (owner,
+   2026-11-27).
 2. No Playwright browsing of outside pages until Chromium is sandboxed or isolated and proxied (W5's conditions).
-3. `--agent-web` defaults to `off`; the owner turns it on for the host after the live check per model.
-4. The org policy `agentWeb` defaults to on, as `connections` does.
+3. `--agent-web` defaults to `off`; the owner turns it on for the host after the live check per model (owner,
+   2026-11-27: "behind a flag").
+4. An org policy `agentWeb` turns web access on or off for an org (owner, 2026-11-27: "and org policy"). It defaults
+   to on, as `connections` does (recommendation).
 5. Web calls count against the 40 tool calls of a turn; `max_uses` is 5 fetches and 3 searches per request, and
    `max_content_tokens` is 20,000.
 6. The image-URL path under "Prompt injection": accept for the beta, or refuse such writes in turns that used the web.
