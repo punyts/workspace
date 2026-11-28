@@ -29,7 +29,8 @@ writes a rule setting the text.
 
 The feature changed four libraries. stateui-app: a rule's trigger path may be a node reference (`#name.pressed`,
 stage L0), the validator reports a loop of links between stored properties (`SUI-LINK-CYCLE`, L3), and a shape may
-mark what a command needs (`commandNeeds`, L5). stateui-components marks those commands. stateui-mcp's
+mark what a command needs (`commandNeeds`, L5), and a written node's link refused for a missing target is applied
+once the target appears (d1b8d9e, after L7). stateui-components marks those commands. stateui-mcp's
 `ui_nodes_write` drops the translations of a property it links (L3). The state library's `Store.set` replaces an
 object with a list and a list with an object instead of merging them (L5).
 
@@ -719,6 +720,14 @@ and only a choice that no longer exists is dropped.
 - state (L5): `Store.set` replaces an object with a list, or a list with an object, instead of merging them. Without
   it an `on` event that went from one action to a list became `{0:…,1:…}` in the live app and the runtime refused it
   (`SUI-RUN-ON-SHAPE`), so a second action never ran in Use mode (latent since L2).
+- stateui-app (after L7, d1b8d9e): `MountedApp.writeNode` (`src/dom/mount/mountApp.ts`, `src/core/links/applyLinks.ts`)
+  keeps a `<-` link refused for a missing target waiting and applies it once a write makes the target or a branch
+  above it, a load that replaces the whole `$.data` included. The original `SUI-LINK-MISSING` still reaches the host.
+  Replacing or removing the node, or disposing the app, drops the waiting link. Before it, a list given `<-items`
+  right after the Screens view mounted the live app stayed empty until the next load, and the by-hand Statenet e2e
+  step failed now and then on the live app's rows. Tests: `src/dom/mount/mountApp.browser.test.ts` ("should apply a
+  link refused for a missing target once the target is written", "… once the whole data branch that holds it is
+  replaced", "should not apply a waiting link of a node removed before its target appears").
 - magnetic `src/http/shell.ts`: the page's revision on the shell object; a way for the inspector to open a view.
 - magnetic `src/http/inspect.ts`: `select` fetches `/scope` beside `/node`; `fieldsOf` draws the sections in the new
   order, the Link buttons, linked lines, the chooser, the name line, Undo, and skips runtime properties; new
@@ -1295,11 +1304,6 @@ validates with no error or warning), `src/server/inspectRoutes.test.ts`, `e2e/in
 - An empty required text field is saved as `""`; refusing it needs a guard rule or form validation, not designed.
 - Why a durable save result is lost after the view reconnects in Magnetic is not diagnosed; the editor avoids it with
   `await: 'applied'`.
-- A `<-` link written right after the Screens view mounted the live app can be refused by the live runtime with
-  `SUI-LINK-MISSING` (the bound data is not in the live store yet) and is not retried when the data arrives, so the
-  list stays empty until the next load. It is being fixed separately (stateui-app `applyLinks` or stateui-mcp
-  `browser/host.ts`). The by-hand Statenet step failed once in a full e2e run on the live app's rows and passed when
-  rerun.
 - The editor page logs 84 select-controller errors ("Cannot use 'in' operator to search for '_label' in undefined") on
   every load, and one "could not write value" error while a Set a value text is typed; the value is written. Neither
   cause is found.

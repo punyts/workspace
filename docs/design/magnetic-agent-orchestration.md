@@ -1,7 +1,9 @@
 # Magnetic: how the agent is run, what to improve, and web access
 
-Status: proposed; the shape of web access is decided (owner, 2026-11-27). Nothing here is built. Part 1 describes the
-code as it is on 2026-11-26.
+Status: web access W1 to W3 and improvements 1 to 4 built (magnetic, 2026-11-28); the live check per model is pending,
+so `--agent-web` stays `off` and Haiku 5.5 keeps the basic web tool versions until it runs. W4, W5, improvements 5 to
+10 and Decision 6 are not built. "How the agent works now" describes the code as it was on 2026-11-26, before these
+stages; "As built" lists what changed.
 
 Asked for on 2026-11-26:
 
@@ -75,8 +77,8 @@ File references are to `magnetic/src/…` unless they name another library. Line
 
 ### Budgets and the ledger
 
-- `costOf` (`Budgets.ts:30`) prices a request from `usage` and `MODEL_PRICES` (`:23`). An unknown model is priced as
-  Opus 5.5.
+- `costOf` (`Budgets.ts:30`) prices a request from `usage` and `MODEL_PRICES` (`:23`). A model without a row is priced
+  at `UNLISTED_PRICE`, the highest figure of each column across every listed model and tier (improvement 4).
 - `charge` (`:189`) inserts one `agent_request` row per model request: person, workspace, app, model, the four token
   counts and the dollars.
 - `check` (`:131`) refuses on the server's month, the person's allowance plus what they bought, and the person's day
@@ -126,14 +128,21 @@ Ranked by value for the effort. Sizes: small is under a day, medium is one to th
 
 - **Now:** validation is an instruction (`instructions.ts:10`, `:20`, `:47`). A model that stops after a write leaves
   an app with blocking errors and says it is done. The first real turn did this (`magnetic-v1.md`, "After M6").
-- **Change:** the loop tracks whether a tool whose annotations are not read-only succeeded after the last
-  `ui_validate`. When the model answers with no tool call and that flag is set, the server runs `ui_validate { app }`
-  itself. If `valid` is true, the turn ends as today, with no extra request. If not, the errors go back as a user
-  message ("The app has these errors; fix them, then answer the person") and the loop continues. At most two such
-  rounds per turn.
+- **Change (built):** the loop keeps an `unchecked` flag. A tool that changes the app (`changesApp`) sets it when it
+  succeeds: one whose annotations are not read-only and that does not only show the app, so `ui_preview` and
+  `ui_screenshot` (idempotent, not destructive) leave it alone while `ui_interact` and every writing tool set it.
+  `ui_validate` run by the model clears it. When the model answers with no tool call and the flag is set, the server
+  runs `ui_validate { app }` itself, shown in the drawer and the chat as a `ui_validate` tool line (id
+  `server_validate_<n>`, "N errors" when invalid) and reported as `Server checked the app`. If `valid` is true, the
+  turn ends with no extra request. If not, the answer goes back, then a user message with `CHECK_FAILED_NOTE` ("The
+  app has these errors; fix them, then answer the person") and the errors as JSON, clipped, and the loop continues.
+  At most two such rounds per turn (`SERVER_CHECKS`).
+- **Not at a limit:** a turn that has reached a limit (its answer came after the deadline, or web calls brought it to
+  the tool-call limit) or whose answer was cut off by `max_tokens` is not checked, since the model could not act on
+  the errors. With the app unchecked it ends as `limit` with that limit's message.
 - **Size:** small. `AgentTurns.ts` and tests with `ScriptedModel`.
-- **Risk:** low. It costs a request only when the app is broken. The server's validate does not count against the 40
-  tool calls. Screenshots stay the model's choice: they cost image tokens and the server cannot judge them.
+- **Risk:** low. It costs a request only when the app is broken. The server's validate does not count against the
+  turn's tool calls. Screenshots stay the model's choice: they cost image tokens and the server cannot judge them.
 
 ### 2. A turn that reaches a limit ends with an answer
 
@@ -142,41 +151,67 @@ Ranked by value for the effort. Sizes: small is under a day, medium is one to th
   mid-request (`:288`) with the same effect. Separately, an answer cut by `max_tokens` with no tool call is stored as
   `finished` (`:365` runs before `:366`). The prompt hard-codes "40" (`instructions.ts:17`) while the limit is an
   option (`TurnLimits`).
-- **Change:**
-  - With 5 tool calls left, or 45 seconds, add a text block after the tool results: how many calls are left, and to
-    finish the current step and tell the person what is done and what is left.
-  - At the limit, send one last request with `tool_choice: { type: "none" }` so the model writes that answer. The
-    deadline timer stops new tool calls and allows this one request.
-  - Treat `max_tokens` without a tool call as cut off: outcome `limit` with a message, not `finished`.
-  - Build the "40" in the prompt from the limits.
+- **Change (built):**
+  - With 5 tool calls or 45 seconds or less left, a text block follows the tool results: how many calls are left, and
+    to finish the current step and tell the person what is done and what is left.
+  - At the tool-call limit or the deadline, the tool results end with `LIMIT_REACHED_NOTE`, which asks for the answer,
+    and one last request goes out. It is the same as the others: `tool_choice` is left unchanged, because a change of
+    `tool_choice` invalidates the cached messages and the longest turns would write their whole history to the cache
+    again. A tool call in that last answer is not run; its text ends the turn.
+  - After a `pause_turn` at the limit, the paused answer goes back unchanged with no reminder or limit note, since no
+    user message may follow it.
+  - The deadline no longer aborts the request in flight: it stops new tool calls, and a hard stop fires 60 seconds
+    past it.
+  - `max_tokens` without a tool call is cut off: outcome `limit`, not `finished`.
+  - The limit messages offer Continue: "The turn reached its limit of N tool calls. Continue, or ask again, to carry
+    on.", and the same for the time limit and an answer cut at `max_tokens`.
+  - The prompt's limit comes from `TurnLimits`: `magneticInstructions(browser, toolCalls)` and
+    `agentSystemPrompt(services, browser, toolCalls)`, with `limits.toolCalls` passed by `startMagnetic`.
 - **Size:** small.
-- **Risk:** low. One more request per limited turn. The reminder is appended, so the cached prefix holds.
+- **Risk:** low. One more request per limited turn. The reminder and the note are appended and `tool_choice` does not
+  change, so the cached prefix holds.
 
 ### 3. The next turn knows what the last one did
 
 - **Now:** the recall is text only (`firstMessage`, `:437`). After a limited or stopped turn the next turn sees
   "You: The turn reached its limit…" and nothing of the 40 calls. It starts by reading the app again, or repeats work.
   The tool lines are already stored (`chat_entry.tools`).
-- **Change:** for the most recent agent entry, add its tool lines to the recall as one line each (name, summary, ok),
-  and its outcome. When that outcome was `limit` or `stopped`, add the `layout` fact whether or not the toggle is on.
-  The editor shows a Continue button on a `limit` outcome, which sends a fixed request.
+- **Change (built):** `firstMessage` adds `<last_turn outcome="…">` after `<earlier_chat>`, from the most recent
+  agent entry: one line per tool call (name, summary clipped to 120 characters, ok or failed) and an `Ended: <message>`
+  line. The system prompt says what `<last_turn>` holds. When that outcome was `limit` or `stopped`, the `layout` fact
+  is added whether or not the toggle is on. The editor's chat shows Continue after a `limit` outcome while no turn
+  runs (`@id` `continue`, heard as `continue` through `EDITOR_HEARING` as Stop is, hidden by `noContinue`, off with
+  `chatOff`); it sends the fixed request `chat.continueRequest`, in the four languages. Continue is not in the
+  `PageSpec`'s required ids, so a person's copy of the editor that drops it still passes `contractGaps`.
+  `MockAgentModel` cuts its last answer at `max_tokens` when the request says "keep going", so the Continue path runs
+  locally and in e2e.
 - **Size:** small for the recall; medium with the button (the editor is a `PageSpec` with three locales and a contract
   of node ids).
 - **Risk:** low. A few hundred more input tokens on the first request of a turn.
 
 ### 4. The price table
 
-Check each figure against the pricing page before changing it; these come from the API reference of 2026-11-03.
+Built, with each figure checked against the pricing page on 2026-11-28.
 
-- **Sonnet 5.5 cache reads** are listed at $0.10 per million tokens; `MODEL_PRICES` has 0.2 (`Budgets.ts:25`). Cache
-  reads are most of a turn's tokens (555K of about 630K in the estimate in `magnetic-v1.md`), so Sonnet turns are
-  charged to people at nearly twice their cost.
-- **Haiku 5.5** costs $0.50 and $2.50 beyond a 100K-token prompt. `costOf` has one tier (`:30`). A long turn with
-  screenshots passes 100K and is undercharged five times over for those requests.
-- **A request that fails or is stopped is not charged** (`AgentTurns.ts:333`, `:341`), though the API bills what it
-  streamed. Small amounts; fix by reading the usage of the partial stream.
-- **A fallback** is priced as the answering model for the whole request (`:343`); `usage.iterations` has the split.
-  Small.
+- **Sonnet 5.5 cache reads** cost $0.10 per million tokens; `MODEL_PRICES` had 0.2. Cache reads are most of a turn's
+  tokens (555K of about 630K in the estimate in `magnetic-v1.md`), so Sonnet turns were charged at nearly twice their
+  cost. Nobody is credited for earlier Sonnet turns.
+- **Haiku 5.5** costs $0.50 / $2.50 per million input / output tokens, $0.05 cache reads and $0.625 cache writes, for
+  a prompt over 100,000 tokens, counting its input, cache reads and cache writes (`ModelPrice.longPrompt`).
+- **Fallback models.** `fallbacks: "default"` can route Opus 5.5 to Opus 5 or Opus 4.8 ($5 / $25, $0.50 cache reads,
+  $6.25 cache writes) and Sonnet 5.5 to Sonnet 5 ($2 / $10, $0.20, $2.50); `MODEL_PRICES` has those rows. A model
+  without a row is priced at `UNLISTED_PRICE`, the highest figure of each column across every listed model and tier
+  (now $5 / $25 / $0.50 / $6.25). Opus 5.5 and web search matched the page.
+- **Iterations.** Whenever `usage.iterations` is present, the cost is the sum of its entries, each at its own model
+  (an entry with no model at the request's), compaction and server-tool-loop iterations included, not only for a
+  fallback. The Haiku long-prompt tier is chosen per iteration by that entry's own prompt size. Web searches are added
+  once, from `server_tool_use`. The ledger row keeps the summed tokens of the iterations (`ledgerTokens`), as its
+  dollars count them, with the model that answered.
+- **A request that fails or is stopped is charged** for what it streamed: `ClaudeModel` marks the error with the
+  stream's usage so far (`withPartialAnswer`, read with `partialAnswerOf`), and the turn charges it. Such a partial is
+  priced at the dearer of the model it started on (`message_start`) and the one a fallback block handed it to
+  (`partialModel`), or with `usage.iterations` at the model it started on. After a request that failed on bad tool
+  JSON is charged, the budgets are checked before it is sent again (`spentOut`).
 - **Size:** small. **Risk:** none beyond getting the figures right; `Budgets.test.ts` pins them.
 
 ### 5. One turn per app across both servers
@@ -288,25 +323,48 @@ host.
 
 Use the API's server tools for (a) and (b). Do not build (c) now.
 
-**The request.** When web access is on for the turn, `request()` adds two entries after the client tools:
-`{ type: "web_fetch_…", name: "web_fetch", max_uses: 5, max_content_tokens: 20000 }` and
-`{ type: "web_search_…", name: "web_search", max_uses: 3 }`. The tool versions come from a table by model: the
-`_20260209` versions are documented for Opus 5.5 and Sonnet 5.5; whether Haiku 5.5 takes them or the basic
-`web_search_20250305` and `web_fetch_20250910` must be checked with one live request per model before this ships.
-Server tool entries take no `eager_input_streaming`. The tool list then has two forms (web on, web off), each with its
-own cached prefix.
+**The request.** When web access is on for the turn, `request()` adds the entries `webTools()` builds
+(`agent/webTools.ts`) after the client tools: `{ type: "web_fetch_…", name: "web_fetch", max_uses: 5,
+max_content_tokens: 20000 }` and, in `search` mode, `{ type: "web_search_…", name: "web_search", max_uses: 3 }`, both
+with `allowed_domains` when the org lists sites. `max_uses` counts per turn, not per request: the API carries it
+across a turn's `pause_turn` requests and requests that send only tool results, and calls made by dynamic filtering's
+code are not counted across requests. The tool versions come from `WEB_TOOL_VERSIONS`: Opus 5.5 and Sonnet 5.5 get
+`web_fetch_20260209` and `web_search_20260209`; Haiku 5.5 and any model not listed get the basic `web_fetch_20250910`
+and `web_search_20250305`. The live web-fetch doc gives dynamic filtering to Claude 4.6 and later, Haiku 5.5
+included, while the claude-api skill's table leaves Haiku 5.5 out; Haiku keeps the basic versions by choice until the
+live check per model settles it. The newer `_20260318` versions (with `response_inclusion`) are not used. Server tool
+entries take no `eager_input_streaming`.
+
+Within one turn the tools stay the same bytes, `max_uses` included, because preserved thinking on Opus 5.5 and Sonnet
+5.5 rejects an edited tools array. That is why `max_uses` is not lowered as the turn's tool calls run out, and why
+web calls are counted only after the API has run them: the answer that reaches the tool-call limit can pass it by
+what the turn's `max_uses` still allow.
+
+**The container.** With the `_20260209` tools, dynamic filtering runs code in a container. The loop keeps `container`
+from `response.container?.id` and sends it on every later request of the turn, so paused or waiting code resumes in
+its own container.
+
+**Fallbacks.** Requests to Opus 5.5 and Sonnet 5.5 send `fallbacks: "default"`. After a fallback mid-answer,
+`echoable()` (`agent/AgentTurns.ts`) drops what the declined model left before the last `fallback` block: thinking,
+redacted thinking, client `tool_use` (which is not run), `server_tool_use` without a result, and other model-internal
+blocks. It keeps text, paired server tool blocks and the `fallback` block in place. The loop sends back, runs tool
+calls and records web calls only from that filtered content.
 
 **The loop.** A server tool runs inside the request. Its blocks (`server_tool_use`, `web_search_tool_result`,
-`web_fetch_tool_result`) come back in `response.content` and are sent back unchanged with the assistant message, which
-the loop already does (`AgentTurns.ts:371`). Changes:
+`web_fetch_tool_result`) come back in `response.content` and are sent back unchanged with the assistant message.
 
-- Each `server_tool_use` block becomes a `tool` and a `toolDone` event and a `ToolLine`, so the drawer shows
-  "web_fetch — example.com". It counts against the turn's tool calls.
+- Each `server_tool_use` of `web_fetch` or `web_search` becomes a `tool` event and counts against the turn's tool
+  calls. A fetch is summarised by its host and a search by its words; those summaries show only in the drawer and the
+  chat. Its `web_*_tool_result` ends it with a `toolDone` event and a `ToolLine`.
 - A result whose content is an error object (`max_uses_exceeded`, `url_not_allowed`, `unavailable`) is a failed line.
   These arrive with HTTP 200, not as exceptions.
-- `pause_turn` is already handled (`:360`).
-- A turn that ends on a server tool block with no client tool call and no text continues as the API directs; the
-  existing "no tool call ends the turn" test (`:365`) must look at client `tool_use` blocks only, as it does.
+- A call and its result may arrive in different answers: when a server call runs beside client tool calls, the API
+  runs it only after the client results go back. The loop tracks calls by id across answers and closes any call left
+  without a result when the turn ends as a failed "no result" line.
+- Dynamic filtering may return `code_execution` server blocks around nested web calls. The loop ignores server blocks
+  that are not `web_fetch` or `web_search`: they get no line and are not counted. Nested web pairs still get lines.
+- `pause_turn` sends the answer back and continues, unless the limit is reached.
+- The "no tool call ends the turn" check looks at client `tool_use` blocks only.
 
 **The switches.**
 
@@ -315,7 +373,14 @@ the loop already does (`AgentTurns.ts:371`). Changes:
 - Org: a policy `agentWeb`, one more entry of `SWITCHES` (`orgs/Policies.ts:32`), default on, shown on the org
   settings page beside `connections` (`http/orgSettings.ts:247`, `server/orgSettingsRoutes.ts:167`) with its text in
   `orgText.ts` and the three locales. It narrows the server's setting for the org's apps and is checked where
-  `modelsFor` is (`startMagnetic.ts:869`). A later stage adds `agentWebDomains`, a list passed as `allowed_domains`.
+  `modelsFor` is (`startMagnetic.ts:869`).
+- Org sites (W3): a policy `agentWebDomains`, up to 50 distinct lower-case host names (`MAX_WEB_DOMAINS`, below the
+  API's own limit), subdomains included, none meaning any site, passed as `allowed_domains`. A scheme, a path, an IP
+  address, a local name or more than 50 names are refused on the form. Internationalised names are taken in their
+  `xn--` form, and the settings form converts a Unicode name to it. The list fails closed: `policyOf` drops a stored
+  entry that is not a host name and reports how many it dropped (never the entries), and a non-empty stored list with
+  no valid entry left turns `agentWeb` off instead of allowing any site. Because `allowed_domains` sits in the tool
+  entries, the cached prefix differs per set of domains.
 - Person: none at first. The tools are offered on every turn when the server and org allow, and the model uses them
   when the request names a URL or needs a fact.
 
@@ -360,7 +425,8 @@ the path or query, the search words, or any of the result. The person's own chat
 **The mock agent and tests.**
 
 - `MockAgentModel`: a request that contains a URL gets a canned `server_tool_use` and `web_fetch_tool_result` pair
-  before the usual steps, with no network, so the drawer can be tried on a development server.
+  before the usual steps when the turn has `web_fetch`, with no network, so the drawer can be tried on a development
+  server. A URL outside the turn's `allowed_domains` gets `url_not_allowed`, as the API answers.
 - `agentRoutes.test.ts` with `ScriptedModel`: the web tools are in the request only when the option is on and the org
   allows; server blocks become events and tool lines and count against the limit; an error result is a failed line;
   `pause_turn` continues; a search is charged; a captured reporter holds no URL path, query or page text.
@@ -372,7 +438,8 @@ the path or query, the search words, or any of the result. The person's own chat
 - **W1, fetch.** `--agent-web fetch`, the `agentWeb` policy, the loop's handling of server blocks, the prompt rules,
   the mock, the tests. Medium.
 - **W2, search.** `--agent-web search`, the search price in `costOf` and the ledger column. Small after W1.
-- **W3, domains per org.** `agentWebDomains` on the org settings page. Small.
+- **W3, domains per org.** `agentWebDomains` on the org settings page. Small. Asked for on 2026-11-28: "Build W3
+  too." Built with W1 and W2.
 - **W4, only if W1 proves too weak on pages that need scripts: a fetcher of our own.** A client tool `web_read` built
   on `connections/guard.ts` (`checkUrl`, `:67`; the lookup that checks every resolved address as the connection is
   made, `:100`). It needs what `guardedCall` does not do: redirects followed by hand, at most five, each hop checked
@@ -398,7 +465,7 @@ Decisions 1, 3 and 4 are the owner's (2026-11-27). The others are recommendation
    2026-11-27: "behind a flag").
 4. An org policy `agentWeb` turns web access on or off for an org (owner, 2026-11-27: "and org policy"). It defaults
    to on, as `connections` does (recommendation).
-5. Web calls count against the 40 tool calls of a turn; `max_uses` is 5 fetches and 3 searches per request, and
+5. Web calls count against the 40 tool calls of a turn; `max_uses` is 5 fetches and 3 searches per turn, and
    `max_content_tokens` is 20,000.
 6. The image-URL path under "Prompt injection": accept for the beta, or refuse such writes in turns that used the web.
 7. Improvements 1 to 4 are built first, in that order; 5 follows; 6 to 10 as time allows.
@@ -419,8 +486,91 @@ Decisions 1, 3 and 4 are the owner's (2026-11-27). The others are recommendation
 - Every web call is charged to the person through `Budgets.charge` and counts against the turn's limits. A budget is
   passed by one request at most.
 - The web tools are offered only when the server option and the org's policy both allow them.
-- The tool list and the system prompt stay the same bytes for every turn of one form (web on, web off), so the cached
-  prefix holds. Nothing that varies by person, app or time goes into either.
+- The tool list and the system prompt stay the same bytes for every turn of one form (web off; web on with one set of
+  org domains, since `allowed_domains` is in the tool entries), so the cached prefix holds. Within one turn the tools
+  never change, `max_uses` included, and `tool_choice` is not changed. Nothing that varies by person, app or time goes
+  into either.
 - All tool results of one answer go back in one user message, in order; server tool blocks are sent back unchanged.
 - The mock agent makes no network request.
 - Deploys, the live checks that spend money, SSM values and the hosted database reset are the owner's.
+
+## As built
+
+All in magnetic, on `develop`, 2026-11-28. Commits: 195803f (W1 to W3), 1268df8 (web fixes after review), 633ea32
+(improvement 1), 0225e5d (improvement 2), 22a671a (improvement 3), 40f64cd (improvement 4), 9ed253a (fixes to the end
+of a turn and the prices after review). `npm test` in magnetic: 79 files, 969 tests pass. The full e2e run passed
+336 tests; two phone tests of `e2e/profile.spec.ts` failed when Windows ran out of local sockets late in the run and
+passed when that file was run again. No browser spec drives a web turn: the e2e server does not run with
+`--agent-web`.
+
+**W1 to W3, web fetch, web search, domains per org** (`src/agent/webTools.ts`, `src/agent/AgentTurns.ts`,
+`src/agent/instructions.ts`, `src/agent/Budgets.ts`, `migrations/0001_baseline.sql`, `src/orgs/Policies.ts`,
+`src/http/orgSettings.ts`, `src/http/orgText.ts`, `src/http/pages.ts`, `src/server/orgSettingsRoutes.ts`,
+`src/server/options.ts`, `src/server/startMagnetic.ts`, `src/cli.ts`, `src/testing/mockAgentModel.ts`, README,
+CHANGELOG).
+- `webTools.ts`: `AGENT_WEB_MODES`, `TurnWeb`, `WEB_TOOL_VERSIONS`, `webTools()`, and `hostOf`, `webErrorOf`,
+  `describeWebResult`. `WEB_INSTRUCTIONS` join the system prompt only when web is on.
+- `--agent-web <off|fetch|search>` (`MAGNETIC_AGENT_WEB`, default `off`) reaches `startMagnetic` as `agent.web`.
+- `costOf` adds `usage.server_tool_use.web_search_requests` at `WEB_SEARCH_PRICE` ($0.01); `charge` writes the new
+  `agent_request.web_searches` column.
+- The policies `agentWeb` (in `SWITCHES`, default on) and `agentWebDomains`, on the org settings page in four
+  languages; the settings text box takes the look of the other fields.
+- Tests: `src/server/options.test.ts` ("should give the agent no web tools by default, and take the web mode from a
+  flag over the environment"); `src/agent/webTools.test.ts`; `src/server/agentRoutes.test.ts`, "Agent turns with web
+  access" (web calls as tool lines, a failed error result, `pause_turn`, a result in the next answer, searches charged,
+  reports with the host only; Haiku's basic versions; an org with `agentWeb` off and with sites; web calls reaching
+  the tool-call limit; the container sent back with the same tools; `echoable` after a fallback block; a call with no
+  result closed as failed); `src/agent/Budgets.test.ts` (the search price); `src/server/orgSettings.test.ts` (the
+  switch, the sites, `xn--` names, failing closed); `src/http/pages.test.ts` (the text box);
+  `src/testing/mockAgentModel.test.ts` (the canned fetch, `url_not_allowed`).
+
+**Improvement 1, the server check** (`src/agent/AgentTurns.ts`: `changesApp`, `SERVER_CHECKS`, `CHECK_FAILED_NOTE`).
+Tests: "the server check at the end of a turn" in `src/agent/AgentTurns.test.ts`, including "should not check an app
+at the end of a turn whose answer came after the deadline, and end it at the limit" and "… whose web calls reached the
+tool-call limit"; "should run a turn that writes nodes, streaming what it says and does" in
+`src/server/agentRoutes.test.ts`.
+
+**Improvement 2, a limited turn ends with an answer** (`src/agent/AgentTurns.ts`: the reminder, `LIMIT_REACHED_NOTE`,
+`LAST_ANSWER_GRACE_MS`; `src/agent/instructions.ts`; `src/server/startMagnetic.ts`). Tests: "a turn at its limits"
+in `src/agent/AgentTurns.test.ts` (the last request equals the first but for its messages; "should not run a tool
+call of the last answer at the limit, and end the turn with its text"); "should tell the agent the tool-call limit of
+a turn from the limits" in `src/agent/AgentSessions.test.ts`; "should end a turn that reaches its tool-call limit with
+a last answer that runs no tool" and "should end a turn when the API's web calls reach the tool-call limit" in
+`src/server/agentRoutes.test.ts`.
+
+**Improvement 3, the last turn and Continue** (`src/agent/AgentTurns.ts`, `src/agent/instructions.ts`,
+`src/editor/EditorApp.ts`, `src/http/shell.ts`, `src/http/text.ts`, `src/testing/mockAgentModel.ts`). Tests: "the
+recall of the last turn" in `src/agent/AgentTurns.test.ts`; "should offer Continue in the chat, heard by its id,
+hidden until a turn reaches a limit and named in every language" in `src/editor/EditorApp.test.ts`; "should cut off
+its last answer at the length limit when the request says keep going" in `src/testing/mockAgentModel.test.ts`; "a turn
+that reaches a limit offers Continue, which carries on with a fixed request" in `e2e/editor.spec.ts`.
+
+**Improvement 4, prices** (`src/agent/Budgets.ts`: `MODEL_PRICES`, `ModelPrice.longPrompt`, `UNLISTED_PRICE`,
+`ledgerTokens`; `src/agent/AgentModel.ts`: `withPartialAnswer`, `partialAnswerOf`, `partialModel`;
+`src/agent/AgentTurns.ts`: the partial charge, `spentOut`). Tests: in `src/agent/Budgets.test.ts`, "should keep each
+model's prices as the pricing page lists them", "should price a Haiku request whose prompt passes 100,000 tokens …",
+"should price a request with iterations as the sum of them …", "should price a model without a row at or above every
+listed model and tier, in each column" and "should keep in the ledger the tokens of every iteration of a request, as
+its dollars count them"; "the charge of each request" and "should check the budgets after charging a request whose
+tool input was not JSON, before asking again" in `src/agent/AgentTurns.test.ts`; "should price a stopped answer that a
+fallback model took over at the dearer of the two models" in `src/agent/AgentModel.test.ts`.
+
+### Known limits
+
+- The live check per model has not run: no API key on the development machine. It is to confirm the tool versions
+  (Haiku 5.5's in particular), the error shapes, `pause_turn`, the dynamic-filtering blocks and the container,
+  fallback echo, the closing request's cache reads and `usage.iterations`. A script that sends two requests per model
+  at a few cents is ready. `--agent-web` stays `off` until it passes (Decision 3).
+- The `web_searches` column was added to `migrations/0001_baseline.sql`: the local database needs
+  `npm run magnetic:reset`, and resetting the hosted one is the owner's.
+- A stopped request is charged only for what the stream's last usage reported: input and cache tokens from
+  `message_start`, output as of the last `message_delta`. Output streamed after that is not charged.
+- A refusal before any output is billed by Anthropic only for some categories, and usage does not say which, so the
+  declined attempt is always charged. This can overcharge slightly and never undercharges.
+- `agent_request` has one model column, the model that answered. It does not record the requested model or split
+  dollars by model; per-iteration rows or a `requested_model` column would need a change to the baseline.
+- With `tool_choice` unchanged, the closing request at a limit can still run `web_fetch` or `web_search`, since server
+  tools run inside the API request. Those calls are bounded by the turn's `max_uses`, charged, and shown as tool
+  lines. After a `pause_turn` at the limit, the closing request carries no limit note, so nothing tells the model the
+  turn is over; a client tool call it makes is not run.
+- Decision 6 (image URLs carrying data after a web turn) is open; nothing is built for it.
